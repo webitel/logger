@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package webitel_logger;
+
+option go_package = "webitel_logger/proto";
+
+service LoggerService {
+	rpc GetByUserId(User) returns (Logs) {}
+	rpc GetByObjectId(Object) returns (Logs) {}
+}
+
+service ConfigService {
+	rpc Update(Config) returns (Config) {}
+	rpc GetByObjectId(Object) returns (Config) {}
+}
+
+message Logs {
+	repeated Log logs = 1;
+}
+
+message Log {
+	string action = 1;
+	string date = 2;
+	int32 userId = 3;
+	string userIp = 4;
+	int32 objectId = 5;
+	string newState = 6;
+	int32 domainId = 7;
+}
+
+message User {
+	int32 userId = 1;
+}
+
+message Object {
+	int32 objectId = 1;
+}
+
+message Config {
+	string	objectId = 2;
+	bool enabled = 1;
+	int32 daysToStore = 3;
+	string period = 4;
+	int32 storageId = 5; 
+	int32 domainId = 6;
+}

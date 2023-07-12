@@ -1,0 +1,8 @@
+{
+    "rabbit": {
+        "url": "amqp://webitel:webitel@10.9.8.111:5672"
+    },
+    "database": {
+        "url": "postgres://opensips:webitel@10.9.8.111:5432/webitel"
+    }
+}

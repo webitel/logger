@@ -70,9 +70,6 @@ func (s *PostgresStore) Close() errors.AppError {
 }
 
 func (s *PostgresStore) SchemaInit() errors.AppError {
-	var (
-		ids []int
-	)
 	db, appErr := s.Database()
 	if appErr != nil {
 		return appErr
@@ -104,30 +101,6 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 		domain_id INT NOT NULL);`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.config_table.create", err.Error())
-	}
-	rows, err := db.Query(`select * from directory.wbt_class`)
-	if err != nil {
-		return errors.NewInternalError("postgres.storage.schema_init.config_table.create", err.Error())
-	}
-	for rows.Next() {
-		var id int
-		rows.Scan(&id)
-		ids = append(ids, id)
-	}
-
-	for v := range ids {
-		_, err = db.Exec(`INSERT INTO
-		 config(enabled, days_to_store, period, next_upload_on, object_id, storage_id)
-		 VALUES(:Enabled, :DaysToStore, :Period, :ObjectId, :StorageId);`,
-			map[string]any{
-				":Enabled":     false,
-				":DaysToStore": 30,
-				":Period":      "month",
-				":ObjectId":    v,
-			})
-		if err != nil {
-			return errors.NewInternalError("postgres.storage.schema_init.insert_default_values.fail", "can't insert default values")
-		}
 	}
 	return nil
 }

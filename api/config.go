@@ -21,7 +21,11 @@ func NewConfigService(app *app.App) (*ConfigService, errors.AppError) {
 }
 
 func (s *ConfigService) GetByObjectId(ctx context.Context, in *proto.Object) (*proto.Config, error) {
-	return s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()))
+	return s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()), int(in.GetDomainId()))
+}
+
+func (s *ConfigService) GetByAll(ctx context.Context, in *proto.Object) (*proto.Config, error) {
+	return s.app.GetAll(ctx, int(in.GetObjectId()), int(in.GetDomainId()))
 }
 
 func (s *ConfigService) Update(ctx context.Context, in *proto.Config) (*proto.Config, error) {

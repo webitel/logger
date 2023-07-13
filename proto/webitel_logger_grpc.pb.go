@@ -148,6 +148,7 @@ var LoggerService_ServiceDesc = grpc.ServiceDesc{
 const (
 	ConfigService_Update_FullMethodName        = "/webitel_logger.ConfigService/Update"
 	ConfigService_GetByObjectId_FullMethodName = "/webitel_logger.ConfigService/GetByObjectId"
+	ConfigService_GetAll_FullMethodName        = "/webitel_logger.ConfigService/GetAll"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -156,6 +157,7 @@ const (
 type ConfigServiceClient interface {
 	Update(ctx context.Context, in *Config, opts ...grpc.CallOption) (*Config, error)
 	GetByObjectId(ctx context.Context, in *Object, opts ...grpc.CallOption) (*Config, error)
+	GetAll(ctx context.Context, in *Object, opts ...grpc.CallOption) (*Configs, error)
 }
 
 type configServiceClient struct {
@@ -184,12 +186,22 @@ func (c *configServiceClient) GetByObjectId(ctx context.Context, in *Object, opt
 	return out, nil
 }
 
+func (c *configServiceClient) GetAll(ctx context.Context, in *Object, opts ...grpc.CallOption) (*Configs, error) {
+	out := new(Configs)
+	err := c.cc.Invoke(ctx, ConfigService_GetAll_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServiceServer is the server API for ConfigService service.
 // All implementations must embed UnimplementedConfigServiceServer
 // for forward compatibility
 type ConfigServiceServer interface {
 	Update(context.Context, *Config) (*Config, error)
 	GetByObjectId(context.Context, *Object) (*Config, error)
+	GetAll(context.Context, *Object) (*Configs, error)
 	mustEmbedUnimplementedConfigServiceServer()
 }
 
@@ -202,6 +214,9 @@ func (UnimplementedConfigServiceServer) Update(context.Context, *Config) (*Confi
 }
 func (UnimplementedConfigServiceServer) GetByObjectId(context.Context, *Object) (*Config, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetByObjectId not implemented")
+}
+func (UnimplementedConfigServiceServer) GetAll(context.Context, *Object) (*Configs, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAll not implemented")
 }
 func (UnimplementedConfigServiceServer) mustEmbedUnimplementedConfigServiceServer() {}
 
@@ -252,6 +267,24 @@ func _ConfigService_GetByObjectId_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_GetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Object)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetAll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetAll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetAll(ctx, req.(*Object))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConfigService_ServiceDesc is the grpc.ServiceDesc for ConfigService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +299,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetByObjectId",
 			Handler:    _ConfigService_GetByObjectId_Handler,
+		},
+		{
+			MethodName: "GetAll",
+			Handler:    _ConfigService_GetAll_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

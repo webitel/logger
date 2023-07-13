@@ -25,12 +25,13 @@ type Storage interface {
 
 type LogStore interface {
 	Insert(context.Context, *model.Log) (*model.Log, errors.AppError)
-	GetByObjectId(context.Context, int) (*[]model.Log, errors.AppError)
-	GetByUserId(context.Context, int) (*[]model.Log, errors.AppError)
+	GetByObjectId(ctx context.Context, objectid int, domainId int) (*[]model.Log, errors.AppError)
+	GetByUserId(ctx context.Context, userId int, domainId int) (*[]model.Log, errors.AppError)
 }
 
 type ConfigStore interface {
 	Update(context.Context, *model.Config) (*model.Config, errors.AppError)
-	GetByObjectId(context.Context, int) (*model.Config, errors.AppError)
-	GetAll(context.Context) (*[]model.Config, errors.AppError)
+	Insert(context.Context, *model.Config) (*model.Config, errors.AppError)
+	GetByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, errors.AppError)
+	GetAll(ctx context.Context, domainId int) (*[]model.Config, errors.AppError)
 }

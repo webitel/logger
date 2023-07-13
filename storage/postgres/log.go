@@ -19,7 +19,7 @@ func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
 	return &Log{storage: store}, nil
 }
 
-func (c *Log) GetByObjectId(ctx context.Context, objectId int) (*[]model.Log, errors.AppError) {
+func (c *Log) GetByObjectId(ctx context.Context, objectId int, domainId int) (*[]model.Log, errors.AppError) {
 	_, err := c.storage.Database()
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (c *Log) GetByObjectId(ctx context.Context, objectId int) (*[]model.Log, er
 	return nil, nil
 }
 
-func (c *Log) GetByUserId(ctx context.Context, userId int) (*[]model.Log, errors.AppError) {
+func (c *Log) GetByUserId(ctx context.Context, userId int, domainId int) (*[]model.Log, errors.AppError) {
 	_, err := c.storage.Database()
 	if err != nil {
 		return nil, err

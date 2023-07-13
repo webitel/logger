@@ -10,18 +10,34 @@ import (
 )
 
 func (a *App) UpdateConfig(ctx context.Context, in *proto.Config) (*proto.Config, errors.AppError) {
+	var (
+		newModel *model.Config
+	)
 	if in == nil {
 		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
+	config, err := a.storage.Config().GetByObjectId(ctx, int(in.GetObjectId()), int(in.GetDomainId()))
+	if err != nil {
+		return nil, err
+	}
+
 	model, err := a.convertConfigToModel(in)
 	if err != nil {
 		return nil, err
 	}
-	newModel, err := a.storage.Config().Update(ctx, model)
-	if err != nil {
-		return nil, err
+	model.NextUploadOn = a.CalculateNextPeriod(model.Period)
+	if config == nil {
+		newModel, err = a.storage.Config().Insert(ctx, model)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		newModel, err = a.storage.Config().Update(ctx, model)
+		if err != nil {
+			return nil, err
+		}
 	}
-	newModel.NextUploadOn = a.CalculateNextPeriod(newModel.Period)
+
 	res, err := a.convertModelToConfig(newModel)
 	if err != nil {
 		return nil, err
@@ -30,8 +46,8 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.Config) (*proto.Config
 
 }
 
-func (a *App) GetConfigByObjectId(ctx context.Context, objectId int) (*proto.Config, errors.AppError) {
-	newModel, err := a.storage.Config().GetByObjectId(ctx, objectId)
+func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*proto.Config, errors.AppError) {
+	newModel, err := a.storage.Config().GetByObjectId(ctx, objectId, domainId)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +61,7 @@ func (a *App) GetConfigByObjectId(ctx context.Context, objectId int) (*proto.Con
 
 func (a *App) convertConfigToModel(in *proto.Config) (*model.Config, errors.AppError) {
 	return &model.Config{
-		ObjectId:    in.GetObjectId(),
+		ObjectId:    int(in.GetObjectId()),
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      in.GetPeriod(),
@@ -56,7 +72,7 @@ func (a *App) convertConfigToModel(in *proto.Config) (*model.Config, errors.AppE
 
 func (a *App) convertModelToConfig(in *model.Config) (*proto.Config, errors.AppError) {
 	return &proto.Config{
-		ObjectId:    in.ObjectId,
+		ObjectId:    int32(in.ObjectId),
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
 		Period:      in.Period,

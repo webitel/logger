@@ -4,7 +4,7 @@ import "time"
 
 type Config struct {
 	Id           int
-	ObjectId     string
+	ObjectId     int
 	Enabled      bool
 	DaysToStore  int
 	Period       string

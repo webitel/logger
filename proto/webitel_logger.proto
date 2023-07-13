@@ -12,6 +12,7 @@ service LoggerService {
 service ConfigService {
 	rpc Update(Config) returns (Config) {}
 	rpc GetByObjectId(Object) returns (Config) {}
+	rpc GetAll(Object) returns (Configs) {}
 }
 
 message Logs {
@@ -30,15 +31,20 @@ message Log {
 
 message User {
 	int32 userId = 1;
+	int32 domainId = 2;
 }
 
 message Object {
 	int32 objectId = 1;
+	int32 domainId = 2;
 }
 
+message Configs {
+	repeated Config configs = 1;
+}
 message Config {
-	string	objectId = 2;
-	bool enabled = 1;
+	int32	objectId = 1;
+	bool enabled = 2;
 	int32 daysToStore = 3;
 	string period = 4;
 	int32 storageId = 5; 

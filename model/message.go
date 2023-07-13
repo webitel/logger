@@ -1,7 +1,7 @@
 package model
 
 type Message struct {
-	ObjectId string `json:"object,omitempty"`
+	ObjectId int    `json:"object,omitempty"`
 	NewState string `json:"newState,omitempty"`
 	UserId   int    `json:"userId,omitempty"`
 	UserIp   string `json:"userIp,omitempty"`

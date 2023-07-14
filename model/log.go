@@ -1,8 +1,9 @@
 package model
 
 type Log struct {
+	Id       int
 	Action   string
-	Date     string
+	Date     int64
 	UserId   int
 	UserIp   string
 	ObjectId int

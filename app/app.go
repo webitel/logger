@@ -1,6 +1,8 @@
 package app
 
 import (
+	"database/sql"
+	"strings"
 	"webitel_logger/storage"
 
 	errors "github.com/webitel/engine/model"
@@ -15,4 +17,8 @@ func New(store storage.Storage) (*App, errors.AppError) {
 		return nil, errors.NewInternalError("app.app.new.check_arguments.fail", "store is nil")
 	}
 	return &App{storage: store}, nil
+}
+
+func IsErrNoRows(err errors.AppError) bool {
+	return strings.Contains(err.Error(), sql.ErrNoRows.Error())
 }

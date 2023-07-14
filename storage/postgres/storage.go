@@ -80,10 +80,10 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 	}
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS logger.log ( 
 		id SERIAL PRIMARY KEY,
-		date TIMESTAMP NOT NULL,
+		date BIGINT NOT NULL,
 		user_id TEXT NOT NULL,
 		user_ip TEXT NOT NULL,
-		object_id BIGINT REFERENCES directory.wbt_class(id),
+		object_id BIGINT NOT NULL REFERENCES directory.wbt_class(id),
 		new_state TEXT,
 		domain_id BIGINT NOT NULL);`)
 	if err != nil {
@@ -95,9 +95,9 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 		enabled BOOLEAN NOT NULL,
 		days_to_store BIGINT NOT NULL,
 		period TEXT NOT NULL,
-		next_upload_on TIMESTAMP,
-		object_id BIGINT REFERENCES directory.wbt_class(id),
-		storage_id BIGINT REFERENCES storage.file_backend_profiles(id),
+		next_upload_on BIGINT,
+		object_id BIGINT NOT NULL REFERENCES directory.wbt_class(id),
+		storage_id BIGINT NOT NULL REFERENCES storage.file_backend_profiles(id),
 		domain_id INT NOT NULL);`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.config_table.create", err.Error())

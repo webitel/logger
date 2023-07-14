@@ -21,11 +21,25 @@ func NewLoggerService(app *app.App) (*LoggerService, errors.AppError) {
 }
 
 func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.User) (*proto.Logs, error) {
-	return nil, nil
+	var result *proto.Logs
+
+	rows, err := s.app.GetLogsByUserId(ctx, int(in.GetUserId()))
+	if err != nil {
+		return nil, err
+	}
+	result.Logs = rows
+	return result, nil
 }
 
 func (s *LoggerService) GetByObjectId(ctx context.Context, in *proto.Object) (*proto.Logs, error) {
-	return nil, nil
+	var result *proto.Logs
+
+	rows, err := s.app.GetLogsByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
+	if err != nil {
+		return nil, err
+	}
+	result.Logs = rows
+	return result, nil
 }
 
 // func (s *Server) Update(ctx context.Context, in *proto.Config) (*proto.Config, error) {

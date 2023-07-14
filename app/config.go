@@ -11,22 +11,25 @@ import (
 
 func (a *App) UpdateConfig(ctx context.Context, in *proto.Config) (*proto.Config, errors.AppError) {
 	var (
-		newModel *model.Config
+		newModel    *model.Config
+		noRowsError bool
 	)
 	if in == nil {
 		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	config, err := a.storage.Config().GetByObjectId(ctx, int(in.GetObjectId()), int(in.GetDomainId()))
+	_, err := a.storage.Config().GetByObjectId(ctx, int(in.GetObjectId()), int(in.GetDomainId()))
 	if err != nil {
-		return nil, err
+		if noRowsError = IsErrNoRows(err); !noRowsError {
+			return nil, err
+		}
 	}
 
-	model, err := a.convertConfigToModel(in)
+	model, err := a.convertConfigMessageToModel(in)
 	if err != nil {
 		return nil, err
 	}
 	model.NextUploadOn = a.CalculateNextPeriod(model.Period)
-	if config == nil {
+	if noRowsError {
 		newModel, err = a.storage.Config().Insert(ctx, model)
 		if err != nil {
 			return nil, err
@@ -38,7 +41,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.Config) (*proto.Config
 		}
 	}
 
-	res, err := a.convertModelToConfig(newModel)
+	res, err := a.convertConfigModelToMessage(newModel)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +54,7 @@ func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId in
 	if err != nil {
 		return nil, err
 	}
-	res, err := a.convertModelToConfig(newModel)
+	res, err := a.convertConfigModelToMessage(newModel)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +62,27 @@ func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId in
 
 }
 
-func (a *App) convertConfigToModel(in *proto.Config) (*model.Config, errors.AppError) {
+func (a *App) GetAllConfigs(ctx context.Context, domainId int) (*[]proto.Config, errors.AppError) {
+	var res []proto.Config
+	modelConfigs, err := a.storage.Config().GetAll(ctx, domainId)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range *modelConfigs {
+		proto, err := a.convertConfigModelToMessage(&v)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, *proto)
+	}
+
+	return &res, nil
+
+}
+
+func (a *App) convertConfigMessageToModel(in *proto.Config) (*model.Config, errors.AppError) {
 	return &model.Config{
+		Id:          int(in.GetId()),
 		ObjectId:    int(in.GetObjectId()),
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
@@ -70,8 +92,9 @@ func (a *App) convertConfigToModel(in *proto.Config) (*model.Config, errors.AppE
 	}, nil
 }
 
-func (a *App) convertModelToConfig(in *model.Config) (*proto.Config, errors.AppError) {
+func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
 	return &proto.Config{
+		Id:          int32(in.Id),
 		ObjectId:    int32(in.ObjectId),
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
@@ -81,7 +104,7 @@ func (a *App) convertModelToConfig(in *model.Config) (*proto.Config, errors.AppE
 	}, nil
 }
 
-func (a *App) CalculateNextPeriod(in string) time.Time {
+func (a *App) CalculateNextPeriod(in string) int64 {
 	var res time.Time
 	switch in {
 	case "everyday":
@@ -93,5 +116,5 @@ func (a *App) CalculateNextPeriod(in string) time.Time {
 	default:
 		res = time.Now().AddDate(0, 1, 0)
 	}
-	return res
+	return res.Unix()
 }

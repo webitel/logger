@@ -31,7 +31,7 @@ func (s *PostgresStore) Log() storage.LogStore {
 		}
 		s.logStore = log
 	}
-	return nil
+	return s.logStore
 }
 func (s *PostgresStore) Config() storage.ConfigStore {
 	if s.configStore == nil {
@@ -81,10 +81,11 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS logger.log ( 
 		id SERIAL PRIMARY KEY,
 		date BIGINT NOT NULL,
-		user_id TEXT NOT NULL,
+		user_id INT NOT NULL,
 		user_ip TEXT NOT NULL,
-		object_id BIGINT NOT NULL REFERENCES directory.wbt_class(id),
-		new_state TEXT,
+		object_id BIGINT NOT NULL,
+		new_state JSONB,
+		action TEXT NOT NULL,
 		domain_id BIGINT NOT NULL);`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.log_table.create", err.Error())
@@ -96,7 +97,7 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 		days_to_store BIGINT NOT NULL,
 		period TEXT NOT NULL,
 		next_upload_on BIGINT,
-		object_id BIGINT NOT NULL REFERENCES directory.wbt_class(id),
+		object_id BIGINT NOT NULL,
 		storage_id BIGINT NOT NULL REFERENCES storage.file_backend_profiles(id),
 		domain_id INT NOT NULL);`)
 	if err != nil {

@@ -6,10 +6,14 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 	"webitel_logger/api"
 	"webitel_logger/app"
 	"webitel_logger/model"
 	"webitel_logger/proto"
+	"webitel_logger/rabbit"
 	"webitel_logger/storage"
 	"webitel_logger/storage/postgres"
 
@@ -34,21 +38,19 @@ func main() {
 		log.Fatal(appErr.Error())
 	}
 	defer store.Close()
-
-	server, appErr := BuildGrpc(store)
+	initSignals(store)
+	// * Create an application layer
+	app, appErr := app.New(store)
 	if appErr != nil {
 		log.Fatal(appErr.Error())
 	}
 
-	//  * Open tcp connection
-	listener, err := net.Listen("tcp", "localhost:1137")
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = server.Serve(listener)
-	if err != nil {
-		log.Fatal()
-	}
+	errChan := make(chan errors.AppError)
+	// * Build and run rabbit listener
+	go BuildRabbit(app, config.Rabbit, errChan)
+	// * Build and run grpc server
+	go ServeRequests(store, app, errChan)
+	log.Fatal(<-errChan)
 
 }
 
@@ -72,13 +74,8 @@ func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, errors.AppErr
 	return store, nil
 }
 
-func BuildGrpc(store storage.Storage) (*grpc.Server, errors.AppError) {
+func BuildGrpc(store storage.Storage, app *app.App) (*grpc.Server, errors.AppError) {
 
-	// * Create an application layer
-	app, err := app.New(store)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
 	grpcServer := grpc.NewServer()
 	// * Creating services
 	l, appErr := api.NewLoggerService(app)
@@ -98,9 +95,62 @@ func BuildGrpc(store storage.Storage) (*grpc.Server, errors.AppError) {
 	return grpcServer, nil
 }
 
-func BuildRabbit(config storage.Storage) errors.AppError {
+func BuildRabbit(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
+	handler, err := rabbit.NewHandler(app)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	listener, err := rabbit.NewListener(config, errChan)
+	if err != nil {
+		errChan <- err
+		return
+	}
 
-	return nil
+	listener.Listen(handler.Handle)
+}
+
+func ServeRequests(store storage.Storage, app *app.App, errChan chan errors.AppError) {
+	// * Build grpc server
+	server, appErr := BuildGrpc(store, app)
+	if appErr != nil {
+		errChan <- appErr
+		return
+	}
+	//  * Open tcp connection
+	listener, err := net.Listen("tcp", "localhost:1137")
+	if err != nil {
+		errChan <- errors.NewInternalError("main.main.serve_requests.listen.error", err.Error())
+		return
+	}
+	err = server.Serve(listener)
+	if err != nil {
+		errChan <- errors.NewInternalError("main.main.serve_requests.serve.error", err.Error())
+		return
+	}
+}
+
+func initSignals(store storage.Storage) {
+	log.Println("initializing stop signals")
+	sigchnl := make(chan os.Signal, 1)
+	signal.Notify(sigchnl)
+
+	go func() {
+		for {
+			s := <-sigchnl
+			handleSignals(s, store)
+		}
+	}()
+
+}
+
+func handleSignals(signal os.Signal, store storage.Storage) {
+	if signal == syscall.SIGTERM || signal == syscall.SIGINT || signal == syscall.SIGKILL {
+		log.Println("got kill signal. ")
+		log.Println("program will terminate now.")
+		store.Close()
+		os.Exit(0)
+	}
 }
 
 func UnmarshalConfig() (*model.AppConfig, errors.AppError) {

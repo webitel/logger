@@ -40,6 +40,19 @@ func (a *App) GetLogsByUserId(ctx context.Context, userId int) ([]*proto.Log, er
 	return result, nil
 }
 
+func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.Message) errors.AppError {
+	model, err := convertRabbitMessageToModel(rabbitMessage)
+	if err != nil {
+		return err
+	}
+	_, err = a.storage.Log().Insert(ctx, model)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
 func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	return &proto.Log{
 		Id:       int32(m.Id),
@@ -50,5 +63,16 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 		ObjectId: int32(m.ObjectId),
 		NewState: m.NewState,
 		DomainId: int32(m.DomainId),
+	}, nil
+}
+func convertRabbitMessageToModel(m *model.Message) (*model.Log, errors.AppError) {
+	return &model.Log{
+		Action:   m.Action,
+		Date:     m.Date,
+		UserId:   m.UserId,
+		UserIp:   m.UserIp,
+		ObjectId: m.ObjectId,
+		NewState: m.NewState,
+		DomainId: m.DomainId,
 	}, nil
 }

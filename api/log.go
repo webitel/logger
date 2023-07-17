@@ -32,20 +32,12 @@ func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.User) (*proto
 }
 
 func (s *LoggerService) GetByObjectId(ctx context.Context, in *proto.Object) (*proto.Logs, error) {
-	var result *proto.Logs
+	var result proto.Logs
 
 	rows, err := s.app.GetLogsByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
 	if err != nil {
 		return nil, err
 	}
 	result.Logs = rows
-	return result, nil
+	return &result, nil
 }
-
-// func (s *Server) Update(ctx context.Context, in *proto.Config) (*proto.Config, error) {
-// 	return nil, nil
-// }
-
-// func (s *Server) GetByObjectId(ctx context.Context, in *proto.Object) (*proto.Config, error) {
-// 	return nil, nil
-// }

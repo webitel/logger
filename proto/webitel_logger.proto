@@ -41,7 +41,7 @@ message Object {
 }
 
 message Domain {
-	int32 id = 1;
+	int32 domain_id = 1;
 }
 
 message Configs {

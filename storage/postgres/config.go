@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"time"
 	"webitel_logger/model"
 	"webitel_logger/storage"
 
@@ -36,11 +35,10 @@ func (c *Config) Update(ctx context.Context, conf *model.Config) (*model.Config,
 			period = $3, 
 			next_upload_on = $4, 
 			storage_id = $5,
-			updated_at = $6
 		WHERE 
-			object_id = $7 AND domain_id = $8
+			object_id = $6 AND domain_id = $7
 		RETURNING id, enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
-		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, time.Now(), conf.ObjectId, conf.DomainId)
+		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, conf.ObjectId, conf.DomainId)
 	err := row.Scan(&newConfig.Id, &newConfig.Enabled, &newConfig.DaysToStore, &newConfig.Period, &newConfig.NextUploadOn, &newConfig.StorageId, &newConfig.DomainId, &newConfig.ObjectId)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query_execution.fail", err.Error())
@@ -55,11 +53,14 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config) (*model.Config,
 		return nil, appErr
 	}
 	//var nextUploadOn time.Time
-	res := db.QueryRowContext(ctx, `INSERT INTO 
-	logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
-	RETURNING 
-	id, enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
+	res := db.QueryRowContext(ctx,
+		`INSERT INTO
+		logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id) 
+		VALUES
+			(
+			$1, $2, $3, $4, $5, $6, $7
+			)
+		RETURNING id, enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
 		conf.Enabled,
 		conf.DaysToStore,
 		conf.Period,
@@ -80,12 +81,21 @@ func (c *Config) GetByObjectId(ctx context.Context, objId int, domainId int) (*m
 	if appErr != nil {
 		return nil, appErr
 	}
-	res := db.QueryRow(`SELECT
-	id, enabled, days_to_store, period, next_upload_on, object_id, storage_id, domain_id
-	FROM logger.object_config
-	WHERE object_id = $1
-	 AND domain_id = $2
-	ORDER BY created_at DESC`,
+	res := db.QueryRow(
+		`SELECT
+			id,
+			enabled,
+			days_to_store,
+			period,
+			next_upload_on,
+			object_id,
+			storage_id,
+			domain_id 
+		FROM
+			logger.object_config 
+		WHERE
+			object_id = $1 
+			AND domain_id = $2`,
 		objId, domainId)
 	err := res.Scan(&conf.Id, &conf.Enabled, &conf.DaysToStore, &conf.Period, &conf.NextUploadOn, &conf.ObjectId, &conf.StorageId, &conf.DomainId)
 	if err != nil {
@@ -100,10 +110,20 @@ func (c *Config) GetById(ctx context.Context, id int) (*model.Config, errors.App
 	if appErr != nil {
 		return nil, appErr
 	}
-	res := db.QueryRow(`SELECT
-	id, enabled, days_to_store, period, next_upload_on, object_id, storage_id, domain_id
-	FROM logger.object_config
-	WHERE id = $1`,
+	res := db.QueryRow(
+		`SELECT
+			id,
+			enabled,
+			days_to_store,
+			period,
+			next_upload_on,
+			object_id,
+			storage_id,
+			domain_id 
+		FROM
+			logger.object_config 
+		WHERE
+			id = $1`,
 		id)
 	err := res.Scan(&conf.Id, &conf.Enabled, &conf.DaysToStore, &conf.Period, &conf.NextUploadOn, &conf.ObjectId, &conf.StorageId, &conf.DomainId)
 	if err != nil {
@@ -118,10 +138,21 @@ func (c *Config) GetAll(ctx context.Context, domainId int) (*[]model.Config, err
 	if appErr != nil {
 		return nil, appErr
 	}
-	rows, err := db.Query(`SELECT 
-	id, enabled, days_to_store, period, next_upload_on, object_id, storage_id, domain_id
-	FROM logger.object_config
-	 WHERE domain_id = $1;`, domainId)
+	rows, err := db.Query(
+		`SELECT
+			id,
+			enabled,
+			days_to_store,
+			period,
+			next_upload_on,
+			object_id,
+			storage_id,
+			domain_id 
+		FROM
+			logger.object_config 
+		WHERE
+			domain_id = $1;`,
+		domainId)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_all.query.fail", err.Error())
 	}

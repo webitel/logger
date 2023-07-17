@@ -35,7 +35,7 @@ func (c *Log) GetByObjectId(ctx context.Context, objectId int, domainId int) (*[
 			new_state, 
 			domain_id 
 		FROM 
-			log 
+			logger.log 
 		WHERE 
 			object_id = $1 
 			AND domain_id = $2`,
@@ -80,7 +80,7 @@ func (c *Log) GetByUserId(ctx context.Context, userId int) (*[]model.Log, errors
 			new_state, 
 			domain_id 
 		FROM 
-			log 
+			logger.log 
 		WHERE 
 			user_id = $1`,
 		userId)
@@ -99,9 +99,25 @@ func (c *Log) GetByUserId(ctx context.Context, userId int) (*[]model.Log, errors
 }
 
 func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.AppError) {
-	_, err := c.storage.Database()
-	if err != nil {
-		return nil, err
+	var newModel model.Log
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return nil, appErr
 	}
-	return nil, nil
+	res := db.QueryRowContext(ctx,
+		`INSERT INTO
+			logger.log(date, action, user_id, user_ip, object_id, new_state, domain_id) 
+		VALUES
+			(
+			$1, $2, $3, $4, $5, $6, $7
+			)
+		RETURNING 
+			id, date, action, user_id, user_ip, object_id, new_state, domain_id`,
+		log.Date, log.Action, log.UserId, log.UserIp, log.ObjectId, log.NewState, log.DomainId,
+	)
+	err := res.Scan(&newModel.Id, &newModel.Date, &newModel.Action, &newModel.UserId, &newModel.UserIp, &newModel.ObjectId, &newModel.NewState, &newModel.DomainId)
+	if err != nil {
+		return nil, errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
+	}
+	return &newModel, nil
 }

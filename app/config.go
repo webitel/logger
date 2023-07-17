@@ -28,7 +28,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.Config) (*proto.Config
 	if err != nil {
 		return nil, err
 	}
-	model.NextUploadOn = a.CalculateNextPeriod(model.Period)
+	a.CalculateNextPeriod(model)
 	if noRowsError {
 		newModel, err = a.storage.Config().Insert(ctx, model)
 		if err != nil {
@@ -62,8 +62,8 @@ func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId in
 
 }
 
-func (a *App) GetAllConfigs(ctx context.Context, domainId int) (*[]proto.Config, errors.AppError) {
-	var res []proto.Config
+func (a *App) GetAllConfigs(ctx context.Context, domainId int) ([]*proto.Config, errors.AppError) {
+	var res []*proto.Config
 	modelConfigs, err := a.storage.Config().GetAll(ctx, domainId)
 	if err != nil {
 		return nil, err
@@ -73,10 +73,10 @@ func (a *App) GetAllConfigs(ctx context.Context, domainId int) (*[]proto.Config,
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, *proto)
+		res = append(res, proto)
 	}
 
-	return &res, nil
+	return res, nil
 
 }
 
@@ -104,17 +104,16 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 	}, nil
 }
 
-func (a *App) CalculateNextPeriod(in string) int64 {
-	var res time.Time
-	switch in {
+func (a *App) CalculateNextPeriod(in *model.Config) {
+	switch in.Period {
 	case "everyday":
-		res = time.Now().AddDate(0, 0, 1)
+		in.NextUploadOn = time.Now().AddDate(0, 0, 1).Unix()
 	case "everyweek":
-		res = time.Now().AddDate(0, 0, 7)
+		in.NextUploadOn = time.Now().AddDate(0, 0, 7).Unix()
 	case "everytwoweeks":
-		res = time.Now().AddDate(0, 0, 14)
+		in.NextUploadOn = time.Now().AddDate(0, 0, 14).Unix()
 	default:
-		res = time.Now().AddDate(0, 1, 0)
+		in.Period = "everymonth"
+		in.NextUploadOn = time.Now().AddDate(0, 1, 0).Unix()
 	}
-	return res.Unix()
 }

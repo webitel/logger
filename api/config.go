@@ -26,13 +26,11 @@ func (s *ConfigService) GetByObjectId(ctx context.Context, in *proto.Object) (*p
 
 func (s *ConfigService) GetAll(ctx context.Context, in *proto.Domain) (*proto.Configs, error) {
 	var out proto.Configs
-	res, err := s.app.GetAllConfigs(ctx, int(in.GetId()))
+	res, err := s.app.GetAllConfigs(ctx, int(in.GetDomainId()))
 	if err != nil {
 		return nil, err
 	}
-	for _, v := range *res {
-		out.Configs = append(out.Configs, &v)
-	}
+	out.Configs = res
 	return &out, nil
 }
 

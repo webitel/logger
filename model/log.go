@@ -7,6 +7,7 @@ type Log struct {
 	UserId   int
 	UserIp   string
 	ObjectId int
+	RecordId int
 	NewState string
 	DomainId int
 }

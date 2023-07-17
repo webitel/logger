@@ -3,6 +3,8 @@ package rabbit
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"webitel_logger/app"
 	"webitel_logger/model"
 
@@ -30,6 +32,11 @@ func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.App
 		log.Printf("error unmarshalling message. details: %s", err.Error())
 		return nil
 		//return errors.NewInternalError("rabbit.handler.handle.json_unmarshal.error", err.Error())
+	}
+	splittedKey := strings.Split(message.RoutingKey, ".")
+	if len(splittedKey) >= 3 {
+		model.DomainId, _ = strconv.Atoi(splittedKey[1])
+		model.ObjectId, _ = strconv.Atoi(splittedKey[2])
 	}
 	return h.app.InsertLogByRabbitMessage(ctx, &model)
 }

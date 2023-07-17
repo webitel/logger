@@ -84,6 +84,7 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 		user_id INT NOT NULL,
 		user_ip TEXT NOT NULL,
 		object_id BIGINT NOT NULL,
+		record_id BIGINT NOT NULL,
 		new_state JSONB,
 		action TEXT NOT NULL,
 		domain_id BIGINT NOT NULL);`)

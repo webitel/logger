@@ -72,7 +72,7 @@ func convertRabbitMessageToModel(m *model.Message) (*model.Log, errors.AppError)
 		UserId:   m.UserId,
 		UserIp:   m.UserIp,
 		ObjectId: m.ObjectId,
-		NewState: m.NewState,
+		NewState: string(m.NewState),
 		DomainId: m.DomainId,
 	}, nil
 }

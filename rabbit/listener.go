@@ -3,6 +3,7 @@ package rabbit
 import (
 	"context"
 	"log"
+	"webitel_logger/app"
 	"webitel_logger/model"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -12,6 +13,21 @@ import (
 type RabbitListener struct {
 	config *model.RabbitConfig
 	exit   chan errors.AppError
+}
+
+func BuildAndServe(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
+	handler, err := NewHandler(app)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	listener, err := NewListener(config, errChan)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	listener.Listen(handler.Handle)
 }
 
 func NewListener(config *model.RabbitConfig, errChan chan errors.AppError) (*RabbitListener, errors.AppError) {

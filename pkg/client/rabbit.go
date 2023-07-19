@@ -22,10 +22,17 @@ const (
 	Read   Action = "read"
 )
 
-type RabbitClient struct {
+type RabbitClient interface {
+	Open() error
+	SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, newState []byte) error
+	Close()
+}
+
+type rabbitClient struct {
 	config  *Config
 	conn    *amqp.Connection
 	channel *amqp.Channel
+	client  *Client
 }
 
 type Message struct {
@@ -39,11 +46,11 @@ type Message struct {
 	//DomainId int    `json:"domainId,omitempty"`
 }
 
-func New(url string) *RabbitClient {
-	return &RabbitClient{config: &Config{Url: url}}
+func NewRabbitClient(url string, client *Client) RabbitClient {
+	return &rabbitClient{config: &Config{Url: url}, client: client}
 }
 
-func (c *RabbitClient) Open() error {
+func (c *rabbitClient) Open() error {
 	conn, err := amqp.Dial(c.config.Url)
 	if err != nil {
 		return err
@@ -90,16 +97,23 @@ func (c *RabbitClient) Open() error {
 	return nil
 }
 
-func (c *RabbitClient) Close() {
+func (c *rabbitClient) Close() {
 	c.channel.Close()
 	c.conn.Close()
 	c.channel = nil
 	c.conn = nil
 }
 
-func (c *RabbitClient) SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, newState []byte) error {
+func (c *rabbitClient) SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, newState []byte) error {
 	if c.channel == nil || c.conn == nil {
 		return fmt.Errorf("connection not opened")
+	}
+	enabled, err := c.client.grpc.Config().CheckIsActive(context.Background(), 1, 10)
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		return nil
 	}
 	mess := &Message{UserId: userId, UserIp: userIp, Action: string(action), NewState: newState, Date: time.Now().Unix()}
 	result, err := json.Marshal(mess)

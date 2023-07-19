@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/webitel/engine v0.0.0-20230707131038-ad77e123cc54
+	github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28
 	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 )
@@ -35,7 +36,6 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
-	github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect

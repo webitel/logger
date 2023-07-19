@@ -3,26 +3,30 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 	"webitel_logger/api"
 	"webitel_logger/app"
 	"webitel_logger/model"
-	"webitel_logger/proto"
 	"webitel_logger/rabbit"
 	"webitel_logger/storage"
 	"webitel_logger/storage/postgres"
 
+	"github.com/webitel/engine/discovery"
 	errors "github.com/webitel/engine/model"
-	"google.golang.org/grpc"
 )
 
 var (
-	configPath *string
+	configPath                  *string
+	address                     string
+	APP_SERVICE_TTL             = time.Second * 30
+	APP_DEREGESTER_CRITICAL_TTL = time.Minute * 2
 )
 
 func main() {
@@ -32,7 +36,6 @@ func main() {
 	if appErr != nil {
 		log.Fatal(appErr.Error())
 	}
-
 	store, appErr := BuildDatabase(config.Database)
 	if appErr != nil {
 		log.Fatal(appErr.Error())
@@ -44,10 +47,14 @@ func main() {
 	if appErr != nil {
 		log.Fatal(appErr.Error())
 	}
+	appErr = ConnectConsul(config.Consul)
+	if appErr != nil {
+		log.Fatal(appErr.Error())
+	}
 
 	errChan := make(chan errors.AppError)
 	// * Build and run rabbit listener
-	go BuildRabbit(app, config.Rabbit, errChan)
+	go rabbit.BuildAndServe(app, config.Rabbit, errChan)
 	// * Build and run grpc server
 	go ServeRequests(store, app, errChan)
 	log.Fatal(<-errChan)
@@ -58,6 +65,18 @@ func flagDefine() {
 	configPath = flag.String("config", "./config/config.json", "Path to the config file")
 	flag.Parse()
 }
+
+func ConnectConsul(config *model.ConsulConfig) errors.AppError {
+	consul, err := discovery.NewConsul(config.Id, config.Address, func() (bool, error) {
+		return true, nil
+	})
+	err = consul.RegisterService("logger", address, 0, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
+	if err != nil {
+		return errors.NewInternalError("main.main.build_consul.register_in_consul.error", err.Error())
+	}
+	return nil
+}
+
 func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, errors.AppError) {
 	store, err := postgres.New(config)
 	if err != nil {
@@ -74,55 +93,58 @@ func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, errors.AppErr
 	return store, nil
 }
 
-func BuildGrpc(store storage.Storage, app *app.App) (*grpc.Server, errors.AppError) {
+// func BuildGrpc(store storage.Storage, app *app.App) (*grpc.Server, errors.AppError) {
 
-	grpcServer := grpc.NewServer()
-	// * Creating services
-	l, appErr := api.NewLoggerService(app)
-	if appErr != nil {
-		return nil, appErr
-	}
-	c, appErr := api.NewConfigService(app)
-	if appErr != nil {
-		return nil, appErr
-	}
+// 	grpcServer := grpc.NewServer()
+// 	// * Creating services
+// 	l, appErr := api.NewLoggerService(app)
+// 	if appErr != nil {
+// 		return nil, appErr
+// 	}
+// 	c, appErr := api.NewConfigService(app)
+// 	if appErr != nil {
+// 		return nil, appErr
+// 	}
 
-	// * register logger service
-	proto.RegisterLoggerServiceServer(grpcServer, l)
-	// * register config service
-	proto.RegisterConfigServiceServer(grpcServer, c)
+// 	// * register logger service
+// 	proto.RegisterLoggerServiceServer(grpcServer, l)
+// 	// * register config service
+// 	proto.RegisterConfigServiceServer(grpcServer, c)
 
-	return grpcServer, nil
-}
+// 	return grpcServer, nil
+// }
 
-func BuildRabbit(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
-	handler, err := rabbit.NewHandler(app)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	listener, err := rabbit.NewListener(config, errChan)
-	if err != nil {
-		errChan <- err
-		return
-	}
+// func ServeRabbit(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
+// 	handler, err := rabbit.NewHandler(app)
+// 	if err != nil {
+// 		errChan <- err
+// 		return
+// 	}
+// 	listener, err := rabbit.NewListener(config, errChan)
+// 	if err != nil {
+// 		errChan <- err
+// 		return
+// 	}
 
-	listener.Listen(handler.Handle)
-}
+// 	listener.Listen(handler.Handle)
+// }
 
 func ServeRequests(store storage.Storage, app *app.App, errChan chan errors.AppError) {
 	// * Build grpc server
-	server, appErr := BuildGrpc(store, app)
+	server, appErr := api.BuildGrpc(store, app)
 	if appErr != nil {
 		errChan <- appErr
 		return
 	}
 	//  * Open tcp connection
-	listener, err := net.Listen("tcp", "localhost:1137")
+	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", address))
 	if err != nil {
 		errChan <- errors.NewInternalError("main.main.serve_requests.listen.error", err.Error())
 		return
 	}
+
+	fmt.Println(listener.Addr().String())
+
 	err = server.Serve(listener)
 	if err != nil {
 		errChan <- errors.NewInternalError("main.main.serve_requests.serve.error", err.Error())
@@ -167,5 +189,6 @@ func UnmarshalConfig() (*model.AppConfig, errors.AppError) {
 	if err != nil {
 		return nil, errors.NewBadRequestError("main.main.unmarshal_config.json_unmarshal.fail", err.Error())
 	}
+	address = appConfig.Grpc.Address
 	return &appConfig, nil
 }

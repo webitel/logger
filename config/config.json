@@ -4,5 +4,13 @@
     },
     "database": {
         "url": "postgres://opensips:webitel@10.9.8.111:5432/webitel"
+    },
+    "consul": {
+        "address": "10.9.8.111:8500",
+        "id" : "logger"
+        
+    },
+    "grpc": {
+        "address": "10.10.10.162"
     }
 }   

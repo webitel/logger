@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package webitel_logger;
+
+option go_package = "webitel_logger/proto";
+
+service ConfigService {
+  rpc UpdateConfig(Config) returns (Config) {}
+  rpc GetConfigsByObjectId(GetByObjectIdRequest) returns (Config) {}
+  rpc GetAllConfigs(Domain) returns (Configs) {}
+}
+
+message Domain {
+  int32 domain_id = 1;
+}
+
+message Configs {
+  repeated Config configs = 1;
+}
+message Config {
+  int32 id = 1;
+  int32	objectId = 2;
+  bool enabled = 3;
+  int32 daysToStore = 4;
+  string period = 5;
+  int32 storageId = 6;
+  int32 domainId = 7;
+}
+
+message GetByObjectIdRequest {
+  int32 objectId = 1;
+  int32 domainId = 2;
+}

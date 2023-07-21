@@ -15,15 +15,18 @@ type LoggerService struct {
 
 func NewLoggerService(app *app.App) (*LoggerService, errors.AppError) {
 	if app == nil {
-		return nil, errors.NewInternalError("api.config.new_logger_service.args_check.app_nill", "app is nil")
+		return nil, errors.NewInternalError("api.config.new_logger_service.args_check.app_nil", "app is nil")
 	}
 	return &LoggerService{app: app}, nil
 }
 
-func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.User) (*proto.Logs, error) {
+func (s *LoggerService) GetLogsByUserId(ctx context.Context, in *proto.GetLogsByUserIdRequest) (*proto.Logs, error) {
 	var result *proto.Logs
-
-	rows, err := s.app.GetLogsByUserId(ctx, int(in.GetUserId()))
+	opt, err := app.ExtractSearchOptions(in)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.app.GetLogsByUserId(ctx, opt, int(in.GetUserId()))
 	if err != nil {
 		return nil, err
 	}
@@ -31,10 +34,13 @@ func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.User) (*proto
 	return result, nil
 }
 
-func (s *LoggerService) GetByObjectId(ctx context.Context, in *proto.Object) (*proto.Logs, error) {
+func (s *LoggerService) GetLogsByObjectId(ctx context.Context, in *proto.GetLogsByObjectIdRequest) (*proto.Logs, error) {
 	var result proto.Logs
-
-	rows, err := s.app.GetLogsByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
+	opt, err := app.ExtractSearchOptions(in)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.app.GetLogsByObjectId(ctx, opt, int(in.GetDomainId()), int(in.GetObjectId()))
 	if err != nil {
 		return nil, err
 	}

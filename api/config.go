@@ -20,7 +20,7 @@ func NewConfigService(app *app.App) (*ConfigService, errors.AppError) {
 	return &ConfigService{app: app}, nil
 }
 
-func (s *ConfigService) GetByObjectId(ctx context.Context, in *proto.Object) (*proto.Config, error) {
+func (s *ConfigService) GetByObjectId(ctx context.Context, in *proto.GetByObjectIdRequest) (*proto.Config, error) {
 	return s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()), int(in.GetDomainId()))
 }
 

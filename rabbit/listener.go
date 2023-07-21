@@ -52,13 +52,13 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 	defer channel.Close()
 	log.Println("connecting to the exchange")
 	err = channel.ExchangeDeclare(
-		"webitel", // name
-		"topic",   // type
-		true,      // durable
-		false,     // auto-deleted
-		false,     // internal
-		false,     // no-wait
-		nil,       // arguments
+		"logger", // name
+		"topic",  // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
 	)
 	if err != nil {
 		l.exit <- errors.NewInternalError("rabbit.listener.listen.exchange_declare.fail", err.Error())
@@ -82,7 +82,7 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 	err = channel.QueueBind(
 		queue.Name, // queue name
 		"logger.#", // routing key
-		"webitel",  // exchange
+		"logger",   // exchange
 		false,
 		nil,
 	)

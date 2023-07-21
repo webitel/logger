@@ -9,6 +9,8 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 	"webitel_logger/api"
@@ -70,7 +72,19 @@ func ConnectConsul(config *model.ConsulConfig) errors.AppError {
 	consul, err := discovery.NewConsul(config.Id, config.Address, func() (bool, error) {
 		return true, nil
 	})
-	err = consul.RegisterService("logger", address, 0, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
+	addressSplt := strings.Split(address, ":")
+	if len(addressSplt) < 2 {
+		return errors.NewBadRequestError("main.main.build_consul.parse_address.error", "wrong grpc address (probably no port)")
+	}
+	ip := addressSplt[0]
+	port, err := strconv.Atoi(addressSplt[1])
+	if err != nil {
+		return errors.NewBadRequestError("main.main.build_consul.parse_address.error", "unable to parse grpc port")
+	}
+	if port == 0 {
+		return errors.NewBadRequestError("main.main.build_consul.parse_address.error", "grpc port is 0")
+	}
+	err = consul.RegisterService("logger", ip, port, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
 	if err != nil {
 		return errors.NewInternalError("main.main.build_consul.register_in_consul.error", err.Error())
 	}
@@ -93,42 +107,6 @@ func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, errors.AppErr
 	return store, nil
 }
 
-// func BuildGrpc(store storage.Storage, app *app.App) (*grpc.Server, errors.AppError) {
-
-// 	grpcServer := grpc.NewServer()
-// 	// * Creating services
-// 	l, appErr := api.NewLoggerService(app)
-// 	if appErr != nil {
-// 		return nil, appErr
-// 	}
-// 	c, appErr := api.NewConfigService(app)
-// 	if appErr != nil {
-// 		return nil, appErr
-// 	}
-
-// 	// * register logger service
-// 	proto.RegisterLoggerServiceServer(grpcServer, l)
-// 	// * register config service
-// 	proto.RegisterConfigServiceServer(grpcServer, c)
-
-// 	return grpcServer, nil
-// }
-
-// func ServeRabbit(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
-// 	handler, err := rabbit.NewHandler(app)
-// 	if err != nil {
-// 		errChan <- err
-// 		return
-// 	}
-// 	listener, err := rabbit.NewListener(config, errChan)
-// 	if err != nil {
-// 		errChan <- err
-// 		return
-// 	}
-
-// 	listener.Listen(handler.Handle)
-// }
-
 func ServeRequests(store storage.Storage, app *app.App, errChan chan errors.AppError) {
 	// * Build grpc server
 	server, appErr := api.BuildGrpc(store, app)
@@ -137,7 +115,7 @@ func ServeRequests(store storage.Storage, app *app.App, errChan chan errors.AppE
 		return
 	}
 	//  * Open tcp connection
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:0", address))
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		errChan <- errors.NewInternalError("main.main.serve_requests.listen.error", err.Error())
 		return

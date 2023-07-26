@@ -7,6 +7,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	errors "github.com/webitel/engine/model"
 	"strings"
+	"time"
 	"webitel_logger/model"
 	"webitel_logger/storage"
 )
@@ -27,7 +28,30 @@ func (c *Log) GetByObjectId(ctx context.Context, opt *model.SearchOptions, domai
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"object_id": objectId}).Where(sq.Eq{"domain_id": domainId})
+	conf, appErr := c.storage.Config().GetByObjectId(ctx, domainId, objectId)
+	if appErr != nil {
+		return nil, appErr
+	}
+	base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"log.config_id": conf.Id})
+	s, _, _ := base.ToSql()
+	fmt.Println(s)
+	rows, err := base.RunWith(db).QueryContext(ctx)
+	if err != nil {
+		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+	}
+	res, appErr := c.ScanRows(rows)
+	if appErr != nil {
+		return nil, appErr
+	}
+	return &res, nil
+}
+
+func (c *Log) GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError) {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return nil, appErr
+	}
+	base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"log.config_id": configId})
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -45,7 +69,7 @@ func (c *Log) GetByUserId(ctx context.Context, opt *model.SearchOptions, userId 
 		return nil, appErr
 	}
 	base := c.GetQueryBaseFromSearchOptions(opt).Where(
-		sq.Eq{"userId": userId},
+		sq.Eq{"user_id": userId},
 	)
 
 	rows, err := base.RunWith(db).QueryContext(ctx)
@@ -67,14 +91,14 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.Ap
 	}
 	rows, err := db.QueryContext(ctx,
 		`INSERT INTO
-			logger.log(date, action, user_id, user_ip, object_id, new_state, domain_id, record_id) 
+			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id) 
 		VALUES
 			(
-			$1, $2, $3, $4, $5, $6, $7, $8
+			$1, $2, $3, $4, $5, $6, $7
 			)
 		RETURNING 
-			id, date, action, user_id, user_ip, object_id, new_state, domain_id, record_id`,
-		log.Date, log.Action, log.UserId, log.UserIp, log.ObjectId, log.NewState, log.DomainId, log.RecordId,
+			id, date, action, user_id, user_ip,  new_state, record_id, config_id`,
+		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.RecordId, log.ConfigId,
 	)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
@@ -85,6 +109,29 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.Ap
 	}
 	newModel = res[0]
 	return &newModel, nil
+}
+
+func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, domainId int, objectId int) (int, errors.AppError) {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return 0, appErr
+	}
+	config, appErr := c.storage.Config().GetByObjectId(ctx, domainId, objectId)
+	if appErr != nil {
+		return 0, appErr
+	}
+	rows, err := db.ExecContext(ctx,
+		`DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `,
+		date, config.Id,
+	)
+	if err != nil {
+		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
+	}
+	affected, err := rows.RowsAffected()
+	if err != nil {
+		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.result.error", err.Error())
+	}
+	return int(affected), nil
 }
 
 func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
@@ -108,19 +155,19 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
 			case "date":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Date })
 			case "user_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.UserId })
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.User.Id })
+			case "user_name":
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.User.Name })
 			case "user_ip":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.UserIp })
-			case "object_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.ObjectId })
 			case "new_state":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.NewState })
-			case "domain_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.DomainId })
 			case "record_id":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.RecordId })
 			case "action":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Action })
+			case "config_id":
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.ConfigId })
 			default:
 				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
 			}
@@ -147,24 +194,40 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
 
 func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectBuilder {
 	var fields []string
-	if len(opt.Fields) == 0 {
-		fields = append(fields,
-			"id",
-			"date",
-			"user_id",
-			"user_ip",
-			"object_id",
-			"new_state",
-			"domain_id",
-			"record_id",
-			"action")
-	} else {
-		fields = opt.Fields
-		if !contains(fields, "id") {
-			fields = append(fields, "id")
+	for _, v := range opt.Fields {
+		switch v {
+		case "id":
+			fields = append(fields, "log.id")
+		case "date":
+			fields = append(fields, "log.date")
+		case "user_ip":
+			fields = append(fields, "log.user_ip")
+		case "new_state":
+			fields = append(fields, "log.new_state")
+		case "record_id":
+			fields = append(fields, "log.record_id")
+		case "action":
+			fields = append(fields, "log.action")
+		case "config_id":
+			fields = append(fields, "log.config_id")
+		case "user":
+			fields = append(fields, "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name")
+			fields = append(fields, "log.user_id")
 		}
 	}
-	base := sq.Select(fields...).From("logger.log")
+	if len(fields) == 0 {
+		fields = append(fields,
+			"log.id",
+			"log.date",
+			"log.user_id",
+			"coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+			"log.user_ip",
+			"log.new_state",
+			"log.record_id",
+			"log.action",
+			"log.config_id")
+	}
+	base := sq.Select(fields...).From("logger.log").JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id")
 	//if opt.Search != "" {
 	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
 	//}

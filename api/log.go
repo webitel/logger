@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/webitel/engine/auth_manager"
 	"webitel_logger/app"
 	"webitel_logger/proto"
 
@@ -21,7 +22,16 @@ func NewLoggerService(app *app.App) (*LoggerService, errors.AppError) {
 }
 
 func (s *LoggerService) GetLogsByUserId(ctx context.Context, in *proto.GetLogsByUserIdRequest) (*proto.Logs, error) {
-	var result *proto.Logs
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	permission := session.GetPermission()
+	if !permission.CanRead() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	}
+	var result proto.Logs
 	opt, err := app.ExtractSearchOptions(in)
 	if err != nil {
 		return nil, err
@@ -31,16 +41,48 @@ func (s *LoggerService) GetLogsByUserId(ctx context.Context, in *proto.GetLogsBy
 		return nil, err
 	}
 	result.Logs = rows
-	return result, nil
+	return &result, nil
 }
 
 func (s *LoggerService) GetLogsByObjectId(ctx context.Context, in *proto.GetLogsByObjectIdRequest) (*proto.Logs, error) {
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	permission := session.GetPermission()
+	if !permission.CanRead() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	}
 	var result proto.Logs
 	opt, err := app.ExtractSearchOptions(in)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := s.app.GetLogsByObjectId(ctx, opt, int(in.GetDomainId()), int(in.GetObjectId()))
+	if err != nil {
+		return nil, err
+	}
+	result.Logs = rows
+	return &result, nil
+}
+
+func (s *LoggerService) GetLogsByConfigId(ctx context.Context, in *proto.GetLogsByConfigIdRequest) (*proto.Logs, error) {
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	permission := session.GetPermission()
+	if !permission.CanRead() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	}
+	var result proto.Logs
+	opt, err := app.ExtractSearchOptions(in)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.app.GetLogsByConfigId(ctx, opt, int(in.GetConfigId()))
 	if err != nil {
 		return nil, err
 	}

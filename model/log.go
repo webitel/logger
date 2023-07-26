@@ -1,13 +1,17 @@
 package model
 
+import (
+	"github.com/webitel/engine/model"
+	"time"
+)
+
 type Log struct {
 	Id       int
 	Action   string
-	Date     int64
-	UserId   int
+	Date     time.Time
+	User     model.Lookup
 	UserIp   string
-	ObjectId int
 	RecordId int
 	NewState string
-	DomainId int
+	ConfigId int
 }

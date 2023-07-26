@@ -5,14 +5,11 @@ package webitel_logger;
 option go_package = "webitel_logger/proto";
 
 service ConfigService {
-  rpc UpdateConfig(Config) returns (Config) {}
-  rpc GetConfigsByObjectId(GetByObjectIdRequest) returns (Config) {}
-  rpc GetAllConfigs(Domain) returns (Configs) {}
+  rpc UpdateConfig(UpdateConfigRequest) returns (Config) {}
+  rpc GetConfigByObjectId(GetConfigByObjectIdRequest) returns (Config) {}
+  rpc GetAllConfigs(GetAllConfigsRequest) returns (Configs) {}
 }
 
-message Domain {
-  int32 domain_id = 1;
-}
 
 message Configs {
   repeated Config configs = 1;
@@ -27,7 +24,35 @@ message Config {
   int32 domainId = 7;
 }
 
-message GetByObjectIdRequest {
-  int32 objectId = 1;
-  int32 domainId = 2;
+message GetConfigByObjectIdRequest {
+//  int32 page = 1;
+//  int32 size = 2;
+//  string q = 3;
+//
+//  string sort = 5;
+//  repeated string fields = 6;
+
+  int32 objectId = 7;
+  int32 domainId = 8;
+}
+
+message GetAllConfigsRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string q = 3;
+
+  string sort = 5;
+  repeated string fields = 6;
+
+  int32 domainId = 7;
+}
+
+message UpdateConfigRequest {
+  int32 domainId = 1;
+  int32 objectId = 2;
+  bool enabled = 3;
+  int32 daysToStore = 4;
+  string period = 5;
+  int32 storageId = 6;
+
 }

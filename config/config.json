@@ -7,10 +7,8 @@
     },
     "consul": {
         "address": "10.9.8.111:8500",
-        "id" : "logger"
+        "id" : "logger",
+        "publicAddress": "10.10.10.101:10001"
         
-    },
-    "grpc": {
-        "address": "10.10.10.101:10001"
     }
 }   

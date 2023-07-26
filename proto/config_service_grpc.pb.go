@@ -19,18 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ConfigService_UpdateConfig_FullMethodName         = "/webitel_logger.ConfigService/UpdateConfig"
-	ConfigService_GetConfigsByObjectId_FullMethodName = "/webitel_logger.ConfigService/GetConfigsByObjectId"
-	ConfigService_GetAllConfigs_FullMethodName        = "/webitel_logger.ConfigService/GetAllConfigs"
+	ConfigService_UpdateConfig_FullMethodName        = "/webitel_logger.ConfigService/UpdateConfig"
+	ConfigService_GetConfigByObjectId_FullMethodName = "/webitel_logger.ConfigService/GetConfigByObjectId"
+	ConfigService_GetAllConfigs_FullMethodName       = "/webitel_logger.ConfigService/GetAllConfigs"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigServiceClient interface {
-	UpdateConfig(ctx context.Context, in *Config, opts ...grpc.CallOption) (*Config, error)
-	GetConfigsByObjectId(ctx context.Context, in *GetByObjectIdRequest, opts ...grpc.CallOption) (*Config, error)
-	GetAllConfigs(ctx context.Context, in *Domain, opts ...grpc.CallOption) (*Configs, error)
+	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error)
+	GetConfigByObjectId(ctx context.Context, in *GetConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error)
+	GetAllConfigs(ctx context.Context, in *GetAllConfigsRequest, opts ...grpc.CallOption) (*Configs, error)
 }
 
 type configServiceClient struct {
@@ -41,7 +41,7 @@ func NewConfigServiceClient(cc grpc.ClientConnInterface) ConfigServiceClient {
 	return &configServiceClient{cc}
 }
 
-func (c *configServiceClient) UpdateConfig(ctx context.Context, in *Config, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
 	err := c.cc.Invoke(ctx, ConfigService_UpdateConfig_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -50,16 +50,16 @@ func (c *configServiceClient) UpdateConfig(ctx context.Context, in *Config, opts
 	return out, nil
 }
 
-func (c *configServiceClient) GetConfigsByObjectId(ctx context.Context, in *GetByObjectIdRequest, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) GetConfigByObjectId(ctx context.Context, in *GetConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
-	err := c.cc.Invoke(ctx, ConfigService_GetConfigsByObjectId_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ConfigService_GetConfigByObjectId_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) GetAllConfigs(ctx context.Context, in *Domain, opts ...grpc.CallOption) (*Configs, error) {
+func (c *configServiceClient) GetAllConfigs(ctx context.Context, in *GetAllConfigsRequest, opts ...grpc.CallOption) (*Configs, error) {
 	out := new(Configs)
 	err := c.cc.Invoke(ctx, ConfigService_GetAllConfigs_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -72,9 +72,9 @@ func (c *configServiceClient) GetAllConfigs(ctx context.Context, in *Domain, opt
 // All implementations must embed UnimplementedConfigServiceServer
 // for forward compatibility
 type ConfigServiceServer interface {
-	UpdateConfig(context.Context, *Config) (*Config, error)
-	GetConfigsByObjectId(context.Context, *GetByObjectIdRequest) (*Config, error)
-	GetAllConfigs(context.Context, *Domain) (*Configs, error)
+	UpdateConfig(context.Context, *UpdateConfigRequest) (*Config, error)
+	GetConfigByObjectId(context.Context, *GetConfigByObjectIdRequest) (*Config, error)
+	GetAllConfigs(context.Context, *GetAllConfigsRequest) (*Configs, error)
 	mustEmbedUnimplementedConfigServiceServer()
 }
 
@@ -82,13 +82,13 @@ type ConfigServiceServer interface {
 type UnimplementedConfigServiceServer struct {
 }
 
-func (UnimplementedConfigServiceServer) UpdateConfig(context.Context, *Config) (*Config, error) {
+func (UnimplementedConfigServiceServer) UpdateConfig(context.Context, *UpdateConfigRequest) (*Config, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateConfig not implemented")
 }
-func (UnimplementedConfigServiceServer) GetConfigsByObjectId(context.Context, *GetByObjectIdRequest) (*Config, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetConfigsByObjectId not implemented")
+func (UnimplementedConfigServiceServer) GetConfigByObjectId(context.Context, *GetConfigByObjectIdRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfigByObjectId not implemented")
 }
-func (UnimplementedConfigServiceServer) GetAllConfigs(context.Context, *Domain) (*Configs, error) {
+func (UnimplementedConfigServiceServer) GetAllConfigs(context.Context, *GetAllConfigsRequest) (*Configs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllConfigs not implemented")
 }
 func (UnimplementedConfigServiceServer) mustEmbedUnimplementedConfigServiceServer() {}
@@ -105,7 +105,7 @@ func RegisterConfigServiceServer(s grpc.ServiceRegistrar, srv ConfigServiceServe
 }
 
 func _ConfigService_UpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Config)
+	in := new(UpdateConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -117,31 +117,31 @@ func _ConfigService_UpdateConfig_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: ConfigService_UpdateConfig_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).UpdateConfig(ctx, req.(*Config))
+		return srv.(ConfigServiceServer).UpdateConfig(ctx, req.(*UpdateConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_GetConfigsByObjectId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetByObjectIdRequest)
+func _ConfigService_GetConfigByObjectId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigByObjectIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).GetConfigsByObjectId(ctx, in)
+		return srv.(ConfigServiceServer).GetConfigByObjectId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ConfigService_GetConfigsByObjectId_FullMethodName,
+		FullMethod: ConfigService_GetConfigByObjectId_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetConfigsByObjectId(ctx, req.(*GetByObjectIdRequest))
+		return srv.(ConfigServiceServer).GetConfigByObjectId(ctx, req.(*GetConfigByObjectIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _ConfigService_GetAllConfigs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Domain)
+	in := new(GetAllConfigsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func _ConfigService_GetAllConfigs_Handler(srv interface{}, ctx context.Context, 
 		FullMethod: ConfigService_GetAllConfigs_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetAllConfigs(ctx, req.(*Domain))
+		return srv.(ConfigServiceServer).GetAllConfigs(ctx, req.(*GetAllConfigsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -170,8 +170,8 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_UpdateConfig_Handler,
 		},
 		{
-			MethodName: "GetConfigsByObjectId",
-			Handler:    _ConfigService_GetConfigsByObjectId_Handler,
+			MethodName: "GetConfigByObjectId",
+			Handler:    _ConfigService_GetConfigByObjectId_Handler,
 		},
 		{
 			MethodName: "GetAllConfigs",

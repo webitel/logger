@@ -131,7 +131,7 @@ func NewGrpcClient(serviceDiscovery discovery.ServiceDiscovery) GrpcClient {
 }
 
 type ConfigApi interface {
-	CheckIsActive(ctx context.Context, objectId int, domainId int) (bool, error)
+	CheckIsActive(ctx context.Context, domainId int, objectId int) (bool, error)
 }
 
 func NewConfigApi(cli *grpcClient) ConfigApi {
@@ -142,8 +142,8 @@ type configApi struct {
 	client *grpcClient
 }
 
-func (c *configApi) CheckIsActive(ctx context.Context, objectId int, domainId int) (bool, error) {
-	in := &proto.Object{
+func (c *configApi) CheckIsActive(ctx context.Context, domainId int, objectId int) (bool, error) {
+	in := &proto.GetConfigByObjectIdRequest{
 		ObjectId: int32(objectId),
 		DomainId: int32(domainId),
 	}
@@ -151,7 +151,7 @@ func (c *configApi) CheckIsActive(ctx context.Context, objectId int, domainId in
 	if err != nil {
 		return false, err
 	}
-	res, err := conn.config.GetByObjectId(context.Background(), in)
+	res, err := conn.config.GetConfigByObjectId(ctx, in)
 	if err != nil {
 		return false, err
 	}

@@ -3,12 +3,12 @@ package rabbit
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/webitel/wlog"
 	"strconv"
 	"strings"
 	"webitel_logger/app"
 	"webitel_logger/model"
-
-	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	errors "github.com/webitel/engine/model"
@@ -26,10 +26,10 @@ func NewHandler(app *app.App) (*Handler, errors.AppError) {
 }
 
 func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.AppError {
-	var model model.Message
+	var model model.RabbitMessage
 	err := json.Unmarshal(message.Body, &model)
 	if err != nil {
-		log.Printf("error unmarshalling message. details: %s", err.Error())
+		wlog.Debug(fmt.Sprintf("error unmarshalling message. details: %s", err.Error()))
 		return nil
 		//return errors.NewInternalError("rabbit.handler.handle.json_unmarshal.error", err.Error())
 	}

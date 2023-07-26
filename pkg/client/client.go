@@ -13,11 +13,7 @@ type Client struct {
 // * rabbitUrl - connection string to rabbit server
 // * clientId - name that will be recognized by consul
 // * address - address to connect to consul server
-func NewClient(rabbitUrl string, clientId, address string) (*Client, error) {
-	disc, err := discovery.NewServiceDiscovery(clientId, address, func() (bool, error) { return true, nil })
-	if err != nil {
-		return nil, err
-	}
+func NewClient(rabbitUrl string, disc discovery.ServiceDiscovery) (*Client, error) {
 	cli := &Client{grpc: NewGrpcClient(disc)}
 	rab := NewRabbitClient(rabbitUrl, cli)
 	cli.rabbit = rab

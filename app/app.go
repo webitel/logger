@@ -1,25 +1,67 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/webitel/engine/auth_manager"
+	"github.com/webitel/engine/discovery"
+	"google.golang.org/grpc/metadata"
 	"strings"
 	"webitel_logger/model"
+	"webitel_logger/pkg/cache"
 	"webitel_logger/storage"
+	"webitel_logger/watcher"
 
 	errors "github.com/webitel/engine/model"
 )
 
+const (
+	DeleteWatcherPrefix = "config"
+	SESSION_CACHE_SIZE  = 35000
+	SESSION_CACHE_TIME  = 60 * 5
+	RequestContextName  = "grpc_ctx"
+)
+
 type App struct {
-	storage storage.Storage
+	config           *model.AppConfig
+	storage          storage.Storage
+	watchers         map[string]*watcher.Watcher
+	serviceDiscovery discovery.ServiceDiscovery
+	sessionManager   auth_manager.AuthManager
+	cache            cache.CacheStore
 }
 
-func New(store storage.Storage) (*App, errors.AppError) {
+func New(store storage.Storage, config *model.AppConfig) (*App, errors.AppError) {
 	if store == nil {
 		return nil, errors.NewInternalError("app.app.new.check_arguments.fail", "store is nil")
 	}
-	return &App{storage: store}, nil
+	app := &App{storage: store, config: config}
+
+	appErr := app.initializeWatchers()
+	if appErr != nil {
+		return nil, appErr
+	}
+	disc, err := discovery.NewServiceDiscovery(config.Consul.Id, config.Consul.Address, func() (bool, error) {
+		return true, nil
+	})
+	if err != nil {
+		return nil, errors.NewInternalError("app.app.new.discovery_connection.fail", err.Error())
+	}
+	app.sessionManager = auth_manager.NewAuthManager(SESSION_CACHE_SIZE, SESSION_CACHE_TIME, disc)
+	if err := app.sessionManager.Start(); err != nil {
+		return nil, errors.NewInternalError("app.app.new.auth_manager_start.fail", err.Error())
+	}
+	app.cache = cache.NewMemoryCache(&cache.MemoryCacheConfig{
+		Size:          200000,
+		DefaultExpiry: 120,
+	})
+	return app, nil
+}
+
+func (a *App) GetConfig() *model.AppConfig {
+	return a.config
 }
 
 func IsErrNoRows(err errors.AppError) bool {
@@ -42,8 +84,50 @@ func ExtractSearchOptions(t any) (*model.SearchOptions, errors.AppError) {
 	return &res, nil
 }
 
+func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, errors.AppError) {
+	var session *auth_manager.Session
+	var err errors.AppError
+	var token []string
+	var info metadata.MD
+	var ok bool
+
+	v := ctx.Value(RequestContextName)
+	info, ok = v.(metadata.MD)
+
+	// todo
+	if !ok {
+		info, ok = metadata.FromIncomingContext(ctx)
+	}
+
+	if !ok {
+		return nil, errors.NewInternalError("app.grpc.get_context", "Not found")
+	} else {
+		token = info.Get("X-Webitel-Access")
+	}
+
+	if len(token) < 1 {
+		return nil, errors.NewInternalError("api.context.session_expired.app_error", "token not found")
+	}
+
+	session, err = a.GetSession(token[0])
+	if err != nil {
+		return nil, err
+	}
+
+	if session.IsExpired() {
+		return nil, errors.NewInternalError("api.context.session_expired.app_error", "token="+token[0])
+	}
+
+	return session, nil
+}
+
+func (a *App) MakePermissionError(session *auth_manager.Session, permission auth_manager.SessionPermission, access auth_manager.PermissionAccess) errors.AppError {
+
+	return errors.NewForbiddenError("api.context.permissions.app_error", fmt.Sprintf("userId=%d, permission=%s access=%s", session.UserId, permission.Name, access.Name()))
+}
+
 func ConvertSort(in string) string {
-	if len(in) < 2 {
+	if len(in) < 2 || (in[0] != '+' && in[0] != '-') {
 		return ""
 	}
 	if in[0] == '+' {
@@ -51,4 +135,22 @@ func ConvertSort(in string) string {
 	} else {
 		return fmt.Sprintf("%s:%s", "DESC", in[1:])
 	}
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}
+
+func indexOf(element string, data []string) int {
+	for k, v := range data {
+		if element == v {
+			return k
+		}
+	}
+	return -1 //not found.
 }

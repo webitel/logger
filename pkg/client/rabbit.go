@@ -24,7 +24,7 @@ const (
 
 type RabbitClient interface {
 	Open() error
-	SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, newState []byte) error
+	SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, recordId int, newState []byte) error
 	Close()
 }
 
@@ -60,13 +60,13 @@ func (c *rabbitClient) Open() error {
 		return err
 	}
 	err = channel.ExchangeDeclare(
-		"webitel", // name
-		"topic",   // type
-		true,      // durable
-		false,     // auto-deleted
-		false,     // internal
-		false,     // no-wait
-		nil,       // arguments
+		"logger", // name
+		"topic",  // type
+		true,     // durable
+		false,    // auto-deleted
+		false,    // internal
+		false,    // no-wait
+		nil,      // arguments
 	)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func (c *rabbitClient) Open() error {
 	err = channel.QueueBind(
 		queue.Name, // queue name
 		"logger.#", // routing key
-		"webitel",  // exchange
+		"logger",   // exchange
 		false,
 		nil,
 	)
@@ -104,25 +104,25 @@ func (c *rabbitClient) Close() {
 	c.conn = nil
 }
 
-func (c *rabbitClient) SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, newState []byte) error {
+func (c *rabbitClient) SendContext(ctx context.Context, domainId int, objectId int, userId int, userIp string, action Action, recordId int, newState []byte) error {
 	if c.channel == nil || c.conn == nil {
 		return fmt.Errorf("connection not opened")
 	}
-	enabled, err := c.client.grpc.Config().CheckIsActive(context.Background(), 1, 10)
+	enabled, err := c.client.grpc.Config().CheckIsActive(context.Background(), domainId, objectId)
 	if err != nil {
 		return err
 	}
 	if !enabled {
 		return nil
 	}
-	mess := &Message{UserId: userId, UserIp: userIp, Action: string(action), NewState: newState, Date: time.Now().Unix()}
+	mess := &Message{UserId: userId, UserIp: userIp, Action: string(action), NewState: newState, Date: time.Now().Unix(), RecordId: recordId}
 	result, err := json.Marshal(mess)
 	if err != nil {
 		return err
 	}
-	c.channel.PublishWithContext(
+	err = c.channel.PublishWithContext(
 		ctx,
-		"webitel",
+		"logger",
 		fmt.Sprintf("logger.%d.%d", domainId, objectId),
 		false,
 		false,
@@ -131,5 +131,8 @@ func (c *rabbitClient) SendContext(ctx context.Context, domainId int, objectId i
 			Body:        result,
 		},
 	)
+	if err != nil {
+		return err
+	}
 	return nil
 }

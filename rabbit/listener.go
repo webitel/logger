@@ -2,7 +2,11 @@ package rabbit
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"github.com/webitel/wlog"
 	"log"
+	"strings"
 	"webitel_logger/app"
 	"webitel_logger/model"
 
@@ -50,7 +54,7 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 		return
 	}
 	defer channel.Close()
-	log.Println("connecting to the exchange")
+	wlog.Info("connecting to the exchange")
 	err = channel.ExchangeDeclare(
 		"logger", // name
 		"topic",  // type
@@ -65,7 +69,7 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 		return
 	}
 	// queue, err := channel.QueueDeclarePassive(
-	log.Println("connecting or creating a queue 'logger.service'")
+	wlog.Info("connecting or creating a queue 'logger.service'")
 	queue, err := channel.QueueDeclare(
 		"logger.service",
 		true,
@@ -78,7 +82,7 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 		l.exit <- errors.NewInternalError("rabbit.listener.listen.queue_declare.fail", err.Error())
 		return
 	}
-	log.Println("binding queue..")
+	wlog.Info("binding queue..")
 	err = channel.QueueBind(
 		queue.Name, // queue name
 		"logger.#", // routing key
@@ -113,15 +117,25 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 			message amqp.Delivery
 			appErr  errors.AppError
 		)
-		log.Println("waiting for the messages..")
+		wlog.Info("waiting for the messages..")
 		for message = range delivery {
-			log.Println("message recieved")
+			wlog.Info("message recieved")
 			appErr = handle(context.Background(), &message)
 			if appErr != nil {
-				log.Println("error while processing the messasge! nacking.. ")
-				message.Nack(false, true)
+				if checkNoRows(appErr) {
+					wlog.Debug(fmt.Sprintf("error processing message, foreign key error, skipping message.. error: %s", appErr.Error()))
+					appErr = nil
+					err = message.Ack(false)
+					if err != nil {
+						appErr = errors.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
+					}
+				} else {
+					wlog.Debug(fmt.Sprintf("error while processing the messasge! nacking.. error: %s", appErr.Error()))
+					message.Nack(false, true)
+				}
+				wlog.Info("message processed with errors!")
 			} else {
-				log.Println("message processed! acknowledging.. ")
+				wlog.Info("message processed! acknowledging.. ")
 				err = message.Ack(false)
 				if err != nil {
 					appErr = errors.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
@@ -135,4 +149,8 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 	}()
 	<-l.exit
 
+}
+
+func checkNoRows(err errors.AppError) bool {
+	return strings.Contains(err.Error(), sql.ErrNoRows.Error())
 }

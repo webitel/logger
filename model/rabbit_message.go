@@ -1,6 +1,6 @@
 package model
 
-type Message struct {
+type RabbitMessage struct {
 	ObjectId int    `json:"objectId,omitempty"`
 	NewState []byte `json:"newState,omitempty"`
 	UserId   int    `json:"userId,omitempty"`

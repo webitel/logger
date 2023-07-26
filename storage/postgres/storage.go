@@ -78,40 +78,34 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.schema.create", err.Error())
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS logger.log ( 
-		id SERIAL PRIMARY KEY,
-		date BIGINT NOT NULL,
-		user_id INT NOT NULL,
-		user_ip TEXT NOT NULL,
-		object_id BIGINT NOT NULL,
-		record_id BIGINT NOT NULL,
-		new_state JSONB,
-		action TEXT NOT NULL,
-		domain_id BIGINT NOT NULL);`)
-	if err != nil {
-		return errors.NewInternalError("postgres.storage.schema_init.log_table.create", err.Error())
-	}
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS
 	logger.object_config ( 
 		id SERIAL PRIMARY KEY,
 		enabled BOOLEAN NOT NULL,
 		days_to_store BIGINT NOT NULL,
 		period TEXT NOT NULL,
-		next_upload_on BIGINT,
+		next_upload_on TIMESTAMP WITH TIME ZONE,
 		object_id BIGINT NOT NULL,
 		storage_id BIGINT NOT NULL REFERENCES storage.file_backend_profiles(id),
-		domain_id INT NOT NULL);`)
+		domain_id BIGINT NOT NULL REFERENCES directory.wbt_domain(dc) ON DELETE CASCADE
+		);`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.config_table.create", err.Error())
 	}
-	return nil
-}
 
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS logger.log ( 
+		id SERIAL PRIMARY KEY,
+		date TIMESTAMP WITH TIME ZONE NOT NULL,
+		user_id INT NOT NULL,
+		user_ip TEXT NOT NULL,
+		record_id BIGINT NOT NULL,
+		new_state JSONB,
+		action TEXT NOT NULL,
+		config_id BIGINT NOT NULL REFERENCES logger.object_config(id) ON DELETE CASCADE
+    );`)
+	if err != nil {
+		return errors.NewInternalError("postgres.storage.schema_init.log_table.create", err.Error())
 	}
-	return false
+
+	return nil
 }

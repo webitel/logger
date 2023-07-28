@@ -119,7 +119,7 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 		)
 		wlog.Info("waiting for the messages..")
 		for message = range delivery {
-			wlog.Info("message recieved")
+			wlog.Info("message received")
 			appErr = handle(context.Background(), &message)
 			if appErr != nil {
 				if checkNoRows(appErr) {

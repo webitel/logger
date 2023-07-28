@@ -17,7 +17,7 @@ type Storage interface {
 	// Database connection
 	Database() (*sql.DB, errors.AppError)
 	// Initializes logger schema
-	SchemaInit() errors.AppError
+	//SchemaInit() errors.AppError
 	// Opens connection to the storage
 	Open() errors.AppError
 	// Closes connection to the storage

@@ -17,10 +17,10 @@ const (
 
 func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
-		newModel *model.Config
+		result *model.Config
 	)
 	if in == nil {
-		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
 	oldModel, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
 	if err != nil {
@@ -32,24 +32,24 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 	if err != nil {
 		return nil, err
 	}
-	newModel, err = a.storage.Config().Update(ctx, model, userId)
+	result, err = a.storage.Config().Update(ctx, model, userId)
 	if err != nil {
 		return nil, err
 	}
-	watcherName := FormatKey(DeleteWatcherPrefix, newModel.DomainId, newModel.ObjectId)
-	if oldModel.Enabled == true && newModel.Enabled == false {
+	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.ObjectId)
+	if oldModel.Enabled == true && result.Enabled == false {
 		a.DeleteWatcherByKey(watcherName)
 	} else {
 		if a.GetWatcherByKey(watcherName) != nil {
-			a.UpdateDeleteWatcherWithNewInterval(newModel.Id, newModel.DaysToStore)
+			a.UpdateDeleteWatcherWithNewInterval(result.Id, result.DaysToStore)
 		} else {
-			a.InsertNewDeleteWatcher(newModel.Id, newModel.DaysToStore)
+			a.InsertNewDeleteWatcher(result.Id, result.DaysToStore)
 		}
 	}
 
 	//}
 
-	res, err := a.convertConfigModelToMessage(newModel)
+	res, err := a.convertConfigModelToMessage(result)
 	if err != nil {
 		return nil, err
 	}

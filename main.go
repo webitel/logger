@@ -65,10 +65,10 @@ func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, errors.AppErr
 	if err != nil {
 		return nil, err
 	}
-	err = store.SchemaInit()
-	if err != nil {
-		return nil, err
-	}
+	//err = store.SchemaInit()
+	//if err != nil {
+	//	return nil, err
+	//}
 	return store, nil
 }
 

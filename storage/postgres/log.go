@@ -144,7 +144,7 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.Ap
 		return nil, errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
 	}
 	res, appErr := c.ScanRows(rows)
-	if err != nil {
+	if appErr != nil {
 		return nil, appErr
 	}
 	newModel = res[0]

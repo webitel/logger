@@ -24,6 +24,14 @@ func (t *NullTime) IsZero() bool {
 	return true
 }
 
+// IsZero value (?)
+func (t *NullTime) String() string {
+	if t != nil {
+		return t.Time().String()
+	}
+	return ""
+}
+
 // Time native value (!)
 func (t *NullTime) Time() (stamp time.Time) {
 	// v == time.Time{} // Zero(!)
@@ -37,7 +45,7 @@ func (t *NullTime) Time() (stamp time.Time) {
 func (t *NullTime) Scan(v interface{}) error {
 	// scan: nullable (!)
 	if v == nil {
-		(t) = (*NullTime)(&time.Time{}) // Zero(!)
+		(t) = nil // Zero(!)
 		return nil
 	}
 	switch v := v.(type) {
@@ -67,7 +75,7 @@ func (t *NullTime) Scan(v interface{}) error {
 	//	return t.UnmarshalText([]byte(v))
 	case time.Time:
 		// +OK: datetime
-		*(t) = (NullTime)(v) // shallowcopy
+		(t) = (*NullTime)(&v) // shallowcopy
 		return nil
 	//case *time.Time:
 	//	// +OK: datetime
@@ -80,5 +88,5 @@ func (t *NullTime) Scan(v interface{}) error {
 	//	return nil
 	default:
 	}
-	return fmt.Errorf("timestamp: convert %[1]T value %[1]v", v)
+	return fmt.Errorf("nulltime: convert %[1]T value %[1]v", v)
 }

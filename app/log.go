@@ -79,7 +79,7 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	return &proto.Log{
 		Id:     int32(m.Id),
 		Action: m.Action,
-		Date:   m.Date.Time().String(),
+		Date:   m.Date.String(),
 		User: &proto.Lookup{
 			Id:   int32(m.User.Id),
 			Name: m.User.Name,

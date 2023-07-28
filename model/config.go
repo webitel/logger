@@ -6,7 +6,7 @@ type Config struct {
 	CreatedAt    NullTime
 	CreatedBy    int
 	UpdatedAt    NullTime
-	UpdatedBy    int
+	UpdatedBy    NullInt
 	Enabled      bool
 	DaysToStore  int
 	Period       string

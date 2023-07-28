@@ -25,12 +25,11 @@ func newConfigStore(store storage.Storage) (storage.ConfigStore, errors.AppError
 }
 
 func (c *Config) Update(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
-	var newConfig model.Config
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	row := db.QueryRowContext(ctx,
+	row, err := db.QueryContext(ctx,
 		`UPDATE 
 			logger.object_config 
 		SET 
@@ -45,11 +44,14 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, userId int) (*m
 			id = $8
 		RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
 		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, time.Now(), userId, conf.Id)
-	err := row.Scan(&newConfig.Id, &newConfig.Enabled, &newConfig.DaysToStore, &newConfig.Period, &newConfig.NextUploadOn, &newConfig.StorageId, &newConfig.DomainId, &newConfig.ObjectId)
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.config.update.query_execution.fail", err.Error())
+		return nil, errors.NewInternalError("postgres.config.update.query.fail", err.Error())
 	}
-	return &newConfig, nil
+	newConfig, appErr := c.ScanRow(row)
+	if err != nil {
+		return nil, errors.NewInternalError("postgres.config.update.scan.fail", err.Error())
+	}
+	return newConfig, nil
 }
 
 //func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
@@ -99,17 +101,16 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, userId int) (*m
 //}
 
 func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
-	var newConfig model.Config
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	res := db.QueryRowContext(ctx,
+	res, err := db.QueryContext(ctx,
 		`INSERT INTO
-		   logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_at, created_by) 
+		   logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by) 
 		VALUES
 		   (
-			  $1, $2, $3, $4, $5, $6, $7, $8, $9 
+			  $1, $2, $3, $4, $5, $6, $7, $8 
 		   )
 		   RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
 		conf.Enabled,
@@ -119,13 +120,15 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		conf.StorageId,
 		conf.DomainId,
 		conf.ObjectId,
-		time.Now(),
 		userId)
-	err := res.Scan(&newConfig.Id, &newConfig.Enabled, &newConfig.DaysToStore, &newConfig.Period, &newConfig.NextUploadOn, &newConfig.StorageId, &newConfig.DomainId, &newConfig.ObjectId)
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.config.insert.scan_new.fail", err.Error())
+		return nil, errors.NewInternalError("postgres.config.insert.query.fail", err.Error())
 	}
-	return &newConfig, nil
+	newConfig, appErr := c.ScanRow(res)
+	if appErr != nil {
+		return nil, appErr
+	}
+	return newConfig, nil
 }
 
 func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*model.Config, errors.AppError) {
@@ -152,7 +155,7 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"id": id})
+	base := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"id": id}).PlaceholderFormat(sq.Dollar)
 	rows, err := c.insertRbacCondition(base, rbac).RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())

@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	DeleteWatcherPrefix = "config"
+	DeleteWatcherPrefix = "config.watcher"
 	SESSION_CACHE_SIZE  = 35000
 	SESSION_CACHE_TIME  = 60 * 5
 	RequestContextName  = "grpc_ctx"

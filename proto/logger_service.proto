@@ -41,7 +41,7 @@ message GetLogsByObjectIdRequest {
   repeated string fields = 6;
 
   int32 objectId = 7;
-  int32 domainId = 8;
+//  int32 domainId = 8;
 }
 
 message Logs {

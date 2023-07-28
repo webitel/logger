@@ -81,6 +81,10 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS
 	logger.object_config ( 
 		id SERIAL PRIMARY KEY,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+		created_by BIGINT NOT NULL,
+		updated_at TIMESTAMP WITH TIME ZONE,
+		updated_by BIGINT,
 		enabled BOOLEAN NOT NULL,
 		days_to_store BIGINT NOT NULL,
 		period TEXT NOT NULL,
@@ -103,6 +107,51 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 		action TEXT NOT NULL,
 		config_id BIGINT NOT NULL REFERENCES logger.object_config(id) ON DELETE CASCADE
     );`)
+	if err != nil {
+		return errors.NewInternalError("postgres.storage.schema_init.log_table.create", err.Error())
+	}
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS logger.object_config_acl
+(
+    id      bigserial
+        constraint object_config_acl_pk
+            primary key,
+    dc      bigint             not null
+        constraint object_config_acl_domain_fk
+            references directory.wbt_domain
+            on delete cascade,
+    grantor bigint
+        constraint object_config_acl_grantor_id_fk
+            references directory.wbt_auth
+            on delete set null,
+    object  integer            not null
+        constraint object_config_acl_object_config_id_fk
+            references logger.object_config
+            on update cascade on delete cascade,
+    subject bigint             not null,
+    access  smallint default 0 not null,
+    constraint object_config_acl_grantor_fk
+        foreign key (grantor, dc) references directory.wbt_auth (id, dc)
+            on update cascade on delete cascade,
+    constraint object_config_acl_object_fk
+        foreign key (object, dc) references logger.object_config (id, domain_id)
+            on delete cascade,
+    constraint object_config_acl_subject_fk
+        foreign key (subject, dc) references directory.wbt_auth (id, dc)
+            on delete cascade
+);
+
+alter table logger.object_config_acl
+    owner to opensips;
+
+create index IF NOT EXISTS object_config_acl_grantor_idx
+    on logger.object_config_acl (grantor);
+
+create unique index IF NOT EXISTS object_config_acl_object_subject_udx
+    on logger.object_config_acl (object, subject) include (access);
+
+create unique index IF NOT EXISTS object_config_acl_subject_object_udx
+    on logger.object_config_acl (subject, object) include (access);`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.log_table.create", err.Error())
 	}

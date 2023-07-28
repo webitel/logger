@@ -6,6 +6,7 @@ import (
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"strings"
+	"time"
 	"webitel_logger/model"
 	"webitel_logger/storage"
 
@@ -23,7 +24,7 @@ func newConfigStore(store storage.Storage) (storage.ConfigStore, errors.AppError
 	return &Config{storage: store}, nil
 }
 
-func (c *Config) Update(ctx context.Context, conf *model.Config) (*model.Config, errors.AppError) {
+func (c *Config) Update(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
 	var newConfig model.Config
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -37,11 +38,13 @@ func (c *Config) Update(ctx context.Context, conf *model.Config) (*model.Config,
 			days_to_store = $2, 
 			period = $3, 
 			next_upload_on = $4, 
-			storage_id = $5
+			storage_id = $5,
+			updated_at = $6,
+			updated_by = $7
 		WHERE 
-			object_id = $6 AND domain_id = $7
-		RETURNING id, enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
-		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, conf.ObjectId, conf.DomainId)
+			object_id = $8 AND domain_id = $9
+		RETURNING id, enabled, created_at, created_by, updated_at, updated_by days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
+		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, time.Now(), userId, conf.ObjectId, conf.DomainId)
 	err := row.Scan(&newConfig.Id, &newConfig.Enabled, &newConfig.DaysToStore, &newConfig.Period, &newConfig.NextUploadOn, &newConfig.StorageId, &newConfig.DomainId, &newConfig.ObjectId)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query_execution.fail", err.Error())
@@ -49,7 +52,53 @@ func (c *Config) Update(ctx context.Context, conf *model.Config) (*model.Config,
 	return &newConfig, nil
 }
 
-func (c *Config) Insert(ctx context.Context, conf *model.Config) (*model.Config, errors.AppError) {
+//func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
+//	var i int
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return false, appErr
+//	}
+//	res := db.QueryRowContext(ctx, `select 1
+//		where exists(
+//          select 1
+//          from call_center.cc_queue_acl a
+//          where a.dc = $1
+//            and a.object = $2
+//            and a.subject = any ($3::int[])
+//            and a.access & $4 = $4
+//        )`, domainId, id, groups, access)
+//	err := res.Scan(&i)
+//	if err != nil {
+//		return false, nil
+//	}
+//
+//	return i == 1, nil
+//}
+
+//func (c *Config) CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
+//	var i int
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return false, appErr
+//	}
+//	res := db.QueryRowContext(ctx, `select 1
+//		where exists(
+//          select 1
+//          from call_center.cc_queue_acl a
+//          where a.dc = $1
+//            and a.object IN (select id from logger.object_config where object_config.domain_id = $1 and object_config.object_id = $2 )
+//            and a.subject = any ($3::int[])
+//            and a.access & $4 = $4
+//        )`, domainId, objectId, groups, access)
+//	err := res.Scan(&i)
+//	if err != nil {
+//		return false, nil
+//	}
+//
+//	return i == 1, nil
+//}
+
+func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
 	var newConfig model.Config
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -57,19 +106,21 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config) (*model.Config,
 	}
 	res := db.QueryRowContext(ctx,
 		`INSERT INTO
-		logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id) 
+		   logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_at, created_by) 
 		VALUES
-			(
-			$1, $2, $3, $4, $5, $6, $7
-			)
-		RETURNING id, enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
+		   (
+			  $1, $2, $3, $4, $5, $6, $7, $8, $9 
+		   )
+		   RETURNING id, enabled, created_at, created_by, updated_at, updated_by days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
 		conf.Enabled,
 		conf.DaysToStore,
 		conf.Period,
 		conf.NextUploadOn,
 		conf.StorageId,
 		conf.DomainId,
-		conf.ObjectId)
+		conf.ObjectId,
+		time.Now(),
+		userId)
 	err := res.Scan(&newConfig.Id, &newConfig.Enabled, &newConfig.DaysToStore, &newConfig.Period, &newConfig.NextUploadOn, &newConfig.StorageId, &newConfig.DomainId, &newConfig.ObjectId)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.insert.scan_new.fail", err.Error())
@@ -77,21 +128,14 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config) (*model.Config,
 	return &newConfig, nil
 }
 
-func (c *Config) GetByObjectId(ctx context.Context /*opt *model.SearchOptions, */, domainId int, objId int) (*model.Config, errors.AppError) {
+func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	//base := c.GetQueryBaseFromSearchOptions(opt)
-	//rows, err := base.Where(sq.Eq{"domain_id": domainId}).Where(sq.Eq{"object_id": objId}).RunWith(db).QueryContext(ctx)
-	rows, err := sq.Select("id",
-		"enabled",
-		"days_to_store",
-		"period",
-		"next_upload_on",
-		"object_id",
-		"storage_id",
-		"domain_id").From("logger.object_config").Where(sq.Eq{"domain_id": domainId}).Where(sq.Eq{"object_id": objId}).PlaceholderFormat(sq.Dollar).RunWith(db).QueryContext(ctx)
+	base := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"domain_id": domainId}).Where(sq.Eq{"object_id": objId}).PlaceholderFormat(sq.Dollar)
+
+	rows, err := base.RunWith(db).QueryContext(ctx)
 
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_object.query.fail", err.Error())
@@ -103,13 +147,13 @@ func (c *Config) GetByObjectId(ctx context.Context /*opt *model.SearchOptions, *
 	return configs, nil
 }
 
-func (c *Config) GetById(ctx context.Context, opt *model.SearchOptions, id int) (*model.Config, errors.AppError) {
+func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBaseFromSearchOptions(opt)
-	rows, err := base.Where(sq.Eq{"id": id}).RunWith(db).QueryContext(ctx)
+	base := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"id": id})
+	rows, err := c.insertRbacCondition(base, rbac).RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
 	}
@@ -120,12 +164,12 @@ func (c *Config) GetById(ctx context.Context, opt *model.SearchOptions, id int) 
 	return config, nil
 }
 
-func (c *Config) GetAll(ctx context.Context, opt *model.SearchOptions, domainId int) (*[]model.Config, errors.AppError) {
+func (c *Config) GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBaseFromSearchOptions(opt)
+	base := c.GetQueryBaseFromSearchOptions(opt, rbac)
 
 	rows, err := base.Where(sq.Eq{"domain_id": domainId}).RunWith(db).QueryContext(ctx)
 	if err != nil {
@@ -138,19 +182,30 @@ func (c *Config) GetAll(ctx context.Context, opt *model.SearchOptions, domainId 
 	return &configs, nil
 }
 
+//func (c *Config) GetAllRbac(ctx context.Context, opt *model.SearchOptions, domainId int, groups []int, access auth_manager.PermissionAccess) (*[]model.Config, errors.AppError) {
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	base := c.GetQueryBaseFromSearchOptions(opt)
+//
+//	rows, err := base.Where(sq.Eq{"domain_id": domainId}, sq.Expr("exists(select 1 from logger.object_config_acl acl where acl.dc = object_config.domain_id and acl.object = object_config.id and acl.subject = any($1::int[]) and acl.access&$2 = $2)"), groups, access).RunWith(db).QueryContext(ctx)
+//	if err != nil {
+//		return nil, errors.NewInternalError("postgres.config.get_all.query.fail", err.Error())
+//	}
+//	configs, appErr := c.ScanRows(rows)
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	return &configs, nil
+//}
+
 func (c *Config) GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	rows, err := sq.Select("object_config.id",
-		"object_config.enabled",
-		"object_config.days_to_store",
-		"object_config.period",
-		"object_config.next_upload_on",
-		"object_config.object_id",
-		"object_config.storage_id",
-		"object_config.domain_id").From("logger.object_config").Where(sq.Eq{"enabled": true}).PlaceholderFormat(sq.Dollar).RunWith(db).QueryContext(ctx)
+	rows, err := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"enabled": true}).PlaceholderFormat(sq.Dollar).RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_all_enabled_configs.query.fail", err.Error())
 	}
@@ -201,6 +256,14 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.StorageId })
 			case "domain_id":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.DomainId })
+			case "created_at":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.CreatedAt })
+			case "created_by":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.CreatedBy })
+			case "updated_at":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedAt })
+			case "updated_by":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedBy })
 			default:
 				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
 			}
@@ -225,7 +288,7 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 	return configs, nil
 }
 
-func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectBuilder {
+func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
 	for _, v := range opt.Fields {
 		switch v {
@@ -245,23 +308,25 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.Sele
 			fields = append(fields, "object_config.storage_id")
 		case "domain_id":
 			fields = append(fields, "object_config.domain_id")
+		case "created_at":
+			fields = append(fields, "object_config.created_at")
+		case "created_by":
+			fields = append(fields, "object_config.created_by")
+		case "updated_at":
+			fields = append(fields, "object_config.updated_at")
+		case "updated_by":
+			fields = append(fields, "object_config.updated_by")
 		}
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
-			"object_config.id",
-			"object_config.enabled",
-			"object_config.days_to_store",
-			"object_config.period",
-			"object_config.next_upload_on",
-			"object_config.object_id",
-			"object_config.storage_id",
-			"object_config.domain_id")
+			c.getFields()...)
 	}
 	base := sq.Select(fields...).From("logger.object_config")
 	//if opt.Search != "" {
 	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
 	//}
+	base = c.insertRbacCondition(base, rbac)
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
 		if len(splitted) == 2 {
@@ -276,4 +341,28 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.Sele
 		offset = 0
 	}
 	return base.Offset(uint64(offset)).Limit(uint64(opt.Size)).PlaceholderFormat(sq.Dollar)
+}
+
+func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOptions) sq.SelectBuilder {
+	if rbac != nil {
+		base = base.Where(sq.Expr("exists(select 1 from logger.object_config_acl acl where acl.dc = object_config.domain_id and acl.object = object_config.id and acl.subject = any($1::int[]) and acl.access&$2 = $2)"), rbac.Groups, rbac.Access)
+	}
+	return base
+}
+
+func (c *Config) getFields() []string {
+	return []string{
+		"object_config.id",
+		"object_config.enabled",
+		"object_config.days_to_store",
+		"object_config.period",
+		"object_config.next_upload_on",
+		"object_config.object_id",
+		"object_config.storage_id",
+		"object_config.domain_id",
+		"object_config.created_at",
+		"object_config.created_by",
+		"object_config.updated_at",
+		"object_config.updated_by",
+	}
 }

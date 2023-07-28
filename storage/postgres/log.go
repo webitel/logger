@@ -28,13 +28,32 @@ func (c *Log) GetByObjectId(ctx context.Context, opt *model.SearchOptions, domai
 	if appErr != nil {
 		return nil, appErr
 	}
-	conf, appErr := c.storage.Config().GetByObjectId(ctx, domainId, objectId)
+	base := c.GetQueryBaseFromSearchOptions(opt).Where(
+		sq.Eq{"object_config.domain_id": domainId},
+		sq.Eq{"object_config.object_id": objectId},
+	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
+	rows, err := base.RunWith(db).QueryContext(ctx)
+	if err != nil {
+		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+	}
+	res, appErr := c.ScanRows(rows)
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"log.config_id": conf.Id})
-	s, _, _ := base.ToSql()
-	fmt.Println(s)
+	return &res, nil
+}
+
+func (c *Log) GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError) {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return nil, appErr
+	}
+	base := sq.Select(c.getFields()...).From("logger.log").Where(
+		sq.Eq{"object_config.domain_id": domainId},
+		sq.Eq{"object_config.object_id": objectId},
+		sq.GtOrEq{"log.date": dateFrom},
+		sq.LtOrEq{"log.date": dateTo},
+	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -52,6 +71,27 @@ func (c *Log) GetByConfigId(ctx context.Context, opt *model.SearchOptions, confi
 		return nil, appErr
 	}
 	base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"log.config_id": configId})
+	rows, err := base.RunWith(db).QueryContext(ctx)
+	if err != nil {
+		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+	}
+	res, appErr := c.ScanRows(rows)
+	if appErr != nil {
+		return nil, appErr
+	}
+	return &res, nil
+}
+
+func (c *Log) GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError) {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return nil, appErr
+	}
+	base := sq.Select(c.getFields()...).From("logger.log").Where(
+		sq.Eq{"log.config_id": configId},
+		sq.GtOrEq{"log.date": dateFrom},
+		sq.LtOrEq{"log.date": dateTo},
+	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -111,18 +151,14 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.Ap
 	return &newModel, nil
 }
 
-func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, domainId int, objectId int) (int, errors.AppError) {
+func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError) {
 	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return 0, appErr
-	}
-	config, appErr := c.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if appErr != nil {
 		return 0, appErr
 	}
 	rows, err := db.ExecContext(ctx,
 		`DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `,
-		date, config.Id,
+		date, configId,
 	)
 	if err != nil {
 		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
@@ -217,15 +253,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
-			"log.id",
-			"log.date",
-			"log.user_id",
-			"coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
-			"log.user_ip",
-			"log.new_state",
-			"log.record_id",
-			"log.action",
-			"log.config_id")
+			c.getFields()...)
 	}
 	base := sq.Select(fields...).From("logger.log").JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id")
 	//if opt.Search != "" {
@@ -245,4 +273,18 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		offset = 0
 	}
 	return base.Offset(uint64(offset)).Limit(uint64(opt.Size)).PlaceholderFormat(sq.Dollar)
+}
+
+func (c *Log) getFields() []string {
+	return []string{
+		"log.id",
+		"log.date",
+		"log.user_id",
+		"coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+		"log.user_ip",
+		"log.new_state",
+		"log.record_id",
+		"log.action",
+		"log.config_id",
+	}
 }

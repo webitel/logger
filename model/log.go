@@ -1,15 +1,10 @@
 package model
 
-import (
-	"github.com/webitel/engine/model"
-	"time"
-)
-
 type Log struct {
 	Id       int
 	Action   string
-	Date     time.Time
-	User     model.Lookup
+	Date     NullTime
+	User     Lookup
 	UserIp   string
 	RecordId int
 	NewState string

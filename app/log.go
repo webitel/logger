@@ -61,7 +61,7 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 	if err != nil {
 		return err
 	}
-	newModel, err := a.storage.Config().GetByObjectId(ctx /*opt,*/, rabbitMessage.DomainId, rabbitMessage.ObjectId)
+	newModel, err := a.storage.Config().GetByObjectId(ctx, rabbitMessage.DomainId, rabbitMessage.ObjectId)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	return &proto.Log{
 		Id:     int32(m.Id),
 		Action: m.Action,
-		Date:   m.Date.String(),
+		Date:   m.Date.Time().String(),
 		User: &proto.Lookup{
 			Id:   int32(m.User.Id),
 			Name: m.User.Name,
@@ -92,7 +92,7 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, errors.AppError) {
 	log := &model.Log{
 		Action:   m.Action,
-		Date:     time.Unix(m.Date, 0),
+		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
 		UserIp:   m.UserIp,
 		NewState: string(m.NewState),
 		RecordId: m.RecordId,

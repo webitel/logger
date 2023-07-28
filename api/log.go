@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/webitel/engine/auth_manager"
 	"webitel_logger/app"
+	"webitel_logger/model"
 	"webitel_logger/proto"
 
 	errors "github.com/webitel/engine/model"
@@ -26,8 +27,8 @@ func (s *LoggerService) GetLogsByUserId(ctx context.Context, in *proto.GetLogsBy
 	if err != nil {
 		return nil, err
 	}
-
-	permission := session.GetPermission()
+	//
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
@@ -49,8 +50,8 @@ func (s *LoggerService) GetLogsByObjectId(ctx context.Context, in *proto.GetLogs
 	if err != nil {
 		return nil, err
 	}
-
-	permission := session.GetPermission()
+	//
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
@@ -59,7 +60,7 @@ func (s *LoggerService) GetLogsByObjectId(ctx context.Context, in *proto.GetLogs
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.app.GetLogsByObjectId(ctx, opt, int(in.GetDomainId()), int(in.GetObjectId()))
+	rows, err := s.app.GetLogsByObjectId(ctx, opt, int(session.DomainId), int(in.GetObjectId()))
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +73,8 @@ func (s *LoggerService) GetLogsByConfigId(ctx context.Context, in *proto.GetLogs
 	if err != nil {
 		return nil, err
 	}
-
-	permission := session.GetPermission()
+	//
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}

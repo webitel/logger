@@ -108,7 +108,7 @@ func (c *rabbitClient) SendContext(ctx context.Context, domainId int, objectId i
 	if c.channel == nil || c.conn == nil {
 		return fmt.Errorf("connection not opened")
 	}
-	enabled, err := c.client.grpc.Config().CheckIsActive(context.Background(), domainId, objectId)
+	enabled, err := c.client.grpc.Config().CheckIsActive(ctx, domainId, objectId)
 	if err != nil {
 		return err
 	}

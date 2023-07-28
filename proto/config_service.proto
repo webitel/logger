@@ -6,7 +6,9 @@ option go_package = "webitel_logger/proto";
 
 service ConfigService {
   rpc UpdateConfig(UpdateConfigRequest) returns (Config) {}
+  rpc InsertConfig(InsertConfigRequest) returns (Config) {}
   rpc GetConfigByObjectId(GetConfigByObjectIdRequest) returns (Config) {}
+  rpc GetConfigById(GetConfigByIdRequest) returns (Config) {}
   rpc GetAllConfigs(GetAllConfigsRequest) returns (Configs) {}
 }
 
@@ -32,8 +34,20 @@ message GetConfigByObjectIdRequest {
 //  string sort = 5;
 //  repeated string fields = 6;
 
-  int32 objectId = 7;
-  int32 domainId = 8;
+  int32 objectId = 1;
+  int32 domainId = 2;
+}
+
+message GetConfigByIdRequest {
+  //  int32 page = 1;
+  //  int32 size = 2;
+  //  string q = 3;
+  //
+  //  string sort = 5;
+  //  repeated string fields = 6;
+
+  int32 id = 1;
+  //  int32 domainId = 8;
 }
 
 message GetAllConfigsRequest {
@@ -44,15 +58,21 @@ message GetAllConfigsRequest {
   string sort = 5;
   repeated string fields = 6;
 
-  int32 domainId = 7;
+//  int32 domainId = 7;
 }
 
 message UpdateConfigRequest {
-  int32 domainId = 1;
-  int32 objectId = 2;
-  bool enabled = 3;
-  int32 daysToStore = 4;
-  string period = 5;
-  int32 storageId = 6;
+  int32 objectId = 1;
+  bool enabled = 2;
+  int32 daysToStore = 3;
+  string period = 4;
+  int32 storageId = 5;
+}
 
+message InsertConfigRequest {
+  int32 objectId = 1;
+  bool enabled = 2;
+  int32 daysToStore = 3;
+  string period = 4;
+  int32 storageId = 5;
 }

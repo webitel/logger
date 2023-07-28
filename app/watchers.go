@@ -11,7 +11,9 @@ import (
 func (a *App) initializeWatchers() errors.AppError {
 	err := a.initializeLogCleaners()
 	if err != nil {
-		return err
+		if !IsErrNoRows(err) {
+			return err
+		}
 	}
 	return nil
 }
@@ -23,9 +25,9 @@ func (a *App) initializeLogCleaners() errors.AppError {
 		return appErr
 	}
 	for _, v := range *configs {
-		name := FormatConfigKey(DeleteWatcherPrefix, v.DomainId, v.ObjectId)
+		name := FormatKey(DeleteWatcherPrefix, v.DomainId, v.ObjectId)
 		a.GetWatcherByKey(name)
-		a.watchers[name] = watcher.MakeWatcher(name, int(time.Hour)*24, a.BuildWatcherDeleteFunction(v.DomainId, v.ObjectId, v.DaysToStore))
+		a.watchers[name] = watcher.MakeWatcher(name, int(time.Hour)*24, a.BuildWatcherDeleteFunction(v.Id, v.DaysToStore))
 		go a.watchers[name].Start()
 	}
 	return nil
@@ -55,31 +57,39 @@ func (a *App) GetWatcherByKey(key string) *watcher.Watcher {
 }
 
 // New interval in days
-func (a *App) UpdateDeleteWatcherWithNewInterval(domainId, objectId, dayseToStore int) {
-	name := FormatConfigKey(DeleteWatcherPrefix, domainId, objectId)
+func (a *App) UpdateDeleteWatcherWithNewInterval(configId, dayseToStore int) {
+	name := FormatKey(DeleteWatcherPrefix, configId)
 	val, ok := a.watchers[name]
 	if !ok {
 		return
 	}
 	val.Stop()
-	val.PollAndNotify = a.BuildWatcherDeleteFunction(domainId, objectId, dayseToStore)
+	val.PollAndNotify = a.BuildWatcherDeleteFunction(configId, dayseToStore)
 	go val.Start()
 }
 
 // New interval in days
-func (a *App) InsertNewDeleteWatcher(domainId, objectId, dayseToStore int) {
-	name := FormatConfigKey(DeleteWatcherPrefix, domainId, objectId)
-	a.watchers[name] = watcher.MakeWatcher(name, int(time.Hour)*24, a.BuildWatcherDeleteFunction(domainId, objectId, dayseToStore))
+func (a *App) InsertNewDeleteWatcher(configId, dayseToStore int) {
+	name := FormatKey(DeleteWatcherPrefix, configId)
+	a.watchers[name] = watcher.MakeWatcher(name, int(time.Hour)*24, a.BuildWatcherDeleteFunction(configId, dayseToStore))
 }
 
-func FormatConfigKey(prefix string, domainId int, objectId int) string {
-	return fmt.Sprintf("%s.%d.%d", prefix, domainId, objectId)
+//func FormatCacheKey(prefix string, domainId int, objectId int) string {
+//	return fmt.Sprintf("%s.%d.%d", prefix, domainId, objectId)
+//}
+
+func FormatKey(prefix string, args ...any) string {
+	base := prefix
+	for _, v := range args {
+		base += fmt.Sprintf(".%s", v)
+	}
+	return base
 }
 
-func (a *App) BuildWatcherDeleteFunction(domainId, objectId, daysToStore int) watcher.WatcherNotify {
-	name := FormatConfigKey(DeleteWatcherPrefix, domainId, objectId)
+func (a *App) BuildWatcherDeleteFunction(configId, daysToStore int) watcher.WatcherNotify {
+	name := FormatKey(DeleteWatcherPrefix, configId)
 	return func() {
-		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), domainId, objectId)
+		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
 		if err != nil {
 			fmt.Printf("error while executing watcher function. watcher - %s, error: %s", name, err.Error())
 		}

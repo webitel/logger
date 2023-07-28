@@ -1,14 +1,16 @@
 package model
 
-import "time"
-
 type Config struct {
 	Id           int
 	ObjectId     int
+	CreatedAt    NullTime
+	CreatedBy    int
+	UpdatedAt    NullTime
+	UpdatedBy    int
 	Enabled      bool
 	DaysToStore  int
 	Period       string
-	NextUploadOn time.Time
+	NextUploadOn NullTime
 	StorageId    int
 	DomainId     int
 }

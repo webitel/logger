@@ -74,39 +74,73 @@ func (s *PostgresStore) SchemaInit() errors.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	_, err := db.Exec(`CREATE SCHEMA IF NOT EXISTS logger;`)
+	_, err := db.Exec(`create schema if not exists logger;`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.schema.create", err.Error())
 	}
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS
-	logger.object_config ( 
-		id SERIAL PRIMARY KEY,
-		created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-		created_by BIGINT NOT NULL,
-		updated_at TIMESTAMP WITH TIME ZONE,
-		updated_by BIGINT,
-		enabled BOOLEAN NOT NULL,
-		days_to_store BIGINT NOT NULL,
-		period TEXT NOT NULL,
-		next_upload_on TIMESTAMP WITH TIME ZONE,
-		object_id BIGINT NOT NULL,
-		storage_id BIGINT NOT NULL REFERENCES storage.file_backend_profiles(id),
-		domain_id BIGINT NOT NULL REFERENCES directory.wbt_domain(dc) ON DELETE CASCADE
-		);`)
+	_, err = db.Exec(`create table if not exists logger.object_config
+(
+    id             serial
+        primary key,
+    enabled        boolean                                not null,
+    days_to_store  bigint                                 not null,
+    period         text                                   not null,
+    next_upload_on timestamp,
+    object_id      bigint                                 not null
+        constraint object_config_pk2
+            unique,
+    storage_id     bigint                                 not null
+        references storage.file_backend_profiles,
+    domain_id      bigint                                 not null
+        references directory.wbt_domain
+            on delete cascade,
+    created_at     timestamp with time zone default now() not null,
+    created_by     bigint                                 not null,
+    updated_at     timestamp with time zone,
+    updated_by     bigint,
+    constraint object_config_pk
+        unique (id, domain_id)
+);
+
+alter table logger.object_config
+    owner to opensips;
+
+create unique index if not exists object_config_id_uindex
+    on logger.object_config (id);
+
+create unique index if not exists object_config_object_id_domain_id_uindex
+    on logger.object_config (object_id, domain_id);
+
+create trigger cc_agent_set_rbac_acl
+    after insert
+    on logger.object_config
+    for each row
+execute procedure tg_obj_default_rbac('logs');
+
+`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.config_table.create", err.Error())
 	}
 
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS logger.log ( 
-		id SERIAL PRIMARY KEY,
-		date TIMESTAMP WITH TIME ZONE NOT NULL,
-		user_id INT NOT NULL,
-		user_ip TEXT NOT NULL,
-		record_id BIGINT NOT NULL,
-		new_state JSONB,
-		action TEXT NOT NULL,
-		config_id BIGINT NOT NULL REFERENCES logger.object_config(id) ON DELETE CASCADE
-    );`)
+	_, err = db.Exec(`create table if not exists logger.log
+(
+    id        serial
+        primary key,
+    date      timestamp not null,
+    user_id   integer   not null,
+    user_ip   text      not null,
+    record_id bigint    not null,
+    new_state jsonb,
+    action    text      not null,
+    config_id integer   not null
+        references object_config
+            on delete cascade
+);
+
+alter table logger.log
+    owner to opensips;
+
+`)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.schema_init.log_table.create", err.Error())
 	}

@@ -42,9 +42,9 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, userId int) (*m
 			updated_at = $6,
 			updated_by = $7
 		WHERE 
-			object_id = $8 AND domain_id = $9
-		RETURNING id, enabled, created_at, created_by, updated_at, updated_by days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
-		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, time.Now(), userId, conf.ObjectId, conf.DomainId)
+			id = $8
+		RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
+		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, time.Now(), userId, conf.Id)
 	err := row.Scan(&newConfig.Id, &newConfig.Enabled, &newConfig.DaysToStore, &newConfig.Period, &newConfig.NextUploadOn, &newConfig.StorageId, &newConfig.DomainId, &newConfig.ObjectId)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query_execution.fail", err.Error())
@@ -111,7 +111,7 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		   (
 			  $1, $2, $3, $4, $5, $6, $7, $8, $9 
 		   )
-		   RETURNING id, enabled, created_at, created_by, updated_at, updated_by days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
+		   RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
 		conf.Enabled,
 		conf.DaysToStore,
 		conf.Period,

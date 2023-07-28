@@ -22,7 +22,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 	if in == nil {
 		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldModel, err := a.storage.Config().GetByObjectId(ctx, domainId, int(in.GetObjectId()))
+	oldModel, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func (a *App) GetAllConfigs(ctx context.Context, opt *model.SearchOptions, rbac 
 
 func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId int) (*model.Config, errors.AppError) {
 	config := &model.Config{
-		ObjectId:    int(in.GetObjectId()),
+		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      in.GetPeriod(),

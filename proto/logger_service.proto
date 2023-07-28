@@ -18,7 +18,7 @@ message GetLogsByConfigIdRequest {
   string sort = 5;
   repeated string fields = 6;
 
-  int32 configId = 7;
+  int32 config_id = 7;
 }
 
 message GetLogsByUserIdRequest {
@@ -29,7 +29,7 @@ message GetLogsByUserIdRequest {
   string sort = 5;
   repeated string fields = 6;
 
-  int32 userId = 7;
+  int32 user_id = 7;
 }
 
 message GetLogsByObjectIdRequest {
@@ -40,7 +40,7 @@ message GetLogsByObjectIdRequest {
   string sort = 5;
   repeated string fields = 6;
 
-  int32 objectId = 7;
+  int32 object_id = 7;
 //  int32 domainId = 8;
 }
 
@@ -53,8 +53,8 @@ message Log {
   string action = 2;
   string date = 3;
   Lookup user = 4;
-  string userIp = 5;
-  string newState = 6;
+  string user_ip = 5;
+  string new_state = 6;
   int32 config_id = 7;
 }
 

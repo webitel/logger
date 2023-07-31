@@ -4,6 +4,8 @@ package webitel_logger;
 
 option go_package = "webitel_logger/proto";
 
+import "logger_service.proto";
+
 service ConfigService {
   rpc UpdateConfig(UpdateConfigRequest) returns (Config) {}
   rpc InsertConfig(InsertConfigRequest) returns (Config) {}
@@ -18,7 +20,7 @@ message Configs {
 }
 message Config {
   int32 id = 1;
-  int32	object_id = 2;
+  Lookup	object = 2;
   bool enabled = 3;
   int32 days_to_store = 4;
   string period = 5;

@@ -36,7 +36,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 	if err != nil {
 		return nil, err
 	}
-	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.ObjectId)
+	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.Object.Id)
 	if oldModel.Enabled == true && result.Enabled == false {
 		a.DeleteWatcherByKey(watcherName)
 	} else {
@@ -175,7 +175,7 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 
 func (a *App) convertInsertConfigMessageToModel(in *proto.InsertConfigRequest, domainId int) (*model.Config, errors.AppError) {
 	config := &model.Config{
-		ObjectId:    int(in.GetObjectId()),
+
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      in.GetPeriod(),
@@ -183,13 +183,17 @@ func (a *App) convertInsertConfigMessageToModel(in *proto.InsertConfigRequest, d
 		DomainId:    domainId,
 	}
 	a.calculateNextPeriod(config)
+	config.Object.Id = int(in.GetObjectId())
 	return config, nil
 }
 
 func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
 	return &proto.Config{
-		Id:          int32(in.Id),
-		ObjectId:    int32(in.ObjectId),
+		Id: int32(in.Id),
+		Object: &proto.Lookup{
+			Id:   int32(in.Object.Id),
+			Name: in.Object.Name,
+		},
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
 		Period:      in.Period,

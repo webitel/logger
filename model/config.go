@@ -2,7 +2,7 @@ package model
 
 type Config struct {
 	Id           int
-	ObjectId     int
+	Object       Lookup
 	CreatedAt    NullTime
 	CreatedBy    int
 	UpdatedAt    NullTime

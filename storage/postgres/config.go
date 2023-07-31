@@ -119,7 +119,7 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		conf.NextUploadOn,
 		conf.StorageId,
 		conf.DomainId,
-		conf.ObjectId,
+		conf.Object.Id,
 		userId)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.insert.query.fail", err.Error())
@@ -136,7 +136,7 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"domain_id": domainId}).Where(sq.Eq{"object_id": objId}).PlaceholderFormat(sq.Dollar)
+	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.object_id": objId})
 
 	rows, err := base.RunWith(db).QueryContext(ctx)
 
@@ -155,8 +155,8 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"id": id}).PlaceholderFormat(sq.Dollar)
-	rows, err := c.insertRbacCondition(base, rbac).RunWith(db).QueryContext(ctx)
+	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{"object_config.id": id})
+	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
 	}
@@ -172,9 +172,9 @@ func (c *Config) GetAll(ctx context.Context, opt *model.SearchOptions, rbac *mod
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBaseFromSearchOptions(opt, rbac)
+	base := c.GetQueryBaseFromSearchOptions(opt, rbac).Where(sq.Eq{"object_config.domain_id": domainId})
 
-	rows, err := base.Where(sq.Eq{"domain_id": domainId}).RunWith(db).QueryContext(ctx)
+	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_all.query.fail", err.Error())
 	}
@@ -208,7 +208,8 @@ func (c *Config) GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, err
 	if appErr != nil {
 		return nil, appErr
 	}
-	rows, err := sq.Select(c.getFields()...).From("logger.object_config").Where(sq.Eq{"enabled": true}).PlaceholderFormat(sq.Dollar).RunWith(db).QueryContext(ctx)
+	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.enabled": true})
+	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_all_enabled_configs.query.fail", err.Error())
 	}
@@ -254,7 +255,9 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 			case "next_upload_on":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.NextUploadOn })
 			case "object_id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.ObjectId })
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Object.Id })
+			case "object_name":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Object.Name })
 			case "storage_id":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.StorageId })
 			case "domain_id":
@@ -305,8 +308,9 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 			fields = append(fields, "object_config.period")
 		case "next_upload_on":
 			fields = append(fields, "object_config.next_upload_on")
-		case "object_id":
+		case "object":
 			fields = append(fields, "object_config.object_id")
+			fields = append(fields, "wbt_class.name as object_name")
 		case "storage_id":
 			fields = append(fields, "object_config.storage_id")
 		case "domain_id":
@@ -325,16 +329,18 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		fields = append(fields,
 			c.getFields()...)
 	}
-	base := sq.Select(fields...).From("logger.object_config")
+	base := c.GetQueryBase(fields, rbac)
 	//if opt.Search != "" {
 	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
 	//}
-	base = c.insertRbacCondition(base, rbac)
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
 		if len(splitted) == 2 {
 			order := splitted[0]
 			column := splitted[1]
+			if column == "object" {
+				column = "object_name"
+			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}
 
@@ -344,6 +350,11 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		offset = 0
 	}
 	return base.Offset(uint64(offset)).Limit(uint64(opt.Size)).PlaceholderFormat(sq.Dollar)
+}
+
+func (c *Config) GetQueryBase(fields []string, rbac *model.RbacOptions) sq.SelectBuilder {
+	base := sq.Select(fields...).From("logger.object_config").JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").PlaceholderFormat(sq.Dollar)
+	return c.insertRbacCondition(base, rbac)
 }
 
 func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOptions) sq.SelectBuilder {
@@ -361,6 +372,7 @@ func (c *Config) getFields() []string {
 		"object_config.period",
 		"object_config.next_upload_on",
 		"object_config.object_id",
+		"wbt_class.name as object_name",
 		"object_config.storage_id",
 		"object_config.domain_id",
 		"object_config.created_at",

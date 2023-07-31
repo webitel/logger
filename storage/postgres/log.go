@@ -48,12 +48,12 @@ func (c *Log) GetByObjectIdWithDates(ctx context.Context, domainId int, objectId
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Select(c.getFields()...).From("logger.log").Where(
+	base := c.GetQueryBase(c.getFields()).Where(
 		sq.Eq{"object_config.domain_id": domainId},
 		sq.Eq{"object_config.object_id": objectId},
 		sq.GtOrEq{"log.date": dateFrom},
 		sq.LtOrEq{"log.date": dateTo},
-	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
+	)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -87,11 +87,11 @@ func (c *Log) GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Select(c.getFields()...).From("logger.log").Where(
+	base := c.GetQueryBase(c.getFields()).Where(
 		sq.Eq{"log.config_id": configId},
 		sq.GtOrEq{"log.date": dateFrom},
 		sq.LtOrEq{"log.date": dateTo},
-	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
+	)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -255,7 +255,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		fields = append(fields,
 			c.getFields()...)
 	}
-	base := sq.Select(fields...).From("logger.log").JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id")
+	base := c.GetQueryBase(fields)
 	//if opt.Search != "" {
 	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
 	//}
@@ -264,6 +264,9 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		if len(splitted) == 2 {
 			order := splitted[0]
 			column := splitted[1]
+			if column == "user" {
+				column = "user_name"
+			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}
 
@@ -273,6 +276,10 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		offset = 0
 	}
 	return base.Offset(uint64(offset)).Limit(uint64(opt.Size)).PlaceholderFormat(sq.Dollar)
+}
+
+func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
+	return sq.Select(fields...).From("logger.log").JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id")
 }
 
 func (c *Log) getFields() []string {

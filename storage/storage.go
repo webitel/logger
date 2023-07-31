@@ -26,11 +26,12 @@ type Storage interface {
 
 type LogStore interface {
 	Insert(context.Context, *model.Log) (*model.Log, errors.AppError)
-	GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError)
-	GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
-	GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError)
-	GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
-	GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, errors.AppError)
+	//GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError)
+	//GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
+	//GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError)
+	//GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
+	//GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, errors.AppError)
+	Get(ctx context.Context, opt *model.SearchOptions, filters ...model.Filter) (*[]model.Log, errors.AppError)
 	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError)
 }
 
@@ -39,8 +40,9 @@ type ConfigStore interface {
 	//CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError)
 	Update(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError)
 	Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError)
+	Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) (*[]model.Config, errors.AppError)
 	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, errors.AppError)
-	GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, errors.AppError)
-	GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, errors.AppError)
+	//GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, errors.AppError)
+	//GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, errors.AppError)
 	GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, errors.AppError)
 }

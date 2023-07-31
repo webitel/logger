@@ -5,6 +5,7 @@ import (
 	"fmt"
 	errors "github.com/webitel/engine/model"
 	"time"
+	"webitel_logger/model"
 	"webitel_logger/watcher"
 )
 
@@ -20,7 +21,16 @@ func (a *App) initializeWatchers() errors.AppError {
 
 func (a *App) initializeLogCleaners() errors.AppError {
 	a.watchers = make(map[string]*watcher.Watcher)
-	configs, appErr := a.storage.Config().GetAllEnabledConfigs(context.Background())
+	configs, appErr := a.storage.Config().Get(
+		context.Background(),
+		nil,
+		nil,
+		model.Filter{
+			Column:         "object_config.enabled",
+			Value:          true,
+			ComparisonType: model.Equal,
+		},
+	)
 	if appErr != nil {
 		return appErr
 	}

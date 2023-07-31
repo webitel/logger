@@ -23,15 +23,77 @@ func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
 	return &Log{storage: store}, nil
 }
 
-func (c *Log) GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError) {
+//func (c *Log) GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError) {
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	base := c.GetQueryBaseFromSearchOptions(opt).Where(
+//		sq.Eq{"object_config.domain_id": domainId},
+//		sq.Eq{"object_config.object_id": objectId},
+//	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
+//	rows, err := base.RunWith(db).QueryContext(ctx)
+//	if err != nil {
+//		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+//	}
+//	res, appErr := c.ScanRows(rows)
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	return &res, nil
+//}
+
+//func (c *Log) GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError) {
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	base := c.getQueryBase(c.getFields()).Where(
+//		sq.Eq{"object_config.domain_id": domainId},
+//		sq.Eq{"object_config.object_id": objectId},
+//		sq.GtOrEq{"log.date": dateFrom},
+//		sq.LtOrEq{"log.date": dateTo},
+//	)
+//	base :=
+//	rows, err := base.RunWith(db).QueryContext(ctx)
+//	if err != nil {
+//		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+//	}
+//	res, appErr := c.ScanRows(rows)
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	return &res, nil
+//}
+
+//func (c *Log) GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError) {
+//	//db, appErr := c.storage.Database()
+//	//if appErr != nil {
+//	//	return nil, appErr
+//	//}
+//	res, appErr := c.Get(ctx, opt, model.Filter{
+//		Column:         "log.config_id",
+//		Value:          configId,
+//		ComparisonType: 0,
+//	})
+//	//base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"log.config_id": configId})
+//	//rows, err := base.RunWith(db).QueryContext(ctx)
+//	//if err != nil {
+//	//	return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+//	//}
+//	//res, appErr := c.ScanRows(rows)
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	return res, nil
+//}
+
+func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...model.Filter) (*[]model.Log, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBaseFromSearchOptions(opt).Where(
-		sq.Eq{"object_config.domain_id": domainId},
-		sq.Eq{"object_config.object_id": objectId},
-	).JoinClause("LEFT JOIN logger.object_config ON log.config_id = object_config.id")
+	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters...)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -43,65 +105,31 @@ func (c *Log) GetByObjectId(ctx context.Context, opt *model.SearchOptions, domai
 	return &res, nil
 }
 
-func (c *Log) GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
-	}
-	base := c.GetQueryBase(c.getFields()).Where(
-		sq.Eq{"object_config.domain_id": domainId},
-		sq.Eq{"object_config.object_id": objectId},
-		sq.GtOrEq{"log.date": dateFrom},
-		sq.LtOrEq{"log.date": dateTo},
-	)
-	rows, err := base.RunWith(db).QueryContext(ctx)
-	if err != nil {
-		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
-	}
-	res, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return &res, nil
-}
-
-func (c *Log) GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
-	}
-	base := c.GetQueryBaseFromSearchOptions(opt).Where(sq.Eq{"log.config_id": configId})
-	rows, err := base.RunWith(db).QueryContext(ctx)
-	if err != nil {
-		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
-	}
-	res, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return &res, nil
-}
-
-func (c *Log) GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
-	}
-	base := c.GetQueryBase(c.getFields()).Where(
-		sq.Eq{"log.config_id": configId},
-		sq.GtOrEq{"log.date": dateFrom},
-		sq.LtOrEq{"log.date": dateTo},
-	)
-	rows, err := base.RunWith(db).QueryContext(ctx)
-	if err != nil {
-		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
-	}
-	res, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return &res, nil
-}
+//func (c *Log) GetByConfigIdWithDates(ctx context.Context, opt *model.SearchOptions, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError) {
+//	res, appErr := c.Get(
+//		ctx,
+//		opt,
+//		model.Filter{
+//			Column:         "log.config_id",
+//			Value:          configId,
+//			ComparisonType: model.Equal,
+//		},
+//		model.Filter{
+//			Column:         "log.date",
+//			Value:          dateFrom,
+//			ComparisonType: model.GreaterThanOrEqual,
+//		},
+//		model.Filter{
+//			Column:         "log.date",
+//			Value:          dateTo,
+//			ComparisonType: model.LessThanOrEqual,
+//		},
+//	)
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	return res, nil
+//}
 
 func (c *Log) GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, errors.AppError) {
 	db, appErr := c.storage.Database()
@@ -255,7 +283,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		fields = append(fields,
 			c.getFields()...)
 	}
-	base := c.GetQueryBase(fields)
+	base := c.getQueryBase(fields)
 	//if opt.Search != "" {
 	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
 	//}
@@ -275,12 +303,37 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	if offset < 0 {
 		offset = 0
 	}
-	return base.Offset(uint64(offset)).Limit(uint64(opt.Size)).PlaceholderFormat(sq.Dollar)
+	return base.Offset(uint64(offset)).Limit(uint64(opt.Size + 1)).PlaceholderFormat(sq.Dollar)
 }
 
-func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
+func (c *Log) getQueryBase(fields []string) sq.SelectBuilder {
 	return sq.Select(fields...).From("logger.log").JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id")
 }
+
+//func (c *Log) GetQuery(opt *model.SearchOptions, filters *model.LogFilter) sq.SelectBuilder {
+//	base := c.GetQueryBaseFromSearchOptions(opt)
+//	if filters != nil {
+//		if v, ok := filters.GetConfigId(); ok {
+//			base = base.Where(sq.Eq{"config_id": v})
+//		}
+//		if v, ok := filters.GetAction(); ok {
+//			base = base.Where(sq.Eq{"action": v})
+//		}
+//		if v, ok := filters.GetDateTo(); ok {
+//			base = base.Where(sq.LtOrEq{"date": v})
+//		}
+//		if v, ok := filters.GetDateFrom(); ok {
+//			base = base.Where(sq.GtOrEq{"date": v})
+//		}
+//		if v, ok := filters.GetUserId(); ok {
+//			base = base.Where(sq.Eq{"user_id": v})
+//		}
+//		if v, ok := filters.GetUserIp(); ok {
+//			base = base.Where(sq.Eq{"user_ip": v})
+//		}
+//	}
+//	return base
+//}
 
 func (c *Log) getFields() []string {
 	return []string{

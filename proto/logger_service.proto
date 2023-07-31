@@ -3,11 +3,19 @@ syntax = "proto3";
 package webitel_logger;
 
 option go_package = "webitel_logger/proto";
+import "google/api/annotations.proto";
 
 service LoggerService {
-  rpc GetLogsByUserId(GetLogsByUserIdRequest) returns (Logs) {}
-  rpc GetLogsByObjectId(GetLogsByObjectIdRequest) returns (Logs) {}
-  rpc GetLogsByConfigId(GetLogsByConfigIdRequest) returns (Logs) {}
+  rpc GetLogsByUserId(GetLogsByUserIdRequest) returns (Logs) {
+    option (google.api.http) = {
+      get: "/logs/user/{user_id}"
+    };
+  }
+  rpc GetLogsByConfigId(GetLogsByConfigIdRequest) returns (Logs) {
+    option (google.api.http) = {
+      get: "/logs/config/{config_id}/logs"
+    };
+  }
 }
 
 message GetLogsByConfigIdRequest {
@@ -32,20 +40,22 @@ message GetLogsByUserIdRequest {
   int32 user_id = 7;
 }
 
-message GetLogsByObjectIdRequest {
-  int32 page = 1;
-  int32 size = 2;
-  string q = 3;
-
-  string sort = 5;
-  repeated string fields = 6;
-
-  int32 object_id = 7;
-//  int32 domainId = 8;
-}
+//message GetLogsByObjectIdRequest {
+//  int32 page = 1;
+//  int32 size = 2;
+//  string q = 3;
+//
+//  string sort = 5;
+//  repeated string fields = 6;
+//
+//  int32 object_id = 7;
+////  int32 domainId = 8;
+//}
 
 message Logs {
-  repeated Log logs = 1;
+  int32 page = 1;
+  bool next = 2;
+  repeated Log items = 3;
 }
 
 message Log {

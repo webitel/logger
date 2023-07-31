@@ -5,18 +5,41 @@ package webitel_logger;
 option go_package = "webitel_logger/proto";
 
 import "logger_service.proto";
+import "google/api/annotations.proto";
+
 
 service ConfigService {
-  rpc UpdateConfig(UpdateConfigRequest) returns (Config) {}
-  rpc InsertConfig(InsertConfigRequest) returns (Config) {}
-  rpc GetConfigByObjectId(GetConfigByObjectIdRequest) returns (Config) {}
-  rpc GetConfigById(GetConfigByIdRequest) returns (Config) {}
-  rpc GetAllConfigs(GetAllConfigsRequest) returns (Configs) {}
+  rpc UpdateConfig(UpdateConfigRequest) returns (Config) {
+    option (google.api.http) = {
+      put: "/logs/config/{config_id}"
+      body: "*"
+    };
+  }
+  rpc InsertConfig(InsertConfigRequest) returns (Config) {
+    option (google.api.http) = {
+      post: "/logs/config"
+      body: "*"
+    };
+  }
+  rpc GetConfigByObjectId(GetConfigByObjectIdRequest) returns (Config) {
+  }
+  rpc GetConfigById(GetConfigByIdRequest) returns (Config) {
+    option (google.api.http) = {
+      get: "/logs/config/{id}"
+    };
+  }
+  rpc GetAllConfigs(GetAllConfigsRequest) returns (Configs) {
+    option (google.api.http) = {
+      get: "/logs/config"
+    };
+  }
 }
 
 
 message Configs {
-  repeated Config configs = 1;
+  int32 page = 1;
+  bool next = 2;
+  repeated Config items = 3;
 }
 message Config {
   int32 id = 1;

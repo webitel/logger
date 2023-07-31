@@ -87,11 +87,15 @@ func (s *ConfigService) GetAllConfigs(ctx context.Context, in *proto.GetAllConfi
 			Access: uint8(auth_manager.PERMISSION_ACCESS_READ),
 		}
 	}
-	res, err := s.app.GetAllConfigs(ctx, opt, rbac, int(session.DomainId))
+	rows, err := s.app.GetAllConfigs(ctx, opt, rbac, int(session.DomainId))
 	if err != nil {
 		return nil, err
 	}
-	out.Configs = res
+	if int32(len(rows)-1) == in.Size {
+		out.Next = true
+	}
+	out.Items = rows
+	out.Page = in.GetPage()
 	return &out, nil
 }
 

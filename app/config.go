@@ -144,9 +144,22 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 
 func (a *App) GetAllConfigs(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) ([]*proto.Config, errors.AppError) {
 	var res []*proto.Config
-	modelConfigs, err := a.storage.Config().GetAll(ctx, opt, rbac, domainId)
+	modelConfigs, err := a.storage.Config().Get(
+		ctx,
+		opt,
+		rbac,
+		model.Filter{
+			Column:         "object_config.domain_id",
+			Value:          domainId,
+			ComparisonType: model.Equal,
+		},
+	)
 	if err != nil {
-		return nil, err
+		if IsErrNoRows(err) {
+			return res, nil
+		} else {
+			return nil, err
+		}
 	}
 	for _, v := range *modelConfigs {
 		proto, err := a.convertConfigModelToMessage(&v)
@@ -183,23 +196,29 @@ func (a *App) convertInsertConfigMessageToModel(in *proto.InsertConfigRequest, d
 		DomainId:    domainId,
 	}
 	a.calculateNextPeriod(config)
-	config.Object.Id = int(in.GetObjectId())
+	err := config.Object.Id.Scan(in.GetObjectId())
+	if err != nil {
+		return nil, errors.NewBadRequestError("app.log.convert_rabbit_message_to_model.scan.error", err.Error())
+	}
 	return config, nil
 }
 
 func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
-	return &proto.Config{
-		Id: int32(in.Id),
-		Object: &proto.Lookup{
-			Id:   int32(in.Object.Id),
-			Name: in.Object.Name,
-		},
+	conf := &proto.Config{
+		Id:          int32(in.Id),
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
 		Period:      in.Period,
 		StorageId:   int32(in.StorageId),
 		DomainId:    int32(in.DomainId),
-	}, nil
+	}
+	if !in.Object.IsZero() {
+		conf.Object = &proto.Lookup{
+			Id:   int32(in.Object.Id.Int()),
+			Name: in.Object.Name.String(),
+		}
+	}
+	return conf, nil
 }
 
 func (a *App) calculateNextPeriod(in *model.Config) {

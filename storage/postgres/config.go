@@ -167,24 +167,6 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	return config, nil
 }
 
-func (c *Config) GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, errors.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
-	}
-	base := c.GetQueryBaseFromSearchOptions(opt, rbac).Where(sq.Eq{"object_config.domain_id": domainId})
-
-	rows, err := base.RunWith(db).QueryContext(ctx)
-	if err != nil {
-		return nil, errors.NewInternalError("postgres.config.get_all.query.fail", err.Error())
-	}
-	configs, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return &configs, nil
-}
-
 //func (c *Config) GetAllRbac(ctx context.Context, opt *model.SearchOptions, domainId int, groups []int, access auth_manager.PermissionAccess) (*[]model.Config, errors.AppError) {
 //	db, appErr := c.storage.Database()
 //	if appErr != nil {
@@ -203,21 +185,21 @@ func (c *Config) GetAll(ctx context.Context, opt *model.SearchOptions, rbac *mod
 //	return &configs, nil
 //}
 
-func (c *Config) GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, errors.AppError) {
+func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) (*[]model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.enabled": true})
+	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters...)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.config.get_all_enabled_configs.query.fail", err.Error())
+		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
 	}
-	configs, appErr := c.ScanRows(rows)
+	res, appErr := c.ScanRows(rows)
 	if appErr != nil {
 		return nil, appErr
 	}
-	return &configs, nil
+	return &res, nil
 }
 
 func (c *Config) ScanRow(rows *sql.Rows) (*model.Config, errors.AppError) {
@@ -275,7 +257,7 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 			}
 
 		}
-		bindFunc := func(binds []func(config2 *model.Config) any) []any {
+		bindFunc := func(binds []func(config *model.Config) any) []any {
 			var fields []any
 			for _, v := range binds {
 				fields = append(fields, v(&config))
@@ -294,8 +276,14 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 	return configs, nil
 }
 
+// Do when time is zero empty string on response
+// Refactor GetQueryBaseFromSearchOptions for beauty
+
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
+	if opt == nil {
+		return c.GetQueryBase(c.getFields(), rbac).PlaceholderFormat(sq.Dollar)
+	}
 	for _, v := range opt.Fields {
 		switch v {
 		case "id":

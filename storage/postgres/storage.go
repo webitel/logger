@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"database/sql"
+	"github.com/Masterminds/squirrel"
 	"webitel_logger/model"
 	"webitel_logger/storage"
 
@@ -67,6 +68,26 @@ func (s *PostgresStore) Close() errors.AppError {
 	s.conn = nil
 	return nil
 
+}
+
+func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters ...model.Filter) squirrel.SelectBuilder {
+	for _, v := range filters {
+		switch v.ComparisonType {
+		case 0:
+			base = base.Where(squirrel.Eq{v.Column: v.Value})
+		case 1:
+			base = base.Where(squirrel.Gt{v.Column: v.Value})
+		case 2:
+			base = base.Where(squirrel.GtOrEq{v.Column: v.Value})
+		case 3:
+			base = base.Where(squirrel.Lt{v.Column: v.Value})
+		case 4:
+			base = base.Where(squirrel.LtOrEq{v.Column: v.Value})
+		case 5:
+			base = base.Where(squirrel.NotEq{v.Column: v.Value})
+		}
+	}
+	return base
 }
 
 //func (s *PostgresStore) SchemaInit() errors.AppError {

@@ -49,43 +49,10 @@ func (t *NullTime) Scan(v interface{}) error {
 		return nil
 	}
 	switch v := v.(type) {
-	//case int64:
-	//	// +OK: timestamp
-	//	if v == 0 {
-	//		*(t) = Timestamp{} // Zero(!)
-	//	} else {
-	//		const timestampToUnix = (int64)(TimestampToUnix)
-	//		switch TimestampToUnix {
-	//		case time.Second:
-	//			*(t) = (Timestamp)(time.Unix(v, 0))
-	//		case time.Millisecond,
-	//			time.Microsecond,
-	//			time.Nanosecond:
-	//			*(t) = (Timestamp)(time.Unix(v/timestampToUnix,
-	//				v%timestampToUnix*(int64)(UnixToTimestamp),
-	//			))
-	//		default:
-	//			panic(fmt.Errorf("timestamp: invalid precision %e", float64(UnixToTimestamp)))
-	//		}
-	//	}
-	//	return nil
-	//case []byte:
-	//	return t.UnmarshalText(v)
-	//case string:
-	//	return t.UnmarshalText([]byte(v))
 	case time.Time:
 		// +OK: datetime
-		(t) = (*NullTime)(&v) // shallowcopy
+		(*t) = (NullTime)(v) // shallowcopy
 		return nil
-	//case *time.Time:
-	//	// +OK: datetime
-	//	*(t) = (Timestamp)(*v) // shallowcopy
-	//	return nil
-	//case *Timestamp:
-	//	if v != nil && t != v {
-	//		*(t) = *(v) // shallowcopy
-	//	}
-	//	return nil
 	default:
 	}
 	return fmt.Errorf("nulltime: convert %[1]T value %[1]v", v)

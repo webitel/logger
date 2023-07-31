@@ -40,17 +40,17 @@ func (t *NullInt) Scan(v interface{}) error {
 	switch v := v.(type) {
 	case int:
 		// +OK: int
-		t = (*NullInt)(&v) // shallowcopy
+		*t = (NullInt)(v) // shallowcopy
 		return nil
 	case int64:
 		// +OK: int
 		newVal := (int)(v)
-		t = (*NullInt)(&newVal) // shallowcopy
+		*t = (NullInt)(newVal) // shallowcopy
 		return nil
 	case int32:
 		// +OK: int
 		newVal := (int)(v)
-		t = (*NullInt)(&newVal) // shallowcopy
+		*t = (NullInt)(newVal) // shallowcopy
 		return nil
 
 	default:

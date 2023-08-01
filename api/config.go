@@ -116,6 +116,23 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	return s.app.UpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
 }
 
+// UpdateConfig updates existing config
+func (s *ConfigService) PatchUpdateConfig(ctx context.Context, in *proto.PatchUpdateConfigRequest) (*proto.Config, error) {
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
+	if !permission.CanRead() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	}
+	if !permission.CanUpdate() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
+	}
+	return s.app.PatchUpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
+}
+
 // InsertConfig inserts new config
 func (s *ConfigService) InsertConfig(ctx context.Context, in *proto.InsertConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)

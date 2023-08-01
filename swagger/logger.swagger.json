@@ -162,6 +162,47 @@
         "tags": [
           "ConfigService"
         ]
+      },
+      "patch": {
+        "operationId": "PatchUpdateConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/webitel_loggerConfig"
+            }
+          },
+          "403": {
+            "description": "Returned when the user does not have permission to access the resource.",
+            "schema": {}
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/webitel_loggerPatchUpdateConfigRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ConfigService"
+        ]
       }
     },
     "/logs/config/{config_id}/logs": {
@@ -362,9 +403,8 @@
         "period": {
           "type": "string"
         },
-        "storage_id": {
-          "type": "integer",
-          "format": "int32"
+        "storage": {
+          "$ref": "#/definitions/webitel_loggerLookup"
         },
         "domain_id": {
           "type": "integer",
@@ -471,6 +511,36 @@
         },
         "name": {
           "type": "string"
+        }
+      }
+    },
+    "webitel_loggerPatchUpdateConfigRequest": {
+      "type": "object",
+      "properties": {
+        "config_id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        },
+        "days_to_store": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "period": {
+          "type": "string"
+        },
+        "storage_id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

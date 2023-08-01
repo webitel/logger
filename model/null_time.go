@@ -18,15 +18,19 @@ func (t NullTime) Value() (driver.Value, error) {
 
 // IsZero value (?)
 func (t *NullTime) IsZero() bool {
-	if t != nil {
+	if t != nil && !t.Time().IsZero() {
 		return false
 	}
 	return true
 }
 
+func NewNullTime(i time.Time) *NullTime {
+	return (*NullTime)(&i)
+}
+
 // IsZero value (?)
 func (t *NullTime) String() string {
-	if t != nil {
+	if !t.IsZero() {
 		return t.Time().String()
 	}
 	return ""

@@ -24,26 +24,46 @@ func newConfigStore(store storage.Storage) (storage.ConfigStore, errors.AppError
 	return &Config{storage: store}, nil
 }
 
-func (c *Config) Update(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
+func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	row, err := db.QueryContext(ctx,
-		`UPDATE 
-			logger.object_config 
-		SET 
-			enabled = $1, 
-			days_to_store = $2, 
-			period = $3, 
-			next_upload_on = $4, 
-			storage_id = $5,
-			updated_at = $6,
-			updated_by = $7
-		WHERE 
-			id = $8
-		RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
-		conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.StorageId, time.Now(), userId, conf.Id)
+	base := sq.Update("logger.object_config").Where(sq.Eq{"object_config.id": conf.Id}).Set("updated_at", time.Now()).Set("updated_by", userId).PlaceholderFormat(sq.Dollar)
+	if len(fields) == 0 {
+		fields = []string{"enabled", "days_to_store", "period", "next_upload_on", "storage"}
+	}
+	for _, v := range fields {
+		switch v {
+		case "enabled":
+			base = base.Set("object_config.enabled", conf.Enabled)
+		case "days_to_store":
+			base = base.Set("object_config.days_to_store", conf.DaysToStore)
+		case "period":
+			base = base.Set("object_config.period", conf.Period)
+		case "next_upload_on":
+			base = base.Set("object_config.next_upload_on", conf.NextUploadOn)
+		case "storage":
+			base = base.Set("object_config.storage_id", conf.Storage.Id)
+		}
+	}
+
+	//row, err := db.QueryContext(ctx,
+	//	`UPDATE
+	//		logger.object_config
+	//	SET
+	//		enabled = $1,
+	//		days_to_store = $2,
+	//		period = $3,
+	//		next_upload_on = $4,
+	//		storage_id = $5,
+	//		updated_at = $6,
+	//		updated_by = $7
+	//	WHERE
+	//		id = $8
+	//	RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
+	//	conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.Storage.Id, time.Now(), userId, conf.Id)
+	row, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query.fail", err.Error())
 	}
@@ -117,7 +137,7 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		conf.DaysToStore,
 		conf.Period,
 		conf.NextUploadOn,
-		conf.StorageId,
+		conf.Storage.Id,
 		conf.DomainId,
 		conf.Object.Id,
 		userId)
@@ -136,7 +156,7 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.object_id": objId})
+	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.object_id": objId}, sq.Eq{"object_config.domain_id": domainId})
 
 	rows, err := base.RunWith(db).QueryContext(ctx)
 
@@ -191,6 +211,8 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 		return nil, appErr
 	}
 	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters...)
+	sql, _, _ := base.ToSql()
+	fmt.Println(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
@@ -241,7 +263,9 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 			case "object_name":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Object.Name })
 			case "storage_id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.StorageId })
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Storage.Id })
+			case "storage_name":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Storage.Name })
 			case "domain_id":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.DomainId })
 			case "created_at":
@@ -276,13 +300,12 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 	return configs, nil
 }
 
-// Do when time is zero empty string on response
 // Refactor GetQueryBaseFromSearchOptions for beauty
 
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
 	if opt == nil {
-		return c.GetQueryBase(c.getFields(), rbac).PlaceholderFormat(sq.Dollar)
+		return c.GetQueryBase(c.getFields(), rbac)
 	}
 	for _, v := range opt.Fields {
 		switch v {
@@ -299,8 +322,9 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		case "object":
 			fields = append(fields, "object_config.object_id")
 			fields = append(fields, "wbt_class.name as object_name")
-		case "storage_id":
+		case "storage":
 			fields = append(fields, "object_config.storage_id")
+			fields = append(fields, "file_backend_profiles.name as storage_name")
 		case "domain_id":
 			fields = append(fields, "object_config.domain_id")
 		case "created_at":
@@ -318,9 +342,9 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 			c.getFields()...)
 	}
 	base := c.GetQueryBase(fields, rbac)
-	//if opt.Search != "" {
-	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
-	//}
+	if opt.Search != "" {
+		base = base.Where(sq.Like{"wbt_class.name": "%" + strings.ToLower(opt.Search) + "%"})
+	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
 		if len(splitted) == 2 {
@@ -337,11 +361,11 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 	if offset < 0 {
 		offset = 0
 	}
-	return base.Offset(uint64(offset)).Limit(uint64(opt.Size)).PlaceholderFormat(sq.Dollar)
+	return base.Offset(uint64(offset)).Limit(uint64(opt.Size))
 }
 
 func (c *Config) GetQueryBase(fields []string, rbac *model.RbacOptions) sq.SelectBuilder {
-	base := sq.Select(fields...).From("logger.object_config").JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").PlaceholderFormat(sq.Dollar)
+	base := sq.Select(fields...).From("logger.object_config").JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").JoinClause("LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = object_config.storage_id").PlaceholderFormat(sq.Dollar)
 	return c.insertRbacCondition(base, rbac)
 }
 
@@ -362,6 +386,7 @@ func (c *Config) getFields() []string {
 		"object_config.object_id",
 		"wbt_class.name as object_name",
 		"object_config.storage_id",
+		"file_backend_profiles.name as storage_name",
 		"object_config.domain_id",
 		"object_config.created_at",
 		"object_config.created_by",

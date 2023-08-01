@@ -40,6 +40,10 @@ func (t *NullString) String() (v string) {
 	return v
 }
 
+func NewNullString(i string) *NullString {
+	return (*NullString)(&i)
+}
+
 // Scan native value decoder function
 func (t *NullString) Scan(v interface{}) error {
 	// scan: nullable (!)

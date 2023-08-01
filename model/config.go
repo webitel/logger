@@ -11,6 +11,6 @@ type Config struct {
 	DaysToStore  int
 	Period       string
 	NextUploadOn NullTime
-	StorageId    int
+	Storage      Lookup
 	DomainId     int
 }

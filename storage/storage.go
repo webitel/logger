@@ -38,7 +38,7 @@ type LogStore interface {
 type ConfigStore interface {
 	//CheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError)
 	//CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError)
-	Update(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError)
+	Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, errors.AppError)
 	Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError)
 	Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) (*[]model.Config, errors.AppError)
 	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, errors.AppError)

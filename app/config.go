@@ -32,11 +32,53 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 	if err != nil {
 		return nil, err
 	}
-	result, err = a.storage.Config().Update(ctx, model, userId)
+	result, err = a.storage.Config().Update(ctx, model, []string{}, userId)
 	if err != nil {
 		return nil, err
 	}
-	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.Object.Id)
+	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.Object.Id.Int())
+	if oldModel.Enabled == true && result.Enabled == false {
+		a.DeleteWatcherByKey(watcherName)
+	} else {
+		if a.GetWatcherByKey(watcherName) != nil {
+			a.UpdateDeleteWatcherWithNewInterval(result.Id, result.DaysToStore)
+		} else {
+			a.InsertNewDeleteWatcher(result.Id, result.DaysToStore)
+		}
+	}
+
+	//}
+
+	res, err := a.convertConfigModelToMessage(result)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+
+}
+
+func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchUpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
+	var (
+		result *model.Config
+	)
+	if in == nil {
+		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+	}
+	oldModel, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
+	if err != nil {
+		return nil, err
+	}
+
+	model, err := a.convertPatchUpdateConfigMessageToModel(in, domainId)
+
+	if err != nil {
+		return nil, err
+	}
+	result, err = a.storage.Config().Update(ctx, model, in.GetFields(), userId)
+	if err != nil {
+		return nil, err
+	}
+	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.Object.Id.Int())
 	if oldModel.Enabled == true && result.Enabled == false {
 		a.DeleteWatcherByKey(watcherName)
 	} else {
@@ -179,10 +221,25 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      in.GetPeriod(),
-		StorageId:   int(in.GetStorageId()),
-		DomainId:    domainId,
+		//Storage.Id:  int(in.GetStorageId()),
+		DomainId: domainId,
 	}
 	a.calculateNextPeriod(config)
+	config.Storage.Id = model.NewNullInt(int(in.GetStorageId()))
+	return config, nil
+}
+
+func (a *App) convertPatchUpdateConfigMessageToModel(in *proto.PatchUpdateConfigRequest, domainId int) (*model.Config, errors.AppError) {
+	config := &model.Config{
+		Id:          int(in.GetConfigId()),
+		Enabled:     in.GetEnabled(),
+		DaysToStore: int(in.GetDaysToStore()),
+		Period:      in.GetPeriod(),
+		//Storage.Id:  int(in.GetStorageId()),
+		DomainId: domainId,
+	}
+	a.calculateNextPeriod(config)
+	config.Storage.Id = model.NewNullInt(int(in.GetStorageId()))
 	return config, nil
 }
 
@@ -192,14 +249,12 @@ func (a *App) convertInsertConfigMessageToModel(in *proto.InsertConfigRequest, d
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      in.GetPeriod(),
-		StorageId:   int(in.GetStorageId()),
-		DomainId:    domainId,
+		//StorageId:   int(in.GetStorageId()),
+		DomainId: domainId,
 	}
 	a.calculateNextPeriod(config)
-	err := config.Object.Id.Scan(in.GetObjectId())
-	if err != nil {
-		return nil, errors.NewBadRequestError("app.log.convert_rabbit_message_to_model.scan.error", err.Error())
-	}
+	config.Object.Id = model.NewNullInt(int(in.GetObjectId()))
+	config.Storage.Id = model.NewNullInt(int(in.GetStorageId()))
 	return config, nil
 }
 
@@ -209,13 +264,18 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
 		Period:      in.Period,
-		StorageId:   int32(in.StorageId),
 		DomainId:    int32(in.DomainId),
 	}
 	if !in.Object.IsZero() {
 		conf.Object = &proto.Lookup{
 			Id:   int32(in.Object.Id.Int()),
 			Name: in.Object.Name.String(),
+		}
+	}
+	if !in.Storage.IsZero() {
+		conf.Storage = &proto.Lookup{
+			Id:   int32(in.Storage.Id.Int()),
+			Name: in.Storage.Name.String(),
 		}
 	}
 	return conf, nil

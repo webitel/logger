@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigServiceClient interface {
 	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error)
+	PatchUpdateConfig(ctx context.Context, in *PatchUpdateConfigRequest, opts ...grpc.CallOption) (*Config, error)
 	InsertConfig(ctx context.Context, in *InsertConfigRequest, opts ...grpc.CallOption) (*Config, error)
 	GetConfigByObjectId(ctx context.Context, in *GetConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error)
 	GetConfigById(ctx context.Context, in *GetConfigByIdRequest, opts ...grpc.CallOption) (*Config, error)
@@ -40,6 +41,15 @@ func NewConfigServiceClient(cc grpc.ClientConnInterface) ConfigServiceClient {
 func (c *configServiceClient) UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
 	err := c.cc.Invoke(ctx, "/webitel_logger.ConfigService/UpdateConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) PatchUpdateConfig(ctx context.Context, in *PatchUpdateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
+	out := new(Config)
+	err := c.cc.Invoke(ctx, "/webitel_logger.ConfigService/PatchUpdateConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -87,6 +97,7 @@ func (c *configServiceClient) GetAllConfigs(ctx context.Context, in *GetAllConfi
 // for forward compatibility
 type ConfigServiceServer interface {
 	UpdateConfig(context.Context, *UpdateConfigRequest) (*Config, error)
+	PatchUpdateConfig(context.Context, *PatchUpdateConfigRequest) (*Config, error)
 	InsertConfig(context.Context, *InsertConfigRequest) (*Config, error)
 	GetConfigByObjectId(context.Context, *GetConfigByObjectIdRequest) (*Config, error)
 	GetConfigById(context.Context, *GetConfigByIdRequest) (*Config, error)
@@ -100,6 +111,9 @@ type UnimplementedConfigServiceServer struct {
 
 func (UnimplementedConfigServiceServer) UpdateConfig(context.Context, *UpdateConfigRequest) (*Config, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateConfig not implemented")
+}
+func (UnimplementedConfigServiceServer) PatchUpdateConfig(context.Context, *PatchUpdateConfigRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PatchUpdateConfig not implemented")
 }
 func (UnimplementedConfigServiceServer) InsertConfig(context.Context, *InsertConfigRequest) (*Config, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InsertConfig not implemented")
@@ -140,6 +154,24 @@ func _ConfigService_UpdateConfig_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ConfigServiceServer).UpdateConfig(ctx, req.(*UpdateConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_PatchUpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PatchUpdateConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).PatchUpdateConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/webitel_logger.ConfigService/PatchUpdateConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).PatchUpdateConfig(ctx, req.(*PatchUpdateConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -226,6 +258,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateConfig",
 			Handler:    _ConfigService_UpdateConfig_Handler,
+		},
+		{
+			MethodName: "PatchUpdateConfig",
+			Handler:    _ConfigService_PatchUpdateConfig_Handler,
 		},
 		{
 			MethodName: "InsertConfig",

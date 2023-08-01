@@ -10,7 +10,7 @@ type NullInt int
 // - database/sql.Valuer
 func (t NullInt) Value() (driver.Value, error) {
 	if !t.IsZero() {
-		return t, nil
+		return t.Int64(), nil
 	}
 	return nil, nil
 }
@@ -31,16 +31,29 @@ func (t *NullInt) Int() int {
 	return 0
 }
 
+// IsZero value (?)
+func (t *NullInt) Int64() int64 {
+	if t != nil {
+		return (int64)(*t)
+	}
+	return 0
+}
+
+func NewNullInt(i int) *NullInt {
+	return (*NullInt)(&i)
+}
+
 func (t *NullInt) Scan(v interface{}) error {
 	// scan: nullable (!)
 	if v == nil {
 		t = nil // Zero(!)
 		return nil
 	}
+
 	switch v := v.(type) {
 	case int:
 		// +OK: int
-		*t = (NullInt)(v) // shallowcopy
+		*t = (NullInt)(v)
 		return nil
 	case int64:
 		// +OK: int

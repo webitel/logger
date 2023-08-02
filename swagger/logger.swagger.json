@@ -405,10 +405,6 @@
         },
         "storage": {
           "$ref": "#/definitions/webitel_loggerLookup"
-        },
-        "domain_id": {
-          "type": "integer",
-          "format": "int32"
         }
       }
     },

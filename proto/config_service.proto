@@ -54,16 +54,15 @@ message Config {
   int32 days_to_store = 4;
   string period = 5;
   Lookup storage = 6;
-  int32 domain_id = 7;
 }
 
 message GetConfigByObjectIdRequest {
-//  int32 page = 1;
-//  int32 size = 2;
-//  string q = 3;
-//
-//  string sort = 5;
-//  repeated string fields = 6;
+  //  int32 page = 1;
+  //  int32 size = 2;
+  //  string q = 3;
+  //
+  //  string sort = 5;
+  //  repeated string fields = 6;
 
   int32 object_id = 1;
   int32 domain_id = 2;
@@ -86,10 +85,10 @@ message GetAllConfigsRequest {
   int32 size = 2;
   string q = 3;
 
-  string sort = 5;
-  repeated string fields = 6;
+  string sort = 4;
+  repeated string fields = 5;
 
-//  int32 domainId = 7;
+  //  int32 domainId = 7;
 }
 
 message UpdateConfigRequest {

@@ -117,6 +117,7 @@ func (a *App) InsertConfig(ctx context.Context, in *proto.InsertConfigRequest, d
 	if newModel.Enabled {
 		a.InsertNewDeleteWatcher(newModel.Id, newModel.DaysToStore)
 	}
+
 	res, err := a.convertConfigModelToMessage(newModel)
 	if err != nil {
 		return nil, err
@@ -264,7 +265,7 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
 		Period:      in.Period,
-		DomainId:    int32(in.DomainId),
+		//DomainId:    int32(in.DomainId),
 	}
 	if !in.Object.IsZero() {
 		conf.Object = &proto.Lookup{

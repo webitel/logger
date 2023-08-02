@@ -29,24 +29,49 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Update("logger.object_config").Where(sq.Eq{"object_config.id": conf.Id}).Set("updated_at", time.Now()).Set("updated_by", userId).PlaceholderFormat(sq.Dollar)
+
+	base := sq.Update("logger.object_config").
+		Where(sq.Eq{"id": conf.Id}).
+		Set("updated_at", time.Now()).
+		Set("updated_by", userId).
+		PlaceholderFormat(sq.Dollar)
 	if len(fields) == 0 {
 		fields = []string{"enabled", "days_to_store", "period", "next_upload_on", "storage"}
 	}
 	for _, v := range fields {
 		switch v {
 		case "enabled":
-			base = base.Set("object_config.enabled", conf.Enabled)
+			base = base.Set("enabled", conf.Enabled)
 		case "days_to_store":
-			base = base.Set("object_config.days_to_store", conf.DaysToStore)
+			base = base.Set("days_to_store", conf.DaysToStore)
 		case "period":
-			base = base.Set("object_config.period", conf.Period)
+			base = base.Set("period", conf.Period)
 		case "next_upload_on":
-			base = base.Set("object_config.next_upload_on", conf.NextUploadOn)
-		case "storage":
-			base = base.Set("object_config.storage_id", conf.Storage.Id)
+			base = base.Set("next_upload_on", conf.NextUploadOn)
+		case "storage_id":
+			base = base.Set("storage_id", conf.Storage.Id)
 		}
 	}
+	query, args, _ := base.ToSql()
+	query = fmt.Sprintf(`with p as (%s RETURNING *)
+	select 
+		p.id,
+		p.enabled,
+		wbt_class.name as object_name,
+		file_backend_profiles.name as storage_name,
+		p.created_at,
+		p.created_by,
+		p.updated_at,
+		p.updated_by,
+		p.days_to_store,
+		p.period,
+		p.next_upload_on,
+		p.storage_id,
+		p.domain_id,
+		p.object_id
+	from p
+	LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
+	LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
 
 	//row, err := db.QueryContext(ctx,
 	//	`UPDATE
@@ -63,76 +88,35 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	//		id = $8
 	//	RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
 	//	conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.Storage.Id, time.Now(), userId, conf.Id)
-	row, err := base.RunWith(db).QueryContext(ctx)
+	res, err := db.QueryContext(ctx, query, args...) //db.QueryContext(ctx, sql+" RETURNING id, enabled, created_at, created_by, wbt_class.name as object_name, file_backend_profiles.name as storage_name, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;", args...)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query.fail", err.Error())
 	}
-	newConfig, appErr := c.ScanRow(row)
-	if err != nil {
-		return nil, errors.NewInternalError("postgres.config.update.scan.fail", err.Error())
+	row, appErr := c.ScanRow(res)
+	if appErr != nil {
+		return nil, appErr
 	}
-	return newConfig, nil
+	return row, nil
 }
-
-//func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
-//	var i int
-//	db, appErr := c.storage.Database()
-//	if appErr != nil {
-//		return false, appErr
-//	}
-//	res := db.QueryRowContext(ctx, `select 1
-//		where exists(
-//          select 1
-//          from call_center.cc_queue_acl a
-//          where a.dc = $1
-//            and a.object = $2
-//            and a.subject = any ($3::int[])
-//            and a.access & $4 = $4
-//        )`, domainId, id, groups, access)
-//	err := res.Scan(&i)
-//	if err != nil {
-//		return false, nil
-//	}
-//
-//	return i == 1, nil
-//}
-
-//func (c *Config) CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
-//	var i int
-//	db, appErr := c.storage.Database()
-//	if appErr != nil {
-//		return false, appErr
-//	}
-//	res := db.QueryRowContext(ctx, `select 1
-//		where exists(
-//          select 1
-//          from call_center.cc_queue_acl a
-//          where a.dc = $1
-//            and a.object IN (select id from logger.object_config where object_config.domain_id = $1 and object_config.object_id = $2 )
-//            and a.subject = any ($3::int[])
-//            and a.access & $4 = $4
-//        )`, domainId, objectId, groups, access)
-//	err := res.Scan(&i)
-//	if err != nil {
-//		return false, nil
-//	}
-//
-//	return i == 1, nil
-//}
-
 func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
 	res, err := db.QueryContext(ctx,
-		`INSERT INTO
+		`with p as (INSERT INTO
 		   logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by) 
 		VALUES
 		   (
 			  $1, $2, $3, $4, $5, $6, $7, $8 
 		   )
-		   RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id`,
+			RETURNING *
+		   )
+		   select p.id, p.enabled, wbt_class.name as object_name, file_backend_profiles.name as storage_name, p.created_at, p.created_by, p.updated_at, p.updated_by, p.days_to_store, p.period, p.next_upload_on, p.storage_id, p.domain_id, p.object_id
+		   from p 
+		   LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
+		   LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`,
+
 		conf.Enabled,
 		conf.DaysToStore,
 		conf.Period,
@@ -142,13 +126,13 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		conf.Object.Id,
 		userId)
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.config.insert.query.fail", err.Error())
+		return nil, errors.NewInternalError("postgres.config.insert.query.error", err.Error())
 	}
-	newConfig, appErr := c.ScanRow(res)
+	row, appErr := c.ScanRow(res)
 	if appErr != nil {
 		return nil, appErr
 	}
-	return newConfig, nil
+	return row, nil
 }
 
 func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*model.Config, errors.AppError) {
@@ -186,24 +170,6 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	}
 	return config, nil
 }
-
-//func (c *Config) GetAllRbac(ctx context.Context, opt *model.SearchOptions, domainId int, groups []int, access auth_manager.PermissionAccess) (*[]model.Config, errors.AppError) {
-//	db, appErr := c.storage.Database()
-//	if appErr != nil {
-//		return nil, appErr
-//	}
-//	base := c.GetQueryBaseFromSearchOptions(opt)
-//
-//	rows, err := base.Where(sq.Eq{"domain_id": domainId}, sq.Expr("exists(select 1 from logger.object_config_acl acl where acl.dc = object_config.domain_id and acl.object = object_config.id and acl.subject = any($1::int[]) and acl.access&$2 = $2)"), groups, access).RunWith(db).QueryContext(ctx)
-//	if err != nil {
-//		return nil, errors.NewInternalError("postgres.config.get_all.query.fail", err.Error())
-//	}
-//	configs, appErr := c.ScanRows(rows)
-//	if appErr != nil {
-//		return nil, appErr
-//	}
-//	return &configs, nil
-//}
 
 func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) (*[]model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()

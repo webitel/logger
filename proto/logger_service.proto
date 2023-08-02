@@ -8,12 +8,12 @@ import "google/api/annotations.proto";
 service LoggerService {
   rpc GetLogsByUserId(GetLogsByUserIdRequest) returns (Logs) {
     option (google.api.http) = {
-      get: "/logs/user/{user_id}"
+      get: "/logger/user/{user_id}/logs"
     };
   }
   rpc GetLogsByConfigId(GetLogsByConfigIdRequest) returns (Logs) {
     option (google.api.http) = {
-      get: "/logs/config/{config_id}/logs"
+      get: "/logger/config/{config_id}/logs"
     };
   }
 }

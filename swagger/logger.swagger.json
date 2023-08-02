@@ -24,7 +24,7 @@
     "application/json"
   ],
   "paths": {
-    "/logs/config": {
+    "/logger/config": {
       "get": {
         "operationId": "GetAllConfigs",
         "responses": {
@@ -121,7 +121,7 @@
         ]
       }
     },
-    "/logs/config/{config_id}": {
+    "/logger/config/{config_id}": {
       "put": {
         "operationId": "UpdateConfig",
         "responses": {
@@ -205,7 +205,7 @@
         ]
       }
     },
-    "/logs/config/{config_id}/logs": {
+    "/logger/config/{config_id}/logs": {
       "get": {
         "operationId": "GetLogsByConfigId",
         "responses": {
@@ -275,7 +275,7 @@
         ]
       }
     },
-    "/logs/config/{id}": {
+    "/logger/config/{id}": {
       "get": {
         "operationId": "GetConfigById",
         "responses": {
@@ -310,7 +310,7 @@
         ]
       }
     },
-    "/logs/user/{user_id}": {
+    "/logger/user/{user_id}/logs": {
       "get": {
         "operationId": "GetLogsByUserId",
         "responses": {

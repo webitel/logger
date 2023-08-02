@@ -11,19 +11,19 @@ import "google/api/annotations.proto";
 service ConfigService {
   rpc UpdateConfig(UpdateConfigRequest) returns (Config) {
     option (google.api.http) = {
-      put: "/logs/config/{config_id}"
+      put: "/logger/config/{config_id}"
       body: "*"
     };
   }
   rpc PatchUpdateConfig(PatchUpdateConfigRequest) returns (Config) {
     option (google.api.http) = {
-      patch: "/logs/config/{config_id}"
+      patch: "/logger/config/{config_id}"
       body: "*"
     };
   }
   rpc InsertConfig(InsertConfigRequest) returns (Config) {
     option (google.api.http) = {
-      post: "/logs/config"
+      post: "/logger/config"
       body: "*"
     };
   }
@@ -31,12 +31,12 @@ service ConfigService {
   }
   rpc GetConfigById(GetConfigByIdRequest) returns (Config) {
     option (google.api.http) = {
-      get: "/logs/config/{id}"
+      get: "/logger/config/{id}"
     };
   }
   rpc GetAllConfigs(GetAllConfigsRequest) returns (Configs) {
     option (google.api.http) = {
-      get: "/logs/config"
+      get: "/logger/config"
     };
   }
 }

@@ -77,6 +77,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query.fail", err.Error())
 	}
+	defer res.Close()
 	row, appErr := c.ScanRow(res)
 	if appErr != nil {
 		return nil, appErr
@@ -184,7 +185,6 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 	if err != nil {
 		return errors.NewInternalError("postgres.config.delete_many.query.error", err.Error())
 	}
-
 	if i, err := res.RowsAffected(); err == nil && i == 0 {
 		return errors.NewBadRequestError("postgres.config.delete_many.result.no_rows_for_delete", "no rows were affected while deleting")
 	}
@@ -203,6 +203,7 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_object.query.fail", err.Error())
 	}
+	defer rows.Close()
 	configs, appErr := c.ScanRow(rows)
 	if appErr != nil {
 		return nil, appErr
@@ -220,6 +221,7 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
 	}
+	defer rows.Close()
 	config, appErr := c.ScanRow(rows)
 	if appErr != nil {
 		return nil, appErr
@@ -237,6 +239,7 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
 	}
+	defer rows.Close()
 	res, appErr := c.ScanRows(rows)
 	if appErr != nil {
 		return nil, appErr

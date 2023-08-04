@@ -33,6 +33,7 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...mode
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
 	}
+	defer rows.Close()
 	res, appErr := c.ScanRows(rows)
 	if appErr != nil {
 		return nil, appErr
@@ -60,6 +61,7 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.Ap
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
 	}
+	defer rows.Close()
 	res, appErr := c.ScanRows(rows)
 	if appErr != nil {
 		return nil, appErr

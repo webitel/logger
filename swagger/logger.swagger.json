@@ -1,8 +1,8 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Webitel engine API",
-    "version": "23.02.0",
+    "title": "Webitel logger API",
+    "version": "23.07.0",
     "contact": {
       "name": "Webitel",
       "url": "https://webitel.com",

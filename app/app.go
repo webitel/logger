@@ -91,6 +91,9 @@ func ExtractSearchOptions(t any) (*model.SearchOptions, errors.AppError) {
 	if res.Page <= 0 {
 		res.Page = DEFAULT_PAGE
 	}
+	if res.Search != "" {
+		res.Search = strings.Replace(res.Search, "*", "%", -1)
+	}
 	return &res, nil
 }
 
@@ -110,7 +113,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if !ok {
-		return nil, errors.NewInternalError("app.grpc.get_context", "Not found")
+		return nil, errors.NewForbiddenError("app.grpc.get_context", "Not found")
 	} else {
 		token = info.Get("X-Webitel-Access")
 	}
@@ -125,7 +128,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if session.IsExpired() {
-		return nil, errors.NewInternalError("api.context.session_expired.app_error", "token="+token[0])
+		return nil, errors.NewForbiddenError("api.context.session_expired.app_error", "token="+token[0])
 	}
 
 	return session, nil

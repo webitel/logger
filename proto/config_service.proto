@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package webitel_logger;
+package logger;
 
 option go_package = "webitel_logger/proto";
 
@@ -27,6 +27,18 @@ service ConfigService {
       body: "*"
     };
   }
+  rpc DeleteConfig(DeleteConfigRequest) returns (Empty) {
+    option (google.api.http) = {
+      delete: "/logger/config/{id}"
+    };
+  }
+
+  rpc DeleteConfigs(DeleteConfigsRequest) returns (Empty) {
+    option (google.api.http) = {
+      delete: "/logger/config"
+      body: "*"
+    };
+  }
   rpc GetConfigByObjectId(GetConfigByObjectIdRequest) returns (Config) {
   }
   rpc GetConfigById(GetConfigByIdRequest) returns (Config) {
@@ -47,13 +59,27 @@ message Configs {
   bool next = 2;
   repeated Config items = 3;
 }
+
+
+message Empty {
+}
 message Config {
   int32 id = 1;
-  Lookup	object = 2;
+  Lookup  object = 2;
   bool enabled = 3;
   int32 days_to_store = 4;
   string period = 5;
   Lookup storage = 6;
+}
+
+
+
+message DeleteConfigRequest {
+  int32 id = 1;
+}
+
+message DeleteConfigsRequest {
+  repeated int32 ids = 1;
 }
 
 message GetConfigByObjectIdRequest {

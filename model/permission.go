@@ -1,5 +1,5 @@
 package model
 
 const (
-	PERMISSION_SCOPE_LOG = "logs"
+	PERMISSION_SCOPE_LOG = "logger"
 )

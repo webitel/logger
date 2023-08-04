@@ -31,7 +31,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerConfigs"
+              "$ref": "#/definitions/loggerConfigs"
             }
           },
           "403": {
@@ -86,13 +86,13 @@
           "ConfigService"
         ]
       },
-      "post": {
-        "operationId": "InsertConfig",
+      "delete": {
+        "operationId": "DeleteConfigs",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerConfig"
+              "$ref": "#/definitions/loggerEmpty"
             }
           },
           "403": {
@@ -112,7 +112,41 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/webitel_loggerInsertConfigRequest"
+              "$ref": "#/definitions/loggerDeleteConfigsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ConfigService"
+        ]
+      },
+      "post": {
+        "operationId": "InsertConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/loggerConfig"
+            }
+          },
+          "403": {
+            "description": "Returned when the user does not have permission to access the resource.",
+            "schema": {}
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/loggerInsertConfigRequest"
             }
           }
         ],
@@ -128,7 +162,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerConfig"
+              "$ref": "#/definitions/loggerConfig"
             }
           },
           "403": {
@@ -155,7 +189,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/webitel_loggerUpdateConfigRequest"
+              "$ref": "#/definitions/loggerUpdateConfigRequest"
             }
           }
         ],
@@ -169,7 +203,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerConfig"
+              "$ref": "#/definitions/loggerConfig"
             }
           },
           "403": {
@@ -196,7 +230,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/webitel_loggerPatchUpdateConfigRequest"
+              "$ref": "#/definitions/loggerPatchUpdateConfigRequest"
             }
           }
         ],
@@ -212,7 +246,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerLogs"
+              "$ref": "#/definitions/loggerLogs"
             }
           },
           "403": {
@@ -282,7 +316,40 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerConfig"
+              "$ref": "#/definitions/loggerConfig"
+            }
+          },
+          "403": {
+            "description": "Returned when the user does not have permission to access the resource.",
+            "schema": {}
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ConfigService"
+        ]
+      },
+      "delete": {
+        "operationId": "DeleteConfig",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/loggerEmpty"
             }
           },
           "403": {
@@ -317,7 +384,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/webitel_loggerLogs"
+              "$ref": "#/definitions/loggerLogs"
             }
           },
           "403": {
@@ -382,7 +449,7 @@
     }
   },
   "definitions": {
-    "webitel_loggerConfig": {
+    "loggerConfig": {
       "type": "object",
       "properties": {
         "id": {
@@ -390,7 +457,7 @@
           "format": "int32"
         },
         "object": {
-          "$ref": "#/definitions/webitel_loggerLookup"
+          "$ref": "#/definitions/loggerLookup"
         },
         "enabled": {
           "type": "boolean",
@@ -404,11 +471,11 @@
           "type": "string"
         },
         "storage": {
-          "$ref": "#/definitions/webitel_loggerLookup"
+          "$ref": "#/definitions/loggerLookup"
         }
       }
     },
-    "webitel_loggerConfigs": {
+    "loggerConfigs": {
       "type": "object",
       "properties": {
         "page": {
@@ -422,12 +489,27 @@
         "items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/webitel_loggerConfig"
+            "$ref": "#/definitions/loggerConfig"
           }
         }
       }
     },
-    "webitel_loggerInsertConfigRequest": {
+    "loggerDeleteConfigsRequest": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    },
+    "loggerEmpty": {
+      "type": "object"
+    },
+    "loggerInsertConfigRequest": {
       "type": "object",
       "properties": {
         "object_id": {
@@ -451,7 +533,7 @@
         }
       }
     },
-    "webitel_loggerLog": {
+    "loggerLog": {
       "type": "object",
       "properties": {
         "id": {
@@ -465,7 +547,7 @@
           "type": "string"
         },
         "user": {
-          "$ref": "#/definitions/webitel_loggerLookup"
+          "$ref": "#/definitions/loggerLookup"
         },
         "user_ip": {
           "type": "string"
@@ -479,7 +561,7 @@
         }
       }
     },
-    "webitel_loggerLogs": {
+    "loggerLogs": {
       "type": "object",
       "properties": {
         "page": {
@@ -493,12 +575,12 @@
         "items": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/webitel_loggerLog"
+            "$ref": "#/definitions/loggerLog"
           }
         }
       }
     },
-    "webitel_loggerLookup": {
+    "loggerLookup": {
       "type": "object",
       "properties": {
         "id": {
@@ -510,7 +592,7 @@
         }
       }
     },
-    "webitel_loggerPatchUpdateConfigRequest": {
+    "loggerPatchUpdateConfigRequest": {
       "type": "object",
       "properties": {
         "config_id": {
@@ -540,7 +622,7 @@
         }
       }
     },
-    "webitel_loggerUpdateConfigRequest": {
+    "loggerUpdateConfigRequest": {
       "type": "object",
       "properties": {
         "config_id": {

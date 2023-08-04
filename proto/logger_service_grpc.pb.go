@@ -36,7 +36,7 @@ func NewLoggerServiceClient(cc grpc.ClientConnInterface) LoggerServiceClient {
 
 func (c *loggerServiceClient) GetLogsByUserId(ctx context.Context, in *GetLogsByUserIdRequest, opts ...grpc.CallOption) (*Logs, error) {
 	out := new(Logs)
-	err := c.cc.Invoke(ctx, "/webitel_logger.LoggerService/GetLogsByUserId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.LoggerService/GetLogsByUserId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *loggerServiceClient) GetLogsByUserId(ctx context.Context, in *GetLogsBy
 
 func (c *loggerServiceClient) GetLogsByConfigId(ctx context.Context, in *GetLogsByConfigIdRequest, opts ...grpc.CallOption) (*Logs, error) {
 	out := new(Logs)
-	err := c.cc.Invoke(ctx, "/webitel_logger.LoggerService/GetLogsByConfigId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.LoggerService/GetLogsByConfigId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func _LoggerService_GetLogsByUserId_Handler(srv interface{}, ctx context.Context
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/webitel_logger.LoggerService/GetLogsByUserId",
+		FullMethod: "/logger.LoggerService/GetLogsByUserId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LoggerServiceServer).GetLogsByUserId(ctx, req.(*GetLogsByUserIdRequest))
@@ -112,7 +112,7 @@ func _LoggerService_GetLogsByConfigId_Handler(srv interface{}, ctx context.Conte
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/webitel_logger.LoggerService/GetLogsByConfigId",
+		FullMethod: "/logger.LoggerService/GetLogsByConfigId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LoggerServiceServer).GetLogsByConfigId(ctx, req.(*GetLogsByConfigIdRequest))
@@ -124,7 +124,7 @@ func _LoggerService_GetLogsByConfigId_Handler(srv interface{}, ctx context.Conte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var LoggerService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "webitel_logger.LoggerService",
+	ServiceName: "logger.LoggerService",
 	HandlerType: (*LoggerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

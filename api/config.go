@@ -37,7 +37,7 @@ func (s *ConfigService) GetConfigById(ctx context.Context, in *proto.GetConfigBy
 	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_READ, permission) {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: uint8(auth_manager.PERMISSION_ACCESS_READ),
+			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
 		}
 	}
 	return s.app.GetConfigById(ctx, rbac, int(in.GetId()))
@@ -45,22 +45,6 @@ func (s *ConfigService) GetConfigById(ctx context.Context, in *proto.GetConfigBy
 
 // For internal purpose when check is config enabled
 func (s *ConfigService) GetConfigByObjectId(ctx context.Context, in *proto.GetConfigByObjectIdRequest) (*proto.Config, error) {
-	//var rbac *model.RbacOptions
-	//session, err := s.app.GetSessionFromCtx(ctx)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	//if !permission.CanRead() {
-	//	return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
-	//}
-	//if session.UseRBAC(auth_manager.PERMISSION_ACCESS_READ, permission) {
-	//	rbac = &model.RbacOptions{
-	//		Groups: session.GetAclRoles(),
-	//		Access: uint8(auth_manager.PERMISSION_ACCESS_READ),
-	//	}
-	//}
 	return s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
 }
 
@@ -84,7 +68,7 @@ func (s *ConfigService) GetAllConfigs(ctx context.Context, in *proto.GetAllConfi
 	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_READ, permission) {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: uint8(auth_manager.PERMISSION_ACCESS_READ),
+			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
 		}
 	}
 	rows, err := s.app.GetAllConfigs(ctx, opt, rbac, int(session.DomainId))
@@ -95,7 +79,7 @@ func (s *ConfigService) GetAllConfigs(ctx context.Context, in *proto.GetAllConfi
 		out.Next = true
 	}
 	out.Items = rows
-	out.Page = in.GetPage()
+	out.Page = int32(opt.Page)
 	return &out, nil
 }
 
@@ -112,6 +96,15 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	}
 	if !permission.CanUpdate() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
+	}
+	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_UPDATE, permission) {
+		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetConfigId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_UPDATE)
+		if err != nil {
+			return nil, err
+		}
+		if !access {
+			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
+		}
 	}
 	return s.app.UpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
 }
@@ -130,6 +123,15 @@ func (s *ConfigService) PatchUpdateConfig(ctx context.Context, in *proto.PatchUp
 	if !permission.CanUpdate() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
 	}
+	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_UPDATE, permission) {
+		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetConfigId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_UPDATE)
+		if err != nil {
+			return nil, err
+		}
+		if !access {
+			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
+		}
+	}
 	return s.app.PatchUpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
 }
 
@@ -147,4 +149,57 @@ func (s *ConfigService) InsertConfig(ctx context.Context, in *proto.InsertConfig
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_CREATE)
 	}
 	return s.app.InsertConfig(ctx, in, int(session.DomainId), int(session.UserId))
+}
+
+// Delete deletes config
+func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
+	if !permission.CanDelete() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
+	}
+	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_DELETE, permission) {
+		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_DELETE)
+		if err != nil {
+			return nil, err
+		}
+		if !access {
+			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
+		}
+	}
+	appErr := s.app.DeleteConfig(ctx, in.GetId())
+	if appErr != nil {
+		return nil, appErr
+	}
+	return &proto.Empty{}, nil
+}
+
+// InsertConfig inserts new config
+func (s *ConfigService) DeleteConfigs(ctx context.Context, in *proto.DeleteConfigsRequest) (*proto.Empty, error) {
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
+	if !permission.CanRead() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	}
+	if !permission.CanDelete() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
+	}
+	var rbac *model.RbacOptions
+	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_DELETE, permission) {
+		rbac = &model.RbacOptions{
+			Groups: session.GetAclRoles(),
+			Access: auth_manager.PERMISSION_ACCESS_DELETE.Value(),
+		}
+	}
+	appErr := s.app.DeleteConfigs(ctx, rbac, in.GetIds())
+	if appErr != nil {
+		return nil, appErr
+	}
+	return &proto.Empty{}, nil
 }

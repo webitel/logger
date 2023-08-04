@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/lib/pq"
 	"strings"
 	"time"
 	"webitel_logger/model"
@@ -53,42 +54,26 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		}
 	}
 	query, args, _ := base.ToSql()
-	query = fmt.Sprintf(`with p as (%s RETURNING *)
-	select 
-		p.id,
-		p.enabled,
-		wbt_class.name as object_name,
-		file_backend_profiles.name as storage_name,
-		p.created_at,
-		p.created_by,
-		p.updated_at,
-		p.updated_by,
-		p.days_to_store,
-		p.period,
-		p.next_upload_on,
-		p.storage_id,
-		p.domain_id,
-		p.object_id
-	from p
-	LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
-	LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
-
-	//row, err := db.QueryContext(ctx,
-	//	`UPDATE
-	//		logger.object_config
-	//	SET
-	//		enabled = $1,
-	//		days_to_store = $2,
-	//		period = $3,
-	//		next_upload_on = $4,
-	//		storage_id = $5,
-	//		updated_at = $6,
-	//		updated_by = $7
-	//	WHERE
-	//		id = $8
-	//	RETURNING id, enabled, created_at, created_by, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;`,
-	//	conf.Enabled, conf.DaysToStore, conf.Period, conf.NextUploadOn, conf.Storage.Id, time.Now(), userId, conf.Id)
-	res, err := db.QueryContext(ctx, query, args...) //db.QueryContext(ctx, sql+" RETURNING id, enabled, created_at, created_by, wbt_class.name as object_name, file_backend_profiles.name as storage_name, updated_at, updated_by, days_to_store, period, next_upload_on, storage_id, domain_id, object_id;", args...)
+	query = fmt.Sprintf(
+		`with p as (%s RETURNING *)
+		select p.id,
+			   p.enabled,
+			   wbt_class.name             as object_name,
+			   file_backend_profiles.name as storage_name,
+			   p.created_at,
+			   p.created_by,
+			   p.updated_at,
+			   p.updated_by,
+			   p.days_to_store,
+			   p.period,
+			   p.next_upload_on,
+			   p.storage_id,
+			   p.domain_id,
+			   p.object_id
+		from p
+				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
+				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
+	res, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query.fail", err.Error())
 	}
@@ -105,17 +90,26 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 	}
 	res, err := db.QueryContext(ctx,
 		`with p as (INSERT INTO
-		   logger.object_config(enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by) 
-		VALUES
-		   (
-			  $1, $2, $3, $4, $5, $6, $7, $8 
-		   )
-			RETURNING *
-		   )
-		   select p.id, p.enabled, wbt_class.name as object_name, file_backend_profiles.name as storage_name, p.created_at, p.created_by, p.updated_at, p.updated_by, p.days_to_store, p.period, p.next_upload_on, p.storage_id, p.domain_id, p.object_id
-		   from p 
-		   LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
-		   LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`,
+					logger.object_config (enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+					RETURNING *)
+				select p.id,
+					   p.enabled,
+					   wbt_class.name             as object_name,
+					   file_backend_profiles.name as storage_name,
+					   p.created_at,
+					   p.created_by,
+					   p.updated_at,
+					   p.updated_by,
+					   p.days_to_store,
+					   p.period,
+					   p.next_upload_on,
+					   p.storage_id,
+					   p.domain_id,
+					   p.object_id
+				from p
+						 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
+						 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`,
 
 		conf.Enabled,
 		conf.DaysToStore,
@@ -128,11 +122,73 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.insert.query.error", err.Error())
 	}
+	defer res.Close()
 	row, appErr := c.ScanRow(res)
 	if appErr != nil {
 		return nil, appErr
 	}
 	return row, nil
+}
+
+func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint32) (bool, errors.AppError) {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return false, appErr
+	}
+	subquery := sq.Select("1").From("logger.object_config_acl acl").
+		Where(sq.Eq{"acl.dc": domainId}).
+		Where(sq.Eq{"acl.object": id}).
+		Where("acl.subject = any( ?::int[])", pq.Array(groups)).
+		Where("acl.access & ? = ?", access, access).PlaceholderFormat(sq.Dollar)
+	base := sq.Select("1").Where(sq.Expr("exists(?)", subquery))
+	res := base.RunWith(db).QueryRowContext(ctx)
+	var ac bool
+	err := res.Scan(&ac)
+	if err != nil {
+		return false, errors.NewInternalError("postgres.config.check_access.scan.error", err.Error())
+	}
+	return ac, nil
+}
+
+func (c *Config) Delete(ctx context.Context, id int32) errors.AppError {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return appErr
+	}
+	res, err := sq.Delete("logger.object_config").Where(sq.Eq{"id": id}).PlaceholderFormat(sq.Dollar).RunWith(db).ExecContext(ctx)
+	if err != nil {
+		return errors.NewInternalError("postgres.config.delete.query.error", err.Error())
+	}
+	if i, err := res.RowsAffected(); err == nil && i == 0 {
+		return errors.NewBadRequestError("postgres.config.delete.result.no_rows_for_delete", err.Error())
+	}
+	return nil
+}
+
+func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) errors.AppError {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return appErr
+	}
+	base := sq.Delete("logger.object_config").Where(sq.Expr("object_config.id = any(?::int[])", pq.Array(ids))).PlaceholderFormat(sq.Dollar)
+	if rbac != nil {
+		subquery := sq.Select("1").From("logger.object_config_acl acl").
+			Where("acl.dc = object_config.domain_id").
+			Where("acl.object = object_config.id").
+			Where("acl.subject = any( ?::int[])", pq.Array(rbac.Groups)).
+			Where("acl.access & ? = ?", rbac.Access, rbac.Access).
+			Limit(1)
+		base = base.Where(sq.Expr("exists(?)", subquery))
+	}
+	res, err := base.RunWith(db).ExecContext(ctx)
+	if err != nil {
+		return errors.NewInternalError("postgres.config.delete_many.query.error", err.Error())
+	}
+
+	if i, err := res.RowsAffected(); err == nil && i == 0 {
+		return errors.NewBadRequestError("postgres.config.delete_many.result.no_rows_for_delete", "no rows were affected while deleting")
+	}
+	return nil
 }
 
 func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*model.Config, errors.AppError) {
@@ -177,8 +233,6 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 		return nil, appErr
 	}
 	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters...)
-	sql, _, _ := base.ToSql()
-	fmt.Println(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
@@ -267,7 +321,6 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 }
 
 // Refactor GetQueryBaseFromSearchOptions for beauty
-
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
 	if opt == nil {
@@ -309,7 +362,7 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 	}
 	base := c.GetQueryBase(fields, rbac)
 	if opt.Search != "" {
-		base = base.Where(sq.Like{"wbt_class.name": "%" + strings.ToLower(opt.Search) + "%"})
+		base = base.Where(sq.ILike{"wbt_class.name": opt.Search + "%"})
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
@@ -337,7 +390,13 @@ func (c *Config) GetQueryBase(fields []string, rbac *model.RbacOptions) sq.Selec
 
 func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOptions) sq.SelectBuilder {
 	if rbac != nil {
-		base = base.Where(sq.Expr("exists(select 1 from logger.object_config_acl acl where acl.dc = object_config.domain_id and acl.object = object_config.id and acl.subject = any($1::int[]) and acl.access&$2 = $2)"), rbac.Groups, rbac.Access)
+		subquery := sq.Select("1").From("logger.object_config_acl acl").
+			Where("acl.dc = object_config.domain_id").
+			Where("acl.object = object_config.id").
+			Where("acl.subject = any( ?::int[])", pq.Array(rbac.Groups)).
+			Where("acl.access & ? = ?", rbac.Access, rbac.Access).
+			Limit(1)
+		base = base.Where(sq.Expr("exists(?)", subquery))
 	}
 	return base
 }

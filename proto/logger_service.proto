@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package webitel_logger;
+package logger;
 
 option go_package = "webitel_logger/proto";
 import "google/api/annotations.proto";
@@ -39,18 +39,6 @@ message GetLogsByUserIdRequest {
 
   int32 user_id = 7;
 }
-
-//message GetLogsByObjectIdRequest {
-//  int32 page = 1;
-//  int32 size = 2;
-//  string q = 3;
-//
-//  string sort = 5;
-//  repeated string fields = 6;
-//
-//  int32 object_id = 7;
-////  int32 domainId = 8;
-//}
 
 message Logs {
   int32 page = 1;

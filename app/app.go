@@ -22,6 +22,10 @@ const (
 	SESSION_CACHE_SIZE  = 35000
 	SESSION_CACHE_TIME  = 60 * 5
 	RequestContextName  = "grpc_ctx"
+
+	DEFAULT_PAGE_SIZE = 40
+	DEFAULT_PAGE      = 1
+	MAX_PAGE_SIZE     = 40000
 )
 
 type App struct {
@@ -80,6 +84,12 @@ func ExtractSearchOptions(t any) (*model.SearchOptions, errors.AppError) {
 	}
 	if res.Sort != "" {
 		res.Sort = ConvertSort(res.Sort)
+	}
+	if res.Size <= 0 || res.Size > MAX_PAGE_SIZE {
+		res.Size = DEFAULT_PAGE_SIZE
+	}
+	if res.Page <= 0 {
+		res.Page = DEFAULT_PAGE
 	}
 	return &res, nil
 }

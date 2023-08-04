@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/wlog"
 	"time"
 	"webitel_logger/model"
@@ -167,23 +168,33 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 	return res, nil
 }
 
-//func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
-//	available, err := a.storage.Config().CheckAccess(ctx, domainId, id, groups, access)
-//	if err != nil {
-//		return false, err
-//	}
-//	return available, nil
-//
-//}
-//
-//func (a *App) ConfigCheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
-//	available, err := a.storage.Config().CheckAccess(ctx, domainId, objectId, groups, access)
-//	if err != nil {
-//		return false, err
-//	}
-//	return available, nil
-//
-//}
+func (a *App) DeleteConfig(ctx context.Context, id int32) errors.AppError {
+	appErr := a.storage.Config().Delete(ctx, id)
+	if appErr != nil {
+		return appErr
+	}
+	return nil
+}
+
+func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []int32) errors.AppError {
+	appErr := a.storage.Config().DeleteMany(ctx, rbac, ids)
+	if appErr != nil {
+		return appErr
+	}
+	return nil
+}
+
+func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
+	available, err := a.storage.Config().CheckAccess(ctx, domainId, id, groups, access.Value())
+	if err != nil {
+		if IsErrNoRows(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return available, nil
+
+}
 
 func (a *App) GetAllConfigs(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) ([]*proto.Config, errors.AppError) {
 	var res []*proto.Config

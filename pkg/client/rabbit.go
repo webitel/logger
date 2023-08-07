@@ -27,6 +27,9 @@ type RabbitClient interface {
 	SendContext(ctx context.Context, message *Message) error
 	Close()
 	IsOpened() bool
+	CreateAction(domainId int64, objectId int64, userId int, userIp string) *Message
+	UpdateAction(domainId int64, objectId int64, userId int, userIp string) *Message
+	DeleteAction(domainId int64, objectId int64, userId int, userIp string) *Message
 }
 
 type rabbitClient struct {
@@ -204,22 +207,26 @@ func (c *rabbitClient) CreateAction(domainId int64, objectId int64, userId int, 
 	return mess
 }
 
-func (c *rabbitClient) UpdateAction(userId int, userIp string) *Message {
+func (c *rabbitClient) UpdateAction(domainId int64, objectId int64, userId int, userIp string) *Message {
 	mess := &Message{RequiredFields: RequiredFields{
-		UserId: userId,
-		UserIp: userIp,
-		Action: string(UPDATE_ACTION),
-		Date:   time.Now().Unix(),
+		UserId:   userId,
+		UserIp:   userIp,
+		Action:   string(UPDATE_ACTION),
+		Date:     time.Now().Unix(),
+		DomainId: domainId,
+		ObjectId: objectId,
 	}, client: c}
 	return mess
 }
 
-func (c *rabbitClient) DeleteAction(userId int, userIp string) *Message {
+func (c *rabbitClient) DeleteAction(domainId int64, objectId int64, userId int, userIp string) *Message {
 	mess := &Message{RequiredFields: RequiredFields{
-		UserId: userId,
-		UserIp: userIp,
-		Action: string(DELETE_ACTION),
-		Date:   time.Now().Unix(),
+		UserId:   userId,
+		UserIp:   userIp,
+		Action:   string(DELETE_ACTION),
+		Date:     time.Now().Unix(),
+		DomainId: domainId,
+		ObjectId: objectId,
 	}, client: c}
 	return mess
 }

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
+	"logger/model"
+	"logger/storage"
 	"strings"
 	"time"
-	"webitel_logger/model"
-	"webitel_logger/storage"
 
 	errors "github.com/webitel/engine/model"
 )

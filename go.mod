@@ -1,4 +1,4 @@
-module webitel_logger
+module logger
 
 go 1.18
 

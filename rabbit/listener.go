@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/webitel/wlog"
 	"log"
+	"logger/app"
+	"logger/model"
 	"strings"
-	"webitel_logger/app"
-	"webitel_logger/model"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	errors "github.com/webitel/engine/model"

@@ -3,8 +3,8 @@ package postgres
 import (
 	"database/sql"
 	"github.com/Masterminds/squirrel"
-	"webitel_logger/model"
-	"webitel_logger/storage"
+	"logger/model"
+	"logger/storage"
 
 	_ "github.com/jackc/pgx/stdlib"
 	errors "github.com/webitel/engine/model"

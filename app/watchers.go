@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	errors "github.com/webitel/engine/model"
+	"logger/model"
+	"logger/watcher"
 	"time"
-	"webitel_logger/model"
-	"webitel_logger/watcher"
 )
 
 func (a *App) initializeWatchers() errors.AppError {

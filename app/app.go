@@ -8,11 +8,11 @@ import (
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
 	"google.golang.org/grpc/metadata"
+	"logger/model"
+	"logger/pkg/cache"
+	"logger/storage"
+	"logger/watcher"
 	"strings"
-	"webitel_logger/model"
-	"webitel_logger/pkg/cache"
-	"webitel_logger/storage"
-	"webitel_logger/watcher"
 
 	errors "github.com/webitel/engine/model"
 )

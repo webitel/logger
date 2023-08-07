@@ -6,10 +6,10 @@ import (
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	errors "github.com/webitel/engine/model"
+	"logger/model"
+	"logger/storage"
 	"strings"
 	"time"
-	"webitel_logger/model"
-	"webitel_logger/storage"
 )
 
 type Log struct {

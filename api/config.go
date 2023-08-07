@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 	"github.com/webitel/engine/auth_manager"
-	"webitel_logger/app"
-	"webitel_logger/model"
-	"webitel_logger/proto"
+	"logger/app"
+	"logger/model"
+	"logger/proto"
 
 	errors "github.com/webitel/engine/model"
 )

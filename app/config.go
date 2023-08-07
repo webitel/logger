@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/wlog"
+	"logger/model"
+	"logger/proto"
 	"time"
-	"webitel_logger/model"
-	"webitel_logger/proto"
 
 	errors "github.com/webitel/engine/model"
 )

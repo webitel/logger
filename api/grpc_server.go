@@ -10,14 +10,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"logger/app"
+	"logger/model"
+	"logger/proto"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"webitel_logger/app"
-	"webitel_logger/model"
-	"webitel_logger/proto"
 )
 
 var (

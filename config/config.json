@@ -8,7 +8,7 @@
     "consul": {
         "address": "10.9.8.111:8500",
         "id" : "logger",
-        "publicAddress": "10.10.10.162:10001"
+        "publicAddress": "10.10.10.176:10001"
         
     }
 }   

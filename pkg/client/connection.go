@@ -1,8 +1,8 @@
 package client
 
 import (
+	"logger/proto"
 	"time"
-	"webitel_logger/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"

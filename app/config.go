@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/webitel/engine/auth_manager"
+	"github.com/webitel/logger/model"
+	"github.com/webitel/logger/proto"
 	"github.com/webitel/wlog"
-	"logger/model"
-	"logger/proto"
 	"time"
 
 	errors "github.com/webitel/engine/model"

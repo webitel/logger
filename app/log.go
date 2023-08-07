@@ -2,8 +2,8 @@ package app
 
 import (
 	"context"
-	"logger/model"
-	"logger/proto"
+	"github.com/webitel/logger/model"
+	"github.com/webitel/logger/proto"
 	"time"
 
 	errors "github.com/webitel/engine/model"

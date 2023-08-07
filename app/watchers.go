@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	errors "github.com/webitel/engine/model"
-	"logger/model"
-	"logger/watcher"
+	"github.com/webitel/logger/model"
+	"github.com/webitel/logger/watcher"
 	"time"
 )
 

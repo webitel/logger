@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"logger/model"
+	"github.com/webitel/logger/model"
 	"time"
 
 	errors "github.com/webitel/engine/model"

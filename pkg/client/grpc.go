@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
-	"logger/proto"
+	"github.com/webitel/logger/proto"
 	"sync"
 
 	"github.com/webitel/engine/discovery"

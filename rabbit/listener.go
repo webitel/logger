@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/webitel/logger/app"
+	"github.com/webitel/logger/model"
 	"github.com/webitel/wlog"
 	"log"
-	"logger/app"
-	"logger/model"
 	"strings"
 
 	amqp "github.com/rabbitmq/amqp091-go"

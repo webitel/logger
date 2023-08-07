@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/webitel/logger/app"
+	"github.com/webitel/logger/model"
+	"github.com/webitel/logger/pkg/client"
 	"github.com/webitel/wlog"
-	"logger/app"
-	"logger/model"
-	"logger/pkg/client"
 	"strconv"
 	"strings"
 

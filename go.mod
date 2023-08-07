@@ -1,4 +1,4 @@
-module logger
+module github.com/webitel/logger
 
 go 1.18
 

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
-	"logger/model"
-	"logger/storage"
+	"github.com/webitel/logger/model"
+	"github.com/webitel/logger/storage"
 	"strings"
 	"time"
 

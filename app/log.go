@@ -83,21 +83,38 @@ func (a *App) GetLogsByConfigId(ctx context.Context, opt *model.SearchOptions, c
 	return result, nil
 }
 
-func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage) errors.AppError {
-	model, err := convertRabbitMessageToModel(rabbitMessage)
+func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) errors.AppError {
+
+	config, err := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if err != nil {
 		return err
 	}
-	newModel, err := a.storage.Config().GetByObjectId(ctx, rabbitMessage.DomainId, rabbitMessage.ObjectId)
+	model, err := convertRabbitMessageToModel(rabbitMessage, config.Id)
 	if err != nil {
 		return err
 	}
-	model.ConfigId = newModel.Id
 	_, err = a.storage.Log().Insert(ctx, model)
 	if err != nil {
 		return err
 	}
 
+	return nil
+
+}
+
+func (a *App) InsertRabbitLogs(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId, objectId int) errors.AppError {
+	config, err := a.storage.Config().GetByObjectId(ctx, int(domainId), int(objectId))
+	if err != nil {
+		return err
+	}
+	logs, err := bulkConvertRabbitMessageToModel(rabbitMessages, config.Id)
+	if err != nil {
+		return err
+	}
+	err = a.storage.Log().InsertMany(ctx, *logs)
+	if err != nil {
+		return err
+	}
 	return nil
 
 }
@@ -120,13 +137,14 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	}
 	return log, nil
 }
-func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, errors.AppError) {
+func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.Log, errors.AppError) {
 	log := &model.Log{
 		Action:   m.Action,
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
 		UserIp:   m.UserIp,
 		NewState: string(m.NewState),
 		RecordId: m.RecordId,
+		ConfigId: configId,
 	}
 	err := log.User.Id.Scan(m.UserId)
 	if err != nil {
@@ -134,4 +152,16 @@ func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, errors.App
 	}
 
 	return log, nil
+}
+
+func bulkConvertRabbitMessageToModel(m []*model.RabbitMessage, configId int) (*[]*model.Log, errors.AppError) {
+	var logs []*model.Log
+	for _, v := range m {
+		log, err := convertRabbitMessageToModel(v, configId)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, log)
+	}
+	return &logs, nil
 }

@@ -32,6 +32,7 @@ type LogStore interface {
 	//GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
 	//GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, errors.AppError)
 	Get(ctx context.Context, opt *model.SearchOptions, filters ...model.Filter) (*[]model.Log, errors.AppError)
+	InsertMany(ctx context.Context, log []*model.Log) errors.AppError
 	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError)
 }
 

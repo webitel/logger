@@ -70,6 +70,22 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.Ap
 	return &newModel, nil
 }
 
+func (c *Log) InsertMany(ctx context.Context, log []*model.Log) errors.AppError {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return appErr
+	}
+	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id")
+	for _, v := range log {
+		base = base.Values(v.Date, v.Action, v.User.Id, v.UserIp, v.NewState, v.RecordId, v.ConfigId)
+	}
+	_, err := base.RunWith(db).ExecContext(ctx)
+	if err != nil {
+		return errors.NewInternalError("postgres.log.insert.query.error", err.Error())
+	}
+	return nil
+}
+
 func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {

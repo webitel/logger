@@ -46,3 +46,7 @@ func (c *Client) Close() {
 func (c *Client) Rabbit() RabbitClient {
 	return c.rabbit
 }
+
+func (c *Client) Grpc() GrpcClient {
+	return c.grpc
+}

@@ -106,7 +106,7 @@ func (c *rabbitClient) Open() error {
 	}
 	c.channel = channel
 	c.conn = conn
-	c.isOpened = true
+
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (c *rabbitClient) IsOpened() bool {
 //}
 
 func (c *rabbitClient) SendContext(ctx context.Context, message *Message) error {
-	if c.IsOpened() {
+	if !c.IsOpened() {
 		return fmt.Errorf("connection not opened")
 	}
 	enabled, err := c.client.Grpc().Config().CheckIsActive(ctx, int(message.RequiredFields.DomainId), int(message.RequiredFields.ObjectId))

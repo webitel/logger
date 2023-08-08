@@ -126,7 +126,7 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 		Date:   m.Date.String(),
 
 		UserIp:   m.UserIp,
-		NewState: m.NewState,
+		NewState: string(m.NewState),
 		ConfigId: int32(m.ConfigId),
 	}
 	if !m.User.IsZero() {
@@ -142,7 +142,7 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 		Action:   m.Action,
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
 		UserIp:   m.UserIp,
-		NewState: string(m.NewState),
+		NewState: m.NewState,
 		RecordId: m.RecordId,
 		ConfigId: configId,
 		User:     model.Lookup{Id: model.NewNullInt(m.UserId)},

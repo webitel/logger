@@ -7,6 +7,6 @@ type Log struct {
 	User     Lookup
 	UserIp   string
 	RecordId int
-	NewState string
+	NewState []byte
 	ConfigId int
 }

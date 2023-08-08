@@ -52,11 +52,34 @@ type RequiredFields struct {
 
 type Message struct {
 	RecordsStates  map[int][]byte `json:"records,omitempty"`
-	NewState       []byte         `json:"newState,omitempty" `
+	NewState       []byte         `json:"newState,omitempty"`
 	RecordId       int            `json:"recordId,omitempty"`
 	RequiredFields `json:"requiredFields"`
 	client         RabbitClient
 }
+
+//type CreateMessage struct {
+//	RecordsStates  map[int][]byte `json:"records,omitempty"`
+//	NewState       []byte         `json:"newState,omitempty" `
+//	RecordId       int            `json:"recordId,omitempty"`
+//	RequiredFields `json:"requiredFields"`
+//	client         RabbitClient
+//}
+//type UpdateMessage struct {
+//	RecordsStates  map[int][]byte `json:"records,omitempty"`
+//	NewState       []byte         `json:"newState,omitempty" `
+//	RecordId       int            `json:"recordId,omitempty"`
+//	RequiredFields `json:"requiredFields"`
+//	client         RabbitClient
+//}
+//
+//type DeleteMessage struct {
+//	RecordsStates  map[int][]byte `json:"records,omitempty"`
+//	NewState       []byte         `json:"newState,omitempty" `
+//	RecordId       int            `json:"recordId,omitempty"`
+//	RequiredFields `json:"requiredFields"`
+//	client         RabbitClient
+//}
 
 func NewRabbitClient(url string, client *Client) RabbitClient {
 	return &rabbitClient{config: &Config{Url: url}, client: client}
@@ -233,11 +256,17 @@ func (c *rabbitClient) DeleteAction(domainId int64, objectId int64, userId int, 
 
 func (c *Message) Many(recordsId []int, newStates [][]byte) *Message {
 	m := make(map[int][]byte)
-	if len(recordsId) != len(newStates) {
+	if newStates != nil && len(recordsId) != len(newStates) {
 		return c
 	}
-	for i, v := range recordsId {
-		m[v] = newStates[i]
+	if c.Action == string(DELETE_ACTION) {
+		for _, v := range recordsId {
+			m[v] = nil
+		}
+	} else {
+		for i, v := range recordsId {
+			m[v] = newStates[i]
+		}
 	}
 	c.RecordsStates = m
 	return c
@@ -250,6 +279,9 @@ func (c *Message) One(recordId int, newState []byte) *Message {
 }
 
 func (c *Message) SendContext(ctx context.Context) error {
+	if c.RecordsStates == nil && c.RecordId == 0 {
+		return fmt.Errorf("no records have been set to log")
+	}
 	err := c.client.SendContext(ctx, c)
 	if err != nil {
 		return err

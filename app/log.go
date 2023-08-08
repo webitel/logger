@@ -93,7 +93,7 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 	if err != nil {
 		return err
 	}
-	_, err = a.storage.Log().Insert(ctx, model)
+	err = a.storage.Log().Insert(ctx, model)
 	if err != nil {
 		return err
 	}
@@ -145,11 +145,12 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 		NewState: string(m.NewState),
 		RecordId: m.RecordId,
 		ConfigId: configId,
+		User:     model.Lookup{Id: model.NewNullInt(m.UserId)},
 	}
-	err := log.User.Id.Scan(m.UserId)
-	if err != nil {
-		return nil, errors.NewBadRequestError("app.log.convert_rabbit_message_to_model.scan.error", err.Error())
-	}
+	// log.User = m.UserId)
+	//if err != nil {
+	//	return nil, errors.NewBadRequestError("app.log.convert_rabbit_message_to_model.scan.error", err.Error())
+	//}
 
 	return log, nil
 }

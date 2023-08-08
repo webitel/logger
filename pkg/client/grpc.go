@@ -17,7 +17,7 @@ const (
 type GrpcClient interface {
 	Start() error
 	Stop()
-
+	IsOpened() bool
 	Config() ConfigApi
 }
 
@@ -28,8 +28,13 @@ type grpcClient struct {
 	poolConnections  discovery.Pool
 	watcher          *discovery.Watcher
 	startOnce        sync.Once
+	isOpened         bool
 
 	config ConfigApi
+}
+
+func (c *grpcClient) IsOpened() bool {
+	return c.isOpened
 }
 
 func (c *grpcClient) Start() error {
@@ -58,6 +63,7 @@ func (c *grpcClient) Start() error {
 			}
 		}()
 	})
+	c.isOpened = true
 	return nil
 }
 
@@ -66,7 +72,7 @@ func (c *grpcClient) Stop() {
 	if c.poolConnections != nil {
 		c.poolConnections.CloseAllConnections()
 	}
-
+	c.isOpened = false
 	close(c.stop)
 	<-c.stopped
 }

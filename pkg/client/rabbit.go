@@ -106,7 +106,7 @@ func (c *rabbitClient) Open() error {
 	}
 	c.channel = channel
 	c.conn = conn
-
+	c.isOpened = true
 	return nil
 }
 

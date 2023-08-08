@@ -9,6 +9,10 @@ type Client struct {
 	grpc   GrpcClient
 }
 
+func (c *Client) IsOpened() bool {
+	return c.rabbit.IsOpened() && c.grpc.IsOpened()
+}
+
 // ! NewClient creates new client for logger.
 // * rabbitUrl - connection string to rabbit server
 // * clientId - name that will be recognized by consul

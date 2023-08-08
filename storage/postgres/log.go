@@ -41,33 +41,30 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...mode
 	return &res, nil
 }
 
-func (c *Log) Insert(ctx context.Context, log *model.Log) (*model.Log, errors.AppError) {
-	var newModel model.Log
+func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
-		return nil, appErr
+		return appErr
 	}
-	rows, err := db.QueryContext(ctx,
+	_, err := db.ExecContext(ctx,
 		`INSERT INTO
 			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id) 
 		VALUES
 			(
 			$1, $2, $3, $4, $5, $6, $7
-			)
-		RETURNING 
-			id, date, action, user_id, user_ip,  new_state, record_id, config_id`,
+			)`,
 		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.RecordId, log.ConfigId,
 	)
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
+		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
 	}
-	defer rows.Close()
-	res, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
-	}
-	newModel = res[0]
-	return &newModel, nil
+	//defer rows.Close()
+	//res, appErr := c.ScanRows(rows)
+	//if appErr != nil {
+	//	return nil, appErr
+	//}
+	//newModel = res[0]
+	return nil
 }
 
 func (c *Log) InsertMany(ctx context.Context, log []*model.Log) errors.AppError {
@@ -75,7 +72,7 @@ func (c *Log) InsertMany(ctx context.Context, log []*model.Log) errors.AppError 
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id")
+	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id").PlaceholderFormat(sq.Dollar)
 	for _, v := range log {
 		base = base.Values(v.Date, v.Action, v.User.Id, v.UserIp, v.NewState, v.RecordId, v.ConfigId)
 	}

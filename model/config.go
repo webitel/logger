@@ -9,7 +9,7 @@ type Config struct {
 	UpdatedBy    NullInt
 	Enabled      bool
 	DaysToStore  int
-	Period       string
+	Period       int
 	NextUploadOn NullTime
 	Storage      Lookup
 	DomainId     int

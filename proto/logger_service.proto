@@ -6,12 +6,12 @@ option go_package = "webitel_logger/proto";
 import "google/api/annotations.proto";
 
 service LoggerService {
-  rpc GetLogsByUserId(GetLogsByUserIdRequest) returns (Logs) {
+  rpc GetByUserId(GetLogsByUserIdRequest) returns (Logs) {
     option (google.api.http) = {
       get: "/logger/user/{user_id}/logs"
     };
   }
-  rpc GetLogsByConfigId(GetLogsByConfigIdRequest) returns (Logs) {
+  rpc GetByConfigId(GetLogsByConfigIdRequest) returns (Logs) {
     option (google.api.http) = {
       get: "/logger/config/{config_id}/logs"
     };

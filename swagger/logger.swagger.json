@@ -1,8 +1,8 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "Webitel logger API",
-    "version": "23.07.0",
+    "title": "Webitel engine API",
+    "version": "23.02.0",
     "contact": {
       "name": "Webitel",
       "url": "https://webitel.com",
@@ -24,9 +24,35 @@
     "application/json"
   ],
   "paths": {
+    "/logger/available_objects": {
+      "get": {
+        "operationId": "GetSystemObjects",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/loggerSystemObjects"
+            }
+          },
+          "403": {
+            "description": "Returned when the user does not have permission to access the resource.",
+            "schema": {}
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "tags": [
+          "ConfigService"
+        ]
+      }
+    },
     "/logger/config": {
       "get": {
-        "operationId": "GetAllConfigs",
+        "operationId": "GetAll",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -87,7 +113,7 @@
         ]
       },
       "delete": {
-        "operationId": "DeleteConfigs",
+        "operationId": "DeleteBulk",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -121,7 +147,7 @@
         ]
       },
       "post": {
-        "operationId": "InsertConfig",
+        "operationId": "Insert",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -156,8 +182,74 @@
       }
     },
     "/logger/config/{config_id}": {
+      "get": {
+        "operationId": "GetById",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/loggerConfig"
+            }
+          },
+          "403": {
+            "description": "Returned when the user does not have permission to access the resource.",
+            "schema": {}
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ConfigService"
+        ]
+      },
+      "delete": {
+        "operationId": "Delete",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/loggerEmpty"
+            }
+          },
+          "403": {
+            "description": "Returned when the user does not have permission to access the resource.",
+            "schema": {}
+          },
+          "404": {
+            "description": "Returned when the resource does not exist.",
+            "schema": {
+              "format": "string"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "config_id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ConfigService"
+        ]
+      },
       "put": {
-        "operationId": "UpdateConfig",
+        "operationId": "Update",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -198,7 +290,7 @@
         ]
       },
       "patch": {
-        "operationId": "PatchUpdateConfig",
+        "operationId": "PatchUpdate",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -241,7 +333,7 @@
     },
     "/logger/config/{config_id}/logs": {
       "get": {
-        "operationId": "GetLogsByConfigId",
+        "operationId": "GetByConfigId",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -309,77 +401,9 @@
         ]
       }
     },
-    "/logger/config/{id}": {
-      "get": {
-        "operationId": "GetConfigById",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/loggerConfig"
-            }
-          },
-          "403": {
-            "description": "Returned when the user does not have permission to access the resource.",
-            "schema": {}
-          },
-          "404": {
-            "description": "Returned when the resource does not exist.",
-            "schema": {
-              "format": "string"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "integer",
-            "format": "int32"
-          }
-        ],
-        "tags": [
-          "ConfigService"
-        ]
-      },
-      "delete": {
-        "operationId": "DeleteConfig",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/loggerEmpty"
-            }
-          },
-          "403": {
-            "description": "Returned when the user does not have permission to access the resource.",
-            "schema": {}
-          },
-          "404": {
-            "description": "Returned when the resource does not exist.",
-            "schema": {
-              "format": "string"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "type": "integer",
-            "format": "int32"
-          }
-        ],
-        "tags": [
-          "ConfigService"
-        ]
-      }
-    },
     "/logger/user/{user_id}/logs": {
       "get": {
-        "operationId": "GetLogsByUserId",
+        "operationId": "GetByUserId",
         "responses": {
           "200": {
             "description": "A successful response.",
@@ -468,7 +492,8 @@
           "format": "int32"
         },
         "period": {
-          "type": "string"
+          "type": "integer",
+          "format": "int32"
         },
         "storage": {
           "$ref": "#/definitions/loggerLookup"
@@ -512,9 +537,8 @@
     "loggerInsertConfigRequest": {
       "type": "object",
       "properties": {
-        "object_id": {
-          "type": "integer",
-          "format": "int32"
+        "object": {
+          "$ref": "#/definitions/loggerLookup"
         },
         "enabled": {
           "type": "boolean",
@@ -525,11 +549,11 @@
           "format": "int32"
         },
         "period": {
-          "type": "string"
-        },
-        "storage_id": {
           "type": "integer",
           "format": "int32"
+        },
+        "storage": {
+          "$ref": "#/definitions/loggerLookup"
         }
       }
     },
@@ -608,16 +632,27 @@
           "format": "int32"
         },
         "period": {
-          "type": "string"
-        },
-        "storage_id": {
           "type": "integer",
           "format": "int32"
+        },
+        "storage": {
+          "$ref": "#/definitions/loggerLookup"
         },
         "fields": {
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "loggerSystemObjects": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/loggerLookup"
           }
         }
       }
@@ -638,11 +673,11 @@
           "format": "int32"
         },
         "period": {
-          "type": "string"
-        },
-        "storage_id": {
           "type": "integer",
           "format": "int32"
+        },
+        "storage": {
+          "$ref": "#/definitions/loggerLookup"
         }
       }
     }

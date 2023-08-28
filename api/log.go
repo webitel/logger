@@ -22,7 +22,7 @@ func NewLoggerService(app *app.App) (*LoggerService, errors.AppError) {
 	return &LoggerService{app: app}, nil
 }
 
-func (s *LoggerService) GetLogsByUserId(ctx context.Context, in *proto.GetLogsByUserIdRequest) (*proto.Logs, error) {
+func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.GetLogsByUserIdRequest) (*proto.Logs, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (s *LoggerService) GetLogsByUserId(ctx context.Context, in *proto.GetLogsBy
 //	return &result, nil
 //}
 
-func (s *LoggerService) GetLogsByConfigId(ctx context.Context, in *proto.GetLogsByConfigIdRequest) (*proto.Logs, error) {
+func (s *LoggerService) GetByConfigId(ctx context.Context, in *proto.GetLogsByConfigIdRequest) (*proto.Logs, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err

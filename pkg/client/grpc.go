@@ -157,7 +157,7 @@ func (c *configApi) CheckIsActive(ctx context.Context, domainId, objectId int) (
 	if err != nil {
 		return false, err
 	}
-	res, err := conn.config.GetConfigByObjectId(ctx, in)
+	res, err := conn.config.GetByObjectId(ctx, in)
 	if err != nil {
 		return false, err
 	}

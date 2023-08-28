@@ -18,6 +18,7 @@ type Config struct {
 	storage storage.Storage
 }
 
+// region CONSTRUCTOR
 func newConfigStore(store storage.Storage) (storage.ConfigStore, errors.AppError) {
 	if store == nil {
 		return nil, errors.NewInternalError("postgres.config.new_config.check.bad_arguments", "error creating config interface to the config table, main store is nil")
@@ -25,6 +26,9 @@ func newConfigStore(store storage.Storage) (storage.ConfigStore, errors.AppError
 	return &Config{storage: store}, nil
 }
 
+// endregion
+
+// region CONFIG STORAGE
 func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -84,6 +88,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	}
 	return row, nil
 }
+
 func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -129,6 +134,48 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		return nil, appErr
 	}
 	return row, nil
+}
+
+func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, filters []string) ([]model.Lookup, errors.AppError) {
+	// region CREATING QUERY
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return nil, appErr
+	}
+	base := sq.Select("wbt_class.id", "wbt_class.name").
+		From("directory.wbt_class").
+		Where(sq.Expr(
+			"id NOT IN (?)",
+			sq.Select("object_id").From("logger.object_config").Where(sq.Eq{"domain_id": domainId}),
+		)).
+		Where(sq.Expr("name = any(?)", pq.Array(filters))).
+		Where(sq.Eq{"dc": domainId}).
+		PlaceholderFormat(sq.Dollar)
+	// endregion
+	fmt.Println(base.ToSql())
+	// region PREFORM
+	rows, err := base.RunWith(db).QueryContext(ctx)
+
+	if err != nil {
+		return nil, errors.NewInternalError("postgres.config.get_available_objects.query.fail", err.Error())
+	}
+	defer rows.Close()
+	// endregion
+	// region SCAN
+	var res []model.Lookup
+	for rows.Next() {
+		var obj model.Lookup
+		r := rows.Scan(&obj.Id, &obj.Name)
+		if r != nil {
+			return nil, errors.NewInternalError("postgres.config.get_available_objects.scan.fail", r.Error())
+		}
+		res = append(res, obj)
+	}
+	if appErr != nil {
+		return nil, appErr
+	}
+	// endregion
+	return res, nil
 }
 
 func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint32) (bool, errors.AppError) {
@@ -246,6 +293,10 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 	}
 	return &res, nil
 }
+
+// endregion
+
+// region SYSTEM FUNCTIONS
 
 func (c *Config) ScanRow(rows *sql.Rows) (*model.Config, errors.AppError) {
 	res, err := c.ScanRows(rows)
@@ -422,3 +473,5 @@ func (c *Config) getFields() []string {
 		"object_config.updated_by",
 	}
 }
+
+// endregion

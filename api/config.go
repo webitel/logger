@@ -10,6 +10,8 @@ import (
 	errors "github.com/webitel/engine/model"
 )
 
+//var _ proto.ConfigServiceServer = ConfigService{}
+
 type ConfigService struct {
 	proto.UnimplementedConfigServiceServer
 	app *app.App
@@ -23,7 +25,7 @@ func NewConfigService(app *app.App) (*ConfigService, errors.AppError) {
 }
 
 // GetConfigById selects config by id
-func (s *ConfigService) GetConfigById(ctx context.Context, in *proto.GetConfigByIdRequest) (*proto.Config, error) {
+func (s *ConfigService) GetById(ctx context.Context, in *proto.GetConfigByIdRequest) (*proto.Config, error) {
 	var rbac *model.RbacOptions
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
@@ -40,16 +42,30 @@ func (s *ConfigService) GetConfigById(ctx context.Context, in *proto.GetConfigBy
 			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
 		}
 	}
-	return s.app.GetConfigById(ctx, rbac, int(in.GetId()))
+	return s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
+}
+
+func (s *ConfigService) GetSystemObjects(ctx context.Context, request *proto.Empty) (*proto.SystemObjects, error) {
+
+	// region AUTHORIZATION
+	session, err := s.app.GetSessionFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
+	if !permission.CanRead() {
+		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	}
+	return s.app.GetSystemObjects(ctx, int(session.DomainId))
 }
 
 // For internal purpose when check is config enabled
-func (s *ConfigService) GetConfigByObjectId(ctx context.Context, in *proto.GetConfigByObjectIdRequest) (*proto.Config, error) {
+func (s *ConfigService) GetByObjectId(ctx context.Context, in *proto.GetConfigByObjectIdRequest) (*proto.Config, error) {
 	return s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
 }
 
 // GetAllConfigs selects all configs by domainId
-func (s *ConfigService) GetAllConfigs(ctx context.Context, in *proto.GetAllConfigsRequest) (*proto.Configs, error) {
+func (s *ConfigService) GetAll(ctx context.Context, in *proto.GetAllConfigsRequest) (*proto.Configs, error) {
 	var rbac *model.RbacOptions
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
@@ -84,7 +100,7 @@ func (s *ConfigService) GetAllConfigs(ctx context.Context, in *proto.GetAllConfi
 }
 
 // UpdateConfig updates existing config
-func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest) (*proto.Config, error) {
+func (s *ConfigService) Update(ctx context.Context, in *proto.UpdateConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -110,7 +126,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 }
 
 // UpdateConfig updates existing config
-func (s *ConfigService) PatchUpdateConfig(ctx context.Context, in *proto.PatchUpdateConfigRequest) (*proto.Config, error) {
+func (s *ConfigService) PatchUpdate(ctx context.Context, in *proto.PatchUpdateConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -136,7 +152,7 @@ func (s *ConfigService) PatchUpdateConfig(ctx context.Context, in *proto.PatchUp
 }
 
 // InsertConfig inserts new config
-func (s *ConfigService) InsertConfig(ctx context.Context, in *proto.InsertConfigRequest) (*proto.Config, error) {
+func (s *ConfigService) Insert(ctx context.Context, in *proto.InsertConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -152,7 +168,7 @@ func (s *ConfigService) InsertConfig(ctx context.Context, in *proto.InsertConfig
 }
 
 // Delete deletes config
-func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
+func (s *ConfigService) Delete(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -162,7 +178,7 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
 	}
 	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_DELETE, permission) {
-		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_DELETE)
+		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetConfigId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_DELETE)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +186,7 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
 		}
 	}
-	appErr := s.app.DeleteConfig(ctx, in.GetId())
+	appErr := s.app.DeleteConfig(ctx, in.GetConfigId())
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -178,7 +194,7 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 }
 
 // InsertConfig inserts new config
-func (s *ConfigService) DeleteConfigs(ctx context.Context, in *proto.DeleteConfigsRequest) (*proto.Empty, error) {
+func (s *ConfigService) DeleteBulk(ctx context.Context, in *proto.DeleteConfigsRequest) (*proto.Empty, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err

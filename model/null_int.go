@@ -39,6 +39,14 @@ func (t *NullInt) Int64() int64 {
 	return 0
 }
 
+// IsZero value (?)
+func (t *NullInt) Int32() int32 {
+	if t != nil {
+		return (int32)(*t)
+	}
+	return 0
+}
+
 func NewNullInt(i int) *NullInt {
 	return (*NullInt)(&i)
 }

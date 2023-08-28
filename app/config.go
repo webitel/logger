@@ -16,6 +16,10 @@ const (
 	MEMORY_CACHE_DEFAULT_EXPIRES = 2 * 60
 )
 
+var (
+	DEFAULT_OBJECT_FILTER = []string{"schema", "cc_queue"}
+)
+
 func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
 		result *model.Config
@@ -97,6 +101,25 @@ func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchUpdateConfig
 		return nil, err
 	}
 	return res, nil
+
+}
+
+func (a *App) GetSystemObjects(ctx context.Context, domainId int) (*proto.SystemObjects, error) {
+	objects, err := a.storage.Config().GetAvailableSystemObjects(ctx, domainId, DEFAULT_OBJECT_FILTER)
+	if err != nil {
+		return nil, err
+	}
+	var r []*proto.Lookup
+	for _, v := range objects {
+		r = append(r, &proto.Lookup{
+			Id:   v.Id.Int32(),
+			Name: v.Name.String(),
+		})
+	}
+
+	return &proto.SystemObjects{
+		Items: r,
+	}, nil
 
 }
 
@@ -232,12 +255,12 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
-		Period:      in.GetPeriod(),
+		Period:      int(in.GetPeriod()),
 		//Storage.Id:  int(in.GetStorageId()),
 		DomainId: domainId,
 	}
 	a.calculateNextPeriod(config)
-	config.Storage.Id = model.NewNullInt(int(in.GetStorageId()))
+	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
 	return config, nil
 }
 
@@ -246,12 +269,12 @@ func (a *App) convertPatchUpdateConfigMessageToModel(in *proto.PatchUpdateConfig
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
-		Period:      in.GetPeriod(),
+		Period:      int(in.GetPeriod()),
 		//Storage.Id:  int(in.GetStorageId()),
 		DomainId: domainId,
 	}
 	a.calculateNextPeriod(config)
-	config.Storage.Id = model.NewNullInt(int(in.GetStorageId()))
+	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
 	return config, nil
 }
 
@@ -260,13 +283,13 @@ func (a *App) convertInsertConfigMessageToModel(in *proto.InsertConfigRequest, d
 
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
-		Period:      in.GetPeriod(),
+		Period:      int(in.GetPeriod()),
 		//StorageId:   int(in.GetStorageId()),
 		DomainId: domainId,
 	}
 	a.calculateNextPeriod(config)
-	config.Object.Id = model.NewNullInt(int(in.GetObjectId()))
-	config.Storage.Id = model.NewNullInt(int(in.GetStorageId()))
+	config.Object.Id = model.NewNullInt(int(in.GetObject().GetId()))
+	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
 	return config, nil
 }
 
@@ -275,7 +298,7 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 		Id:          int32(in.Id),
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
-		Period:      in.Period,
+		Period:      int32(in.Period),
 		//DomainId:    int32(in.DomainId),
 	}
 	if !in.Object.IsZero() {
@@ -294,15 +317,5 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 }
 
 func (a *App) calculateNextPeriod(in *model.Config) {
-	switch in.Period {
-	case "everyday":
-		in.NextUploadOn = (model.NullTime)(time.Now().AddDate(0, 0, 1))
-	case "everyweek":
-		in.NextUploadOn = (model.NullTime)(time.Now().AddDate(0, 0, 7))
-	case "everytwoweeks":
-		in.NextUploadOn = (model.NullTime)(time.Now().AddDate(0, 0, 14))
-	default:
-		in.Period = "everymonth"
-		in.NextUploadOn = (model.NullTime)(time.Now().AddDate(0, 1, 0))
-	}
+	in.NextUploadOn = *model.NewNullTime(time.Now().Add(time.Hour * 24 * time.Duration(in.Period)))
 }

@@ -22,7 +22,7 @@ func NewLoggerService(app *app.App) (*LoggerService, errors.AppError) {
 	return &LoggerService{app: app}, nil
 }
 
-func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.GetLogsByUserIdRequest) (*proto.Logs, error) {
+func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchLogByUserIdRequest) (*proto.Logs, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -33,11 +33,7 @@ func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.GetLogsByUser
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
 	var result proto.Logs
-	opt, err := app.ExtractSearchOptions(in)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.app.GetLogsByUserId(ctx, opt, int(in.GetUserId()))
+	rows, err := s.app.SearchLogsByUserId(ctx, in)
 	if err != nil {
 		return nil, err
 	}
@@ -49,34 +45,7 @@ func (s *LoggerService) GetByUserId(ctx context.Context, in *proto.GetLogsByUser
 	return &result, nil
 }
 
-//func (s *LoggerService) GetLogsByObjectId(ctx context.Context, in *proto.GetLogsByObjectIdRequest) (*proto.Logs, error) {
-//	session, err := s.app.GetSessionFromCtx(ctx)
-//	if err != nil {
-//		return nil, err
-//	}
-//	//
-//	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-//	if !permission.CanRead() {
-//		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
-//	}
-//	var result proto.Logs
-//	opt, err := app.ExtractSearchOptions(in)
-//	if err != nil {
-//		return nil, err
-//	}
-//	rows, err := s.app.GetLogsByObjectI(ctx, opt, int(session.DomainId), int(in.GetObjectId()))
-//	if err != nil {
-//		return nil, err
-//	}
-//	if int32(len(rows)-1) == in.Size {
-//		result.Next = true
-//	}
-//	result.Items = rows
-//	result.Page = in.GetPage()
-//	return &result, nil
-//}
-
-func (s *LoggerService) GetByConfigId(ctx context.Context, in *proto.GetLogsByConfigIdRequest) (*proto.Logs, error) {
+func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.SearchLogByConfigIdRequest) (*proto.Logs, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -87,11 +56,7 @@ func (s *LoggerService) GetByConfigId(ctx context.Context, in *proto.GetLogsByCo
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
 	var result proto.Logs
-	opt, err := app.ExtractSearchOptions(in)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.app.GetLogsByConfigId(ctx, opt, int(in.GetConfigId()))
+	rows, err := s.app.SearchLogsByConfigId(ctx, in)
 	if err != nil {
 		return nil, err
 	}

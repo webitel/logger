@@ -22,15 +22,15 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ConfigServiceClient interface {
-	Update(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error)
-	PatchUpdate(ctx context.Context, in *PatchUpdateConfigRequest, opts ...grpc.CallOption) (*Config, error)
-	Insert(ctx context.Context, in *InsertConfigRequest, opts ...grpc.CallOption) (*Config, error)
-	Delete(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*Empty, error)
-	DeleteBulk(ctx context.Context, in *DeleteConfigsRequest, opts ...grpc.CallOption) (*Empty, error)
-	GetByObjectId(ctx context.Context, in *GetConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error)
-	GetSystemObjects(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SystemObjects, error)
-	GetById(ctx context.Context, in *GetConfigByIdRequest, opts ...grpc.CallOption) (*Config, error)
-	GetAll(ctx context.Context, in *GetAllConfigsRequest, opts ...grpc.CallOption) (*Configs, error)
+	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error)
+	PatchConfig(ctx context.Context, in *PatchConfigRequest, opts ...grpc.CallOption) (*Config, error)
+	CreateConfig(ctx context.Context, in *CreateConfigRequest, opts ...grpc.CallOption) (*Config, error)
+	DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*Empty, error)
+	DeleteConfigBulk(ctx context.Context, in *DeleteConfigBulkRequest, opts ...grpc.CallOption) (*Empty, error)
+	ReadConfigByObjectId(ctx context.Context, in *ReadConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error)
+	ReadSystemObjects(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SystemObjects, error)
+	ReadConfig(ctx context.Context, in *ReadConfigRequest, opts ...grpc.CallOption) (*Config, error)
+	SearchConfig(ctx context.Context, in *SearchConfigRequest, opts ...grpc.CallOption) (*Configs, error)
 }
 
 type configServiceClient struct {
@@ -41,81 +41,81 @@ func NewConfigServiceClient(cc grpc.ClientConnInterface) ConfigServiceClient {
 	return &configServiceClient{cc}
 }
 
-func (c *configServiceClient) Update(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/Update", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/UpdateConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) PatchUpdate(ctx context.Context, in *PatchUpdateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) PatchConfig(ctx context.Context, in *PatchConfigRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/PatchUpdate", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/PatchConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) Insert(ctx context.Context, in *InsertConfigRequest, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) CreateConfig(ctx context.Context, in *CreateConfigRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/Insert", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/CreateConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) Delete(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*Empty, error) {
+func (c *configServiceClient) DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/Delete", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/DeleteConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) DeleteBulk(ctx context.Context, in *DeleteConfigsRequest, opts ...grpc.CallOption) (*Empty, error) {
+func (c *configServiceClient) DeleteConfigBulk(ctx context.Context, in *DeleteConfigBulkRequest, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/DeleteBulk", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/DeleteConfigBulk", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) GetByObjectId(ctx context.Context, in *GetConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) ReadConfigByObjectId(ctx context.Context, in *ReadConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/GetByObjectId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/ReadConfigByObjectId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) GetSystemObjects(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SystemObjects, error) {
+func (c *configServiceClient) ReadSystemObjects(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SystemObjects, error) {
 	out := new(SystemObjects)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/GetSystemObjects", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/ReadSystemObjects", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) GetById(ctx context.Context, in *GetConfigByIdRequest, opts ...grpc.CallOption) (*Config, error) {
+func (c *configServiceClient) ReadConfig(ctx context.Context, in *ReadConfigRequest, opts ...grpc.CallOption) (*Config, error) {
 	out := new(Config)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/GetById", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/ReadConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *configServiceClient) GetAll(ctx context.Context, in *GetAllConfigsRequest, opts ...grpc.CallOption) (*Configs, error) {
+func (c *configServiceClient) SearchConfig(ctx context.Context, in *SearchConfigRequest, opts ...grpc.CallOption) (*Configs, error) {
 	out := new(Configs)
-	err := c.cc.Invoke(ctx, "/logger.ConfigService/GetAll", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.ConfigService/SearchConfig", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -126,15 +126,15 @@ func (c *configServiceClient) GetAll(ctx context.Context, in *GetAllConfigsReque
 // All implementations must embed UnimplementedConfigServiceServer
 // for forward compatibility
 type ConfigServiceServer interface {
-	Update(context.Context, *UpdateConfigRequest) (*Config, error)
-	PatchUpdate(context.Context, *PatchUpdateConfigRequest) (*Config, error)
-	Insert(context.Context, *InsertConfigRequest) (*Config, error)
-	Delete(context.Context, *DeleteConfigRequest) (*Empty, error)
-	DeleteBulk(context.Context, *DeleteConfigsRequest) (*Empty, error)
-	GetByObjectId(context.Context, *GetConfigByObjectIdRequest) (*Config, error)
-	GetSystemObjects(context.Context, *Empty) (*SystemObjects, error)
-	GetById(context.Context, *GetConfigByIdRequest) (*Config, error)
-	GetAll(context.Context, *GetAllConfigsRequest) (*Configs, error)
+	UpdateConfig(context.Context, *UpdateConfigRequest) (*Config, error)
+	PatchConfig(context.Context, *PatchConfigRequest) (*Config, error)
+	CreateConfig(context.Context, *CreateConfigRequest) (*Config, error)
+	DeleteConfig(context.Context, *DeleteConfigRequest) (*Empty, error)
+	DeleteConfigBulk(context.Context, *DeleteConfigBulkRequest) (*Empty, error)
+	ReadConfigByObjectId(context.Context, *ReadConfigByObjectIdRequest) (*Config, error)
+	ReadSystemObjects(context.Context, *Empty) (*SystemObjects, error)
+	ReadConfig(context.Context, *ReadConfigRequest) (*Config, error)
+	SearchConfig(context.Context, *SearchConfigRequest) (*Configs, error)
 	mustEmbedUnimplementedConfigServiceServer()
 }
 
@@ -142,32 +142,32 @@ type ConfigServiceServer interface {
 type UnimplementedConfigServiceServer struct {
 }
 
-func (UnimplementedConfigServiceServer) Update(context.Context, *UpdateConfigRequest) (*Config, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
+func (UnimplementedConfigServiceServer) UpdateConfig(context.Context, *UpdateConfigRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateConfig not implemented")
 }
-func (UnimplementedConfigServiceServer) PatchUpdate(context.Context, *PatchUpdateConfigRequest) (*Config, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PatchUpdate not implemented")
+func (UnimplementedConfigServiceServer) PatchConfig(context.Context, *PatchConfigRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PatchConfig not implemented")
 }
-func (UnimplementedConfigServiceServer) Insert(context.Context, *InsertConfigRequest) (*Config, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Insert not implemented")
+func (UnimplementedConfigServiceServer) CreateConfig(context.Context, *CreateConfigRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateConfig not implemented")
 }
-func (UnimplementedConfigServiceServer) Delete(context.Context, *DeleteConfigRequest) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+func (UnimplementedConfigServiceServer) DeleteConfig(context.Context, *DeleteConfigRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteConfig not implemented")
 }
-func (UnimplementedConfigServiceServer) DeleteBulk(context.Context, *DeleteConfigsRequest) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteBulk not implemented")
+func (UnimplementedConfigServiceServer) DeleteConfigBulk(context.Context, *DeleteConfigBulkRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteConfigBulk not implemented")
 }
-func (UnimplementedConfigServiceServer) GetByObjectId(context.Context, *GetConfigByObjectIdRequest) (*Config, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetByObjectId not implemented")
+func (UnimplementedConfigServiceServer) ReadConfigByObjectId(context.Context, *ReadConfigByObjectIdRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadConfigByObjectId not implemented")
 }
-func (UnimplementedConfigServiceServer) GetSystemObjects(context.Context, *Empty) (*SystemObjects, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSystemObjects not implemented")
+func (UnimplementedConfigServiceServer) ReadSystemObjects(context.Context, *Empty) (*SystemObjects, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadSystemObjects not implemented")
 }
-func (UnimplementedConfigServiceServer) GetById(context.Context, *GetConfigByIdRequest) (*Config, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetById not implemented")
+func (UnimplementedConfigServiceServer) ReadConfig(context.Context, *ReadConfigRequest) (*Config, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadConfig not implemented")
 }
-func (UnimplementedConfigServiceServer) GetAll(context.Context, *GetAllConfigsRequest) (*Configs, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAll not implemented")
+func (UnimplementedConfigServiceServer) SearchConfig(context.Context, *SearchConfigRequest) (*Configs, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchConfig not implemented")
 }
 func (UnimplementedConfigServiceServer) mustEmbedUnimplementedConfigServiceServer() {}
 
@@ -182,164 +182,164 @@ func RegisterConfigServiceServer(s grpc.ServiceRegistrar, srv ConfigServiceServe
 	s.RegisterService(&ConfigService_ServiceDesc, srv)
 }
 
-func _ConfigService_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ConfigService_UpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).Update(ctx, in)
+		return srv.(ConfigServiceServer).UpdateConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/Update",
+		FullMethod: "/logger.ConfigService/UpdateConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).Update(ctx, req.(*UpdateConfigRequest))
+		return srv.(ConfigServiceServer).UpdateConfig(ctx, req.(*UpdateConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_PatchUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PatchUpdateConfigRequest)
+func _ConfigService_PatchConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PatchConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).PatchUpdate(ctx, in)
+		return srv.(ConfigServiceServer).PatchConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/PatchUpdate",
+		FullMethod: "/logger.ConfigService/PatchConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).PatchUpdate(ctx, req.(*PatchUpdateConfigRequest))
+		return srv.(ConfigServiceServer).PatchConfig(ctx, req.(*PatchConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_Insert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InsertConfigRequest)
+func _ConfigService_CreateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).Insert(ctx, in)
+		return srv.(ConfigServiceServer).CreateConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/Insert",
+		FullMethod: "/logger.ConfigService/CreateConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).Insert(ctx, req.(*InsertConfigRequest))
+		return srv.(ConfigServiceServer).CreateConfig(ctx, req.(*CreateConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ConfigService_DeleteConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DeleteConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).Delete(ctx, in)
+		return srv.(ConfigServiceServer).DeleteConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/Delete",
+		FullMethod: "/logger.ConfigService/DeleteConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).Delete(ctx, req.(*DeleteConfigRequest))
+		return srv.(ConfigServiceServer).DeleteConfig(ctx, req.(*DeleteConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_DeleteBulk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteConfigsRequest)
+func _ConfigService_DeleteConfigBulk_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteConfigBulkRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).DeleteBulk(ctx, in)
+		return srv.(ConfigServiceServer).DeleteConfigBulk(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/DeleteBulk",
+		FullMethod: "/logger.ConfigService/DeleteConfigBulk",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).DeleteBulk(ctx, req.(*DeleteConfigsRequest))
+		return srv.(ConfigServiceServer).DeleteConfigBulk(ctx, req.(*DeleteConfigBulkRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_GetByObjectId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetConfigByObjectIdRequest)
+func _ConfigService_ReadConfigByObjectId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadConfigByObjectIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).GetByObjectId(ctx, in)
+		return srv.(ConfigServiceServer).ReadConfigByObjectId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/GetByObjectId",
+		FullMethod: "/logger.ConfigService/ReadConfigByObjectId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetByObjectId(ctx, req.(*GetConfigByObjectIdRequest))
+		return srv.(ConfigServiceServer).ReadConfigByObjectId(ctx, req.(*ReadConfigByObjectIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_GetSystemObjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ConfigService_ReadSystemObjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).GetSystemObjects(ctx, in)
+		return srv.(ConfigServiceServer).ReadSystemObjects(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/GetSystemObjects",
+		FullMethod: "/logger.ConfigService/ReadSystemObjects",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetSystemObjects(ctx, req.(*Empty))
+		return srv.(ConfigServiceServer).ReadSystemObjects(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_GetById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetConfigByIdRequest)
+func _ConfigService_ReadConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReadConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).GetById(ctx, in)
+		return srv.(ConfigServiceServer).ReadConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/GetById",
+		FullMethod: "/logger.ConfigService/ReadConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetById(ctx, req.(*GetConfigByIdRequest))
+		return srv.(ConfigServiceServer).ReadConfig(ctx, req.(*ReadConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigService_GetAll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAllConfigsRequest)
+func _ConfigService_SearchConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchConfigRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ConfigServiceServer).GetAll(ctx, in)
+		return srv.(ConfigServiceServer).SearchConfig(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.ConfigService/GetAll",
+		FullMethod: "/logger.ConfigService/SearchConfig",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).GetAll(ctx, req.(*GetAllConfigsRequest))
+		return srv.(ConfigServiceServer).SearchConfig(ctx, req.(*SearchConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -352,40 +352,40 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ConfigServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Update",
-			Handler:    _ConfigService_Update_Handler,
+			MethodName: "UpdateConfig",
+			Handler:    _ConfigService_UpdateConfig_Handler,
 		},
 		{
-			MethodName: "PatchUpdate",
-			Handler:    _ConfigService_PatchUpdate_Handler,
+			MethodName: "PatchConfig",
+			Handler:    _ConfigService_PatchConfig_Handler,
 		},
 		{
-			MethodName: "Insert",
-			Handler:    _ConfigService_Insert_Handler,
+			MethodName: "CreateConfig",
+			Handler:    _ConfigService_CreateConfig_Handler,
 		},
 		{
-			MethodName: "Delete",
-			Handler:    _ConfigService_Delete_Handler,
+			MethodName: "DeleteConfig",
+			Handler:    _ConfigService_DeleteConfig_Handler,
 		},
 		{
-			MethodName: "DeleteBulk",
-			Handler:    _ConfigService_DeleteBulk_Handler,
+			MethodName: "DeleteConfigBulk",
+			Handler:    _ConfigService_DeleteConfigBulk_Handler,
 		},
 		{
-			MethodName: "GetByObjectId",
-			Handler:    _ConfigService_GetByObjectId_Handler,
+			MethodName: "ReadConfigByObjectId",
+			Handler:    _ConfigService_ReadConfigByObjectId_Handler,
 		},
 		{
-			MethodName: "GetSystemObjects",
-			Handler:    _ConfigService_GetSystemObjects_Handler,
+			MethodName: "ReadSystemObjects",
+			Handler:    _ConfigService_ReadSystemObjects_Handler,
 		},
 		{
-			MethodName: "GetById",
-			Handler:    _ConfigService_GetById_Handler,
+			MethodName: "ReadConfig",
+			Handler:    _ConfigService_ReadConfig_Handler,
 		},
 		{
-			MethodName: "GetAll",
-			Handler:    _ConfigService_GetAll_Handler,
+			MethodName: "SearchConfig",
+			Handler:    _ConfigService_SearchConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

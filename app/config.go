@@ -62,7 +62,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 
 }
 
-func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchUpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
+func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
 		result *model.Config
 	)
@@ -74,7 +74,7 @@ func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchUpdateConfig
 		return nil, err
 	}
 
-	model, err := a.convertPatchUpdateConfigMessageToModel(in, domainId)
+	model, err := a.convertPatchConfigMessageToModel(in, domainId)
 
 	if err != nil {
 		return nil, err
@@ -123,14 +123,14 @@ func (a *App) GetSystemObjects(ctx context.Context, domainId int) (*proto.System
 
 }
 
-func (a *App) InsertConfig(ctx context.Context, in *proto.InsertConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
+func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
 		newModel *model.Config
 	)
 	if in == nil {
 		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	model, err := a.convertInsertConfigMessageToModel(in, domainId)
+	model, err := a.convertCreateConfigMessageToModel(in, domainId)
 	if err != nil {
 		return nil, err
 	}
@@ -257,35 +257,38 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
 		//Storage.Id:  int(in.GetStorageId()),
-		DomainId: domainId,
+		DomainId:    domainId,
+		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
 	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
 	return config, nil
 }
 
-func (a *App) convertPatchUpdateConfigMessageToModel(in *proto.PatchUpdateConfigRequest, domainId int) (*model.Config, errors.AppError) {
+func (a *App) convertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int) (*model.Config, errors.AppError) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
 		//Storage.Id:  int(in.GetStorageId()),
-		DomainId: domainId,
+		DomainId:    domainId,
+		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
 	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
 	return config, nil
 }
 
-func (a *App) convertInsertConfigMessageToModel(in *proto.InsertConfigRequest, domainId int) (*model.Config, errors.AppError) {
+func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId int) (*model.Config, errors.AppError) {
 	config := &model.Config{
 
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
 		//StorageId:   int(in.GetStorageId()),
-		DomainId: domainId,
+		DomainId:    domainId,
+		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
 	config.Object.Id = model.NewNullInt(int(in.GetObject().GetId()))
@@ -299,6 +302,7 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 		Enabled:     in.Enabled,
 		DaysToStore: int32(in.DaysToStore),
 		Period:      int32(in.Period),
+		Description: in.Description.String(),
 		//DomainId:    int32(in.DomainId),
 	}
 	if !in.Object.IsZero() {

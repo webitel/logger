@@ -1,8 +1,8 @@
 package model
 
 type Lookup struct {
-	Id   *NullInt    `json:"id,omitempty"`
-	Name *NullString `json:"name,omitempty"`
+	Id   *NullInt    `json:"id,omitempty" db:"id"`
+	Name *NullString `json:"name,omitempty" db:"name"`
 }
 
 func (l *Lookup) IsZero() bool {

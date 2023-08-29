@@ -10,56 +10,56 @@ import "google/api/annotations.proto";
 
 service ConfigService {
 
-  rpc Update(UpdateConfigRequest) returns (Config) {
+  rpc UpdateConfig(UpdateConfigRequest) returns (Config) {
     option (google.api.http) = {
       put: "/logger/config/{config_id}"
       body: "*"
     };
   }
 
-  rpc PatchUpdate(PatchUpdateConfigRequest) returns (Config) {
+  rpc PatchConfig(PatchConfigRequest) returns (Config) {
     option (google.api.http) = {
       patch: "/logger/config/{config_id}"
       body: "*"
     };
   }
 
-  rpc Insert(InsertConfigRequest) returns (Config) {
+  rpc CreateConfig(CreateConfigRequest) returns (Config) {
     option (google.api.http) = {
       post: "/logger/config"
       body: "*"
     };
   }
 
-  rpc Delete(DeleteConfigRequest) returns (Empty) {
+  rpc DeleteConfig(DeleteConfigRequest) returns (Empty) {
     option (google.api.http) = {
       delete: "/logger/config/{config_id}"
     };
   }
 
-  rpc DeleteBulk(DeleteConfigsRequest) returns (Empty) {
+  rpc DeleteConfigBulk(DeleteConfigBulkRequest) returns (Empty) {
     option (google.api.http) = {
       delete: "/logger/config"
       body: "*"
     };
   }
 
-  rpc GetByObjectId(GetConfigByObjectIdRequest) returns (Config) {
+  rpc ReadConfigByObjectId(ReadConfigByObjectIdRequest) returns (Config) {
   }
 
-  rpc GetSystemObjects(Empty) returns (SystemObjects) {
+  rpc ReadSystemObjects(Empty) returns (SystemObjects) {
     option (google.api.http) = {
       get: "/logger/available_objects"
     };
   }
 
-  rpc GetById(GetConfigByIdRequest) returns (Config) {
+  rpc ReadConfig(ReadConfigRequest) returns (Config) {
     option (google.api.http) = {
       get: "/logger/config/{config_id}"
     };
   }
 
-  rpc GetAll(GetAllConfigsRequest) returns (Configs) {
+  rpc SearchConfig(SearchConfigRequest) returns (Configs) {
     option (google.api.http) = {
       get: "/logger/config"
     };
@@ -90,6 +90,7 @@ message Config {
   int32 days_to_store = 4;
   int32 period = 5;
   Lookup storage = 6;
+  string description = 7;
 }
 
 
@@ -98,11 +99,11 @@ message DeleteConfigRequest {
   int32 config_id = 1;
 }
 
-message DeleteConfigsRequest {
+message DeleteConfigBulkRequest {
   repeated int32 ids = 1;
 }
 
-message GetConfigByObjectIdRequest {
+message ReadConfigByObjectIdRequest {
   //  int32 page = 1;
   //  int32 size = 2;
   //  string q = 3;
@@ -114,7 +115,7 @@ message GetConfigByObjectIdRequest {
   int32 domain_id = 2;
 }
 
-message GetConfigByIdRequest {
+message ReadConfigRequest {
   //  int32 page = 1;
   //  int32 size = 2;
   //  string q = 3;
@@ -126,7 +127,7 @@ message GetConfigByIdRequest {
   //  int32 domainId = 8;
 }
 
-message GetAllConfigsRequest {
+message SearchConfigRequest {
   int32 page = 1;
   int32 size = 2;
   string q = 3;
@@ -143,21 +144,24 @@ message UpdateConfigRequest {
   int32 days_to_store = 3;
   int32 period = 4;
   Lookup storage = 5;
+  string description = 6;
 }
 
-message PatchUpdateConfigRequest {
+message PatchConfigRequest {
   int32 config_id = 1;
   bool enabled = 2;
   int32 days_to_store = 3;
   int32 period = 4;
   Lookup storage = 5;
-  repeated string fields = 6;
+  string description = 6;
+  repeated string fields = 7;
 }
 
-message InsertConfigRequest {
+message CreateConfigRequest {
   Lookup object = 1;
   bool enabled = 2;
   int32 days_to_store = 3;
   int32 period = 4;
   Lookup storage = 5;
+  string description = 6;
 }

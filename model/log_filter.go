@@ -115,4 +115,6 @@ const (
 	LessThan           Comparison = 3
 	LessThanOrEqual    Comparison = 4
 	NotEqual           Comparison = 5
+	Like               Comparison = 6
+	ILike              Comparison = 7
 )

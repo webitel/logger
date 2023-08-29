@@ -3,9 +3,11 @@ module github.com/webitel/logger
 go 1.20
 
 require (
+	github.com/BoRuDar/configuration/v4 v4.2.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/jackc/pgx v3.6.2+incompatible
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.9
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/webitel/engine v0.0.0-20230807141341-7249b13de313

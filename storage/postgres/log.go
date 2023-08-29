@@ -29,6 +29,7 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...mode
 		return nil, appErr
 	}
 	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters...)
+	fmt.Println(base.ToSql())
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -211,7 +212,12 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 }
 
 func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
-	return sq.Select(fields...).From("logger.log").JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id").PlaceholderFormat(sq.Dollar)
+	return sq.Select(fields...).
+		From("logger.log").
+		JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id").
+		JoinClause("LEFT JOIN logger.object_config ON object_config.id = log.config_id").
+		JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
+		PlaceholderFormat(sq.Dollar)
 }
 
 func (c *Log) getFields() []string {

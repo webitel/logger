@@ -1,8 +1,8 @@
 package postgres
 
 import (
-	"database/sql"
 	"github.com/Masterminds/squirrel"
+	"github.com/jmoiron/sqlx"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
 
@@ -12,7 +12,7 @@ import (
 
 type PostgresStore struct {
 	config      *model.DatabaseConfig
-	conn        *sql.DB
+	conn        *sqlx.DB
 	logStore    storage.LogStore
 	configStore storage.ConfigStore
 }
@@ -44,7 +44,7 @@ func (s *PostgresStore) Config() storage.ConfigStore {
 	}
 	return s.configStore
 }
-func (s *PostgresStore) Database() (*sql.DB, errors.AppError) {
+func (s *PostgresStore) Database() (*sqlx.DB, errors.AppError) {
 	if s.conn == nil {
 		errors.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")
 	}
@@ -52,7 +52,8 @@ func (s *PostgresStore) Database() (*sql.DB, errors.AppError) {
 }
 
 func (s *PostgresStore) Open() errors.AppError {
-	db, err := sql.Open("pgx", s.config.Url)
+	db, err := sqlx.Connect("pgx", s.config.Url)
+	//db, err := sql.Open("pgx", s.config.Url)
 	if err != nil {
 		return errors.NewInternalError("postgres.storage.open.connect.fail", err.Error())
 	}
@@ -85,6 +86,10 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters ...model.Filter)
 			base = base.Where(squirrel.LtOrEq{v.Column: v.Value})
 		case 5:
 			base = base.Where(squirrel.NotEq{v.Column: v.Value})
+		case 6:
+			base = base.Where(squirrel.Like{v.Column: v.Value})
+		case 7:
+			base = base.Where(squirrel.ILike{v.Column: v.Value})
 		}
 	}
 	return base

@@ -10,7 +10,7 @@ type NullString string
 // - database/sql.Valuer
 func (t NullString) Value() (driver.Value, error) {
 	if !t.IsZero() {
-		return t, nil
+		return t.String(), nil
 	}
 	return nil, nil
 }

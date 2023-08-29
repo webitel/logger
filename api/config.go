@@ -24,8 +24,8 @@ func NewConfigService(app *app.App) (*ConfigService, errors.AppError) {
 	return &ConfigService{app: app}, nil
 }
 
-// GetConfigById selects config by id
-func (s *ConfigService) GetById(ctx context.Context, in *proto.GetConfigByIdRequest) (*proto.Config, error) {
+// ReadConfig selects config by id
+func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequest) (*proto.Config, error) {
 	var rbac *model.RbacOptions
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
@@ -45,7 +45,7 @@ func (s *ConfigService) GetById(ctx context.Context, in *proto.GetConfigByIdRequ
 	return s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
 }
 
-func (s *ConfigService) GetSystemObjects(ctx context.Context, request *proto.Empty) (*proto.SystemObjects, error) {
+func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Empty) (*proto.SystemObjects, error) {
 
 	// region AUTHORIZATION
 	session, err := s.app.GetSessionFromCtx(ctx)
@@ -59,13 +59,13 @@ func (s *ConfigService) GetSystemObjects(ctx context.Context, request *proto.Emp
 	return s.app.GetSystemObjects(ctx, int(session.DomainId))
 }
 
-// For internal purpose when check is config enabled
-func (s *ConfigService) GetByObjectId(ctx context.Context, in *proto.GetConfigByObjectIdRequest) (*proto.Config, error) {
+// ReadConfigByObjectId used for internal purpose with client, checks if config enabled
+func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.ReadConfigByObjectIdRequest) (*proto.Config, error) {
 	return s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
 }
 
-// GetAllConfigs selects all configs by domainId
-func (s *ConfigService) GetAll(ctx context.Context, in *proto.GetAllConfigsRequest) (*proto.Configs, error) {
+// SearchConfig selects all configs by domainId
+func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfigRequest) (*proto.Configs, error) {
 	var rbac *model.RbacOptions
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *ConfigService) GetAll(ctx context.Context, in *proto.GetAllConfigsReque
 }
 
 // UpdateConfig updates existing config
-func (s *ConfigService) Update(ctx context.Context, in *proto.UpdateConfigRequest) (*proto.Config, error) {
+func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -125,8 +125,8 @@ func (s *ConfigService) Update(ctx context.Context, in *proto.UpdateConfigReques
 	return s.app.UpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
 }
 
-// UpdateConfig updates existing config
-func (s *ConfigService) PatchUpdate(ctx context.Context, in *proto.PatchUpdateConfigRequest) (*proto.Config, error) {
+// PatchConfig updates existing config
+func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -151,8 +151,8 @@ func (s *ConfigService) PatchUpdate(ctx context.Context, in *proto.PatchUpdateCo
 	return s.app.PatchUpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
 }
 
-// InsertConfig inserts new config
-func (s *ConfigService) Insert(ctx context.Context, in *proto.InsertConfigRequest) (*proto.Config, error) {
+// CreateConfig inserts new config
+func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfigRequest) (*proto.Config, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -167,8 +167,8 @@ func (s *ConfigService) Insert(ctx context.Context, in *proto.InsertConfigReques
 	return s.app.InsertConfig(ctx, in, int(session.DomainId), int(session.UserId))
 }
 
-// Delete deletes config
-func (s *ConfigService) Delete(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
+// DeleteConfig deletes config by id
+func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -193,8 +193,8 @@ func (s *ConfigService) Delete(ctx context.Context, in *proto.DeleteConfigReques
 	return &proto.Empty{}, nil
 }
 
-// InsertConfig inserts new config
-func (s *ConfigService) DeleteBulk(ctx context.Context, in *proto.DeleteConfigsRequest) (*proto.Empty, error) {
+// DeleteConfigBulk deletes configs by array of ids
+func (s *ConfigService) DeleteConfigBulk(ctx context.Context, in *proto.DeleteConfigBulkRequest) (*proto.Empty, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err

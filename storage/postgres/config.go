@@ -18,6 +18,24 @@ type Config struct {
 	storage storage.Storage
 }
 
+var (
+	logFieldsMap = map[string]string{
+		"id":             "object_config.id",
+		"enabled":        "object_config.enabled",
+		"days_to_store":  "object_config.days_to_store",
+		"period":         "object_config.period",
+		"next_upload_on": "object_config.next_upload_on",
+		"object":         "object_config.object_id, wbt_class.name as object_name",
+		"storage":        "object_config.storage_id, file_backend_profiles.name as storage_name",
+		"domain_id":      "object_config.domain_id",
+		"created_at":     "object_config.created_at",
+		"created_by":     "object_config.created_by",
+		"updated_at":     "object_config.updated_at",
+		"updated_by":     "object_config.updated_by",
+		"description":    "object_config.description",
+	}
+)
+
 // region CONSTRUCTOR
 func newConfigStore(store storage.Storage) (storage.ConfigStore, errors.AppError) {
 	if store == nil {
@@ -41,7 +59,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		Set("updated_by", userId).
 		PlaceholderFormat(sq.Dollar)
 	if len(fields) == 0 {
-		fields = []string{"enabled", "days_to_store", "period", "next_upload_on", "storage"}
+		fields = []string{"enabled", "days_to_store", "period", "next_upload_on", "storage", "description"}
 	}
 	for _, v := range fields {
 		switch v {
@@ -53,8 +71,10 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 			base = base.Set("period", conf.Period)
 		case "next_upload_on":
 			base = base.Set("next_upload_on", conf.NextUploadOn)
-		case "storage_id":
+		case "storage":
 			base = base.Set("storage_id", conf.Storage.Id)
+		case "description":
+			base = base.Set("description", conf.Description)
 		}
 	}
 	query, args, _ := base.ToSql()
@@ -73,7 +93,8 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 			   p.next_upload_on,
 			   p.storage_id,
 			   p.domain_id,
-			   p.object_id
+			   p.object_id,
+               p.description
 		from p
 				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
@@ -96,8 +117,8 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 	}
 	res, err := db.QueryContext(ctx,
 		`with p as (INSERT INTO
-					logger.object_config (enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+					logger.object_config (enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by, description)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 					RETURNING *)
 				select p.id,
 					   p.enabled,
@@ -112,7 +133,8 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 					   p.next_upload_on,
 					   p.storage_id,
 					   p.domain_id,
-					   p.object_id
+					   p.object_id,
+					   p.description
 				from p
 						 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 						 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`,
@@ -124,7 +146,8 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 		conf.Storage.Id,
 		conf.DomainId,
 		conf.Object.Id,
-		userId)
+		userId,
+		conf.Description)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.insert.query.error", err.Error())
 	}
@@ -350,6 +373,8 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedAt })
 			case "updated_by":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedBy })
+			case "description":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Description })
 			default:
 				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
 			}
@@ -377,38 +402,12 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 // Refactor GetQueryBaseFromSearchOptions for beauty
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
+
 	if opt == nil {
 		return c.GetQueryBase(c.getFields(), rbac)
 	}
 	for _, v := range opt.Fields {
-		switch v {
-		case "id":
-			fields = append(fields, "object_config.id")
-		case "enabled":
-			fields = append(fields, "object_config.enabled")
-		case "days_to_store":
-			fields = append(fields, "object_config.days_to_store")
-		case "period":
-			fields = append(fields, "object_config.period")
-		case "next_upload_on":
-			fields = append(fields, "object_config.next_upload_on")
-		case "object":
-			fields = append(fields, "object_config.object_id")
-			fields = append(fields, "wbt_class.name as object_name")
-		case "storage":
-			fields = append(fields, "object_config.storage_id")
-			fields = append(fields, "file_backend_profiles.name as storage_name")
-		case "domain_id":
-			fields = append(fields, "object_config.domain_id")
-		case "created_at":
-			fields = append(fields, "object_config.created_at")
-		case "created_by":
-			fields = append(fields, "object_config.created_by")
-		case "updated_at":
-			fields = append(fields, "object_config.updated_at")
-		case "updated_by":
-			fields = append(fields, "object_config.updated_by")
-		}
+		fields = append(fields, logFieldsMap[v])
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
@@ -456,22 +455,11 @@ func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOpti
 }
 
 func (c *Config) getFields() []string {
-	return []string{
-		"object_config.id",
-		"object_config.enabled",
-		"object_config.days_to_store",
-		"object_config.period",
-		"object_config.next_upload_on",
-		"object_config.object_id",
-		"wbt_class.name as object_name",
-		"object_config.storage_id",
-		"file_backend_profiles.name as storage_name",
-		"object_config.domain_id",
-		"object_config.created_at",
-		"object_config.created_by",
-		"object_config.updated_at",
-		"object_config.updated_by",
+	var fields []string
+	for _, value := range logFieldsMap {
+		fields = append(fields, value)
 	}
+	return fields
 }
 
 // endregion

@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"github.com/webitel/logger/model"
 	"time"
 
@@ -15,7 +15,7 @@ type Storage interface {
 	// Interface to the config table
 	Config() ConfigStore
 	// Database connection
-	Database() (*sql.DB, errors.AppError)
+	Database() (*sqlx.DB, errors.AppError)
 	// Initializes logger schema
 	//SchemaInit() errors.AppError
 	// Opens connection to the storage

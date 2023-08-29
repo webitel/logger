@@ -149,7 +149,7 @@ type configApi struct {
 }
 
 func (c *configApi) CheckIsActive(ctx context.Context, domainId, objectId int) (bool, error) {
-	in := &proto.GetConfigByObjectIdRequest{
+	in := &proto.ReadConfigByObjectIdRequest{
 		ObjectId: int32(objectId),
 		DomainId: int32(domainId),
 	}
@@ -157,7 +157,7 @@ func (c *configApi) CheckIsActive(ctx context.Context, domainId, objectId int) (
 	if err != nil {
 		return false, err
 	}
-	res, err := conn.config.GetByObjectId(ctx, in)
+	res, err := conn.config.ReadConfigByObjectId(ctx, in)
 	if err != nil {
 		return false, err
 	}

@@ -13,4 +13,5 @@ type Config struct {
 	NextUploadOn NullTime
 	Storage      Lookup
 	DomainId     int
+	Description  NullString
 }

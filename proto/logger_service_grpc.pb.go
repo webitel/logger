@@ -22,8 +22,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LoggerServiceClient interface {
-	GetByUserId(ctx context.Context, in *GetLogsByUserIdRequest, opts ...grpc.CallOption) (*Logs, error)
-	GetByConfigId(ctx context.Context, in *GetLogsByConfigIdRequest, opts ...grpc.CallOption) (*Logs, error)
+	SearchLogByUserId(ctx context.Context, in *SearchLogByUserIdRequest, opts ...grpc.CallOption) (*Logs, error)
+	SearchLogByConfigId(ctx context.Context, in *SearchLogByConfigIdRequest, opts ...grpc.CallOption) (*Logs, error)
 }
 
 type loggerServiceClient struct {
@@ -34,18 +34,18 @@ func NewLoggerServiceClient(cc grpc.ClientConnInterface) LoggerServiceClient {
 	return &loggerServiceClient{cc}
 }
 
-func (c *loggerServiceClient) GetByUserId(ctx context.Context, in *GetLogsByUserIdRequest, opts ...grpc.CallOption) (*Logs, error) {
+func (c *loggerServiceClient) SearchLogByUserId(ctx context.Context, in *SearchLogByUserIdRequest, opts ...grpc.CallOption) (*Logs, error) {
 	out := new(Logs)
-	err := c.cc.Invoke(ctx, "/logger.LoggerService/GetByUserId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.LoggerService/SearchLogByUserId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *loggerServiceClient) GetByConfigId(ctx context.Context, in *GetLogsByConfigIdRequest, opts ...grpc.CallOption) (*Logs, error) {
+func (c *loggerServiceClient) SearchLogByConfigId(ctx context.Context, in *SearchLogByConfigIdRequest, opts ...grpc.CallOption) (*Logs, error) {
 	out := new(Logs)
-	err := c.cc.Invoke(ctx, "/logger.LoggerService/GetByConfigId", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/logger.LoggerService/SearchLogByConfigId", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +56,8 @@ func (c *loggerServiceClient) GetByConfigId(ctx context.Context, in *GetLogsByCo
 // All implementations must embed UnimplementedLoggerServiceServer
 // for forward compatibility
 type LoggerServiceServer interface {
-	GetByUserId(context.Context, *GetLogsByUserIdRequest) (*Logs, error)
-	GetByConfigId(context.Context, *GetLogsByConfigIdRequest) (*Logs, error)
+	SearchLogByUserId(context.Context, *SearchLogByUserIdRequest) (*Logs, error)
+	SearchLogByConfigId(context.Context, *SearchLogByConfigIdRequest) (*Logs, error)
 	mustEmbedUnimplementedLoggerServiceServer()
 }
 
@@ -65,11 +65,11 @@ type LoggerServiceServer interface {
 type UnimplementedLoggerServiceServer struct {
 }
 
-func (UnimplementedLoggerServiceServer) GetByUserId(context.Context, *GetLogsByUserIdRequest) (*Logs, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetByUserId not implemented")
+func (UnimplementedLoggerServiceServer) SearchLogByUserId(context.Context, *SearchLogByUserIdRequest) (*Logs, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchLogByUserId not implemented")
 }
-func (UnimplementedLoggerServiceServer) GetByConfigId(context.Context, *GetLogsByConfigIdRequest) (*Logs, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetByConfigId not implemented")
+func (UnimplementedLoggerServiceServer) SearchLogByConfigId(context.Context, *SearchLogByConfigIdRequest) (*Logs, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchLogByConfigId not implemented")
 }
 func (UnimplementedLoggerServiceServer) mustEmbedUnimplementedLoggerServiceServer() {}
 
@@ -84,38 +84,38 @@ func RegisterLoggerServiceServer(s grpc.ServiceRegistrar, srv LoggerServiceServe
 	s.RegisterService(&LoggerService_ServiceDesc, srv)
 }
 
-func _LoggerService_GetByUserId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetLogsByUserIdRequest)
+func _LoggerService_SearchLogByUserId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchLogByUserIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LoggerServiceServer).GetByUserId(ctx, in)
+		return srv.(LoggerServiceServer).SearchLogByUserId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.LoggerService/GetByUserId",
+		FullMethod: "/logger.LoggerService/SearchLogByUserId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LoggerServiceServer).GetByUserId(ctx, req.(*GetLogsByUserIdRequest))
+		return srv.(LoggerServiceServer).SearchLogByUserId(ctx, req.(*SearchLogByUserIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _LoggerService_GetByConfigId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetLogsByConfigIdRequest)
+func _LoggerService_SearchLogByConfigId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchLogByConfigIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(LoggerServiceServer).GetByConfigId(ctx, in)
+		return srv.(LoggerServiceServer).SearchLogByConfigId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/logger.LoggerService/GetByConfigId",
+		FullMethod: "/logger.LoggerService/SearchLogByConfigId",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(LoggerServiceServer).GetByConfigId(ctx, req.(*GetLogsByConfigIdRequest))
+		return srv.(LoggerServiceServer).SearchLogByConfigId(ctx, req.(*SearchLogByConfigIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -128,12 +128,12 @@ var LoggerService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*LoggerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetByUserId",
-			Handler:    _LoggerService_GetByUserId_Handler,
+			MethodName: "SearchLogByUserId",
+			Handler:    _LoggerService_SearchLogByUserId_Handler,
 		},
 		{
-			MethodName: "GetByConfigId",
-			Handler:    _LoggerService_GetByConfigId_Handler,
+			MethodName: "SearchLogByConfigId",
+			Handler:    _LoggerService_SearchLogByConfigId_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

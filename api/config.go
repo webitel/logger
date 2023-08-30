@@ -76,27 +76,13 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
-	var out proto.Configs
-	opt, err := app.ExtractSearchOptions(in)
-	if err != nil {
-		return nil, err
-	}
 	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_READ, permission) {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
 			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
 		}
 	}
-	rows, err := s.app.GetAllConfigs(ctx, opt, rbac, int(session.DomainId))
-	if err != nil {
-		return nil, err
-	}
-	if int32(len(rows)-1) == in.Size {
-		out.Next = true
-	}
-	out.Items = rows
-	out.Page = int32(opt.Page)
-	return &out, nil
+	return s.app.GetAllConfigs(ctx, rbac, int(session.DomainId), in)
 }
 
 // UpdateConfig updates existing config

@@ -59,7 +59,7 @@ func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.App
 			}
 			rabbitMessages = append(rabbitMessages, rabbitMessage)
 		}
-		appErr := h.app.InsertRabbitLogs(ctx, rabbitMessages, domain, object)
+		appErr := h.app.InsertLogByRabbitMessageBulk(ctx, rabbitMessages, domain, object)
 		if appErr != nil {
 			return appErr
 		}

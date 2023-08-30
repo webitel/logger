@@ -219,11 +219,17 @@ func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups 
 
 }
 
-func (a *App) GetAllConfigs(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) ([]*proto.Config, errors.AppError) {
-	var res []*proto.Config
+func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, domainId int, in *proto.SearchConfigRequest) (*proto.Configs, errors.AppError) {
+	var (
+		rows      []*proto.Config
+		res       proto.Configs
+		searchOpt *model.SearchOptions
+	)
+
+	searchOpt = ExtractSearchOptions(in)
 	modelConfigs, err := a.storage.Config().Get(
 		ctx,
-		opt,
+		searchOpt,
 		rbac,
 		model.Filter{
 			Column:         "object_config.domain_id",
@@ -231,9 +237,10 @@ func (a *App) GetAllConfigs(ctx context.Context, opt *model.SearchOptions, rbac 
 			ComparisonType: model.Equal,
 		},
 	)
+	res.Page = int32(searchOpt.Page)
 	if err != nil {
 		if IsErrNoRows(err) {
-			return res, nil
+			return &res, nil
 		} else {
 			return nil, err
 		}
@@ -243,10 +250,16 @@ func (a *App) GetAllConfigs(ctx context.Context, opt *model.SearchOptions, rbac 
 		if err != nil {
 			return nil, err
 		}
-		res = append(res, proto)
+		rows = append(rows, proto)
+	}
+	if len(rows)-1 == searchOpt.Size {
+		res.Next = true
+		res.Items = rows[0 : len(rows)-1]
+	} else {
+		res.Items = rows
 	}
 
-	return res, nil
+	return &res, nil
 
 }
 

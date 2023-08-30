@@ -32,17 +32,7 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
-	var result proto.Logs
-	rows, err := s.app.SearchLogsByUserId(ctx, in)
-	if err != nil {
-		return nil, err
-	}
-	if int32(len(rows)-1) == in.Size {
-		result.Next = true
-	}
-	result.Items = rows
-	result.Page = in.GetPage()
-	return &result, nil
+	return s.app.SearchLogsByUserId(ctx, in)
 }
 
 func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.SearchLogByConfigIdRequest) (*proto.Logs, error) {
@@ -55,15 +45,6 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
-	var result proto.Logs
-	rows, err := s.app.SearchLogsByConfigId(ctx, in)
-	if err != nil {
-		return nil, err
-	}
-	if int32(len(rows)-1) == in.Size {
-		result.Next = true
-	}
-	result.Items = rows
-	result.Page = in.GetPage()
-	return &result, nil
+
+	return s.app.SearchLogsByConfigId(ctx, in)
 }

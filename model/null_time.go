@@ -24,6 +24,14 @@ func (t *NullTime) IsZero() bool {
 	return true
 }
 
+func (t *NullTime) ToMilliseconds() int64 {
+	if t == nil {
+		return 0
+	}
+
+	return t.Time().UnixNano() / int64(time.Millisecond)
+}
+
 func NewNullTime(i time.Time) *NullTime {
 	return (*NullTime)(&i)
 }

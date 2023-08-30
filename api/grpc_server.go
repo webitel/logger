@@ -143,7 +143,7 @@ func connectConsul(config *model.ConsulConfig) errors.AppError {
 	if err != nil {
 		return errors.NewBadRequestError("api.grpc_server.build_consul.parse_address.error", "unable to parse grpc port")
 	}
-	err = consul.RegisterService("logger", ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
+	err = consul.RegisterService(config.Id, ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
 	if err != nil {
 		return errors.NewInternalError("api.grpc_server.build_consul.register_in_consul.error", err.Error())
 	}

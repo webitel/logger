@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
@@ -72,29 +71,32 @@ func IsErrNoRows(err errors.AppError) bool {
 	return strings.Contains(err.Error(), sql.ErrNoRows.Error())
 }
 
-func ExtractSearchOptions(t any) (*model.SearchOptions, errors.AppError) {
+type Search interface {
+	GetPage() int32
+	GetSize() int32
+	GetQ() string
+	GetSort() string
+	GetFields() []string
+}
+
+func ExtractSearchOptions(t Search) *model.SearchOptions {
 	var res model.SearchOptions
-	b, err := json.Marshal(t)
-	if err != nil {
-		return nil, errors.NewBadRequestError("app.app.extract_search_options.marshal.error", err.Error())
-	}
-	err = json.Unmarshal(b, &res)
-	if err != nil {
-		return nil, errors.NewInternalError("app.app.extract_search_options.unmarshal.error", err.Error())
-	}
-	if res.Sort != "" {
+	if t.GetSort() != "" {
 		res.Sort = ConvertSort(res.Sort)
 	}
-	if res.Size <= 0 || res.Size > MAX_PAGE_SIZE {
+	if t.GetSize() <= 0 || t.GetSize() > MAX_PAGE_SIZE {
 		res.Size = DEFAULT_PAGE_SIZE
 	}
-	if res.Page <= 0 {
+	if t.GetPage() <= 0 {
 		res.Page = DEFAULT_PAGE
 	}
-	if res.Search != "" {
+	if t.GetQ() != "" {
 		res.Search = strings.Replace(res.Search, "*", "%", -1)
 	}
-	return &res, nil
+	if s := t.GetFields(); len(s) != 0 {
+		res.Fields = s
+	}
+	return &res
 }
 
 func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, errors.AppError) {

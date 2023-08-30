@@ -10,28 +10,25 @@ import (
 )
 
 // region PERFORM ACTIONS
-func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserIdRequest) ([]*proto.Log, errors.AppError) {
+func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserIdRequest) (*proto.Logs, errors.AppError) {
 	var (
-		result             []*proto.Log
+		res                proto.Logs
+		rows               []*proto.Log
 		notStandartFilters []model.Filter
 	)
 
-	opt, err := ExtractSearchOptions(in)
-	if err != nil {
-		return nil, err
-	}
-
+	searchOpt := ExtractSearchOptions(in)
 	// region APPLYING FILTERS
 	if x := in.GetObject(); x != nil {
 		if v := x.GetId(); v != 0 {
 			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "object_id",
+				Column:         "wbt_class.id",
 				Value:          v,
 				ComparisonType: model.Equal,
 			})
 		} else if v := x.GetName(); v != "" {
 			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "object_name",
+				Column:         "wbt_class.name",
 				Value:          v,
 				ComparisonType: model.ILike,
 			})
@@ -46,14 +43,15 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 
 	// endregion
 	// region PERFORM
-	rows, appErr := a.storage.Log().Get(
+	modelLogs, appErr := a.storage.Log().Get(
 		ctx,
-		opt,
+		searchOpt,
 		append(extractDefaultFiltersFromLogSearch(in), notStandartFilters...)...,
 	)
+	res.Page = int32(searchOpt.Page)
 	if appErr != nil {
 		if IsErrNoRows(appErr) {
-			return result, nil
+			return &res, nil
 		} else {
 			return nil, appErr
 		}
@@ -61,28 +59,30 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 
 	// endregion
 	//region CONVERT TO RESPONSE
-	for _, v := range *rows {
+	for _, v := range *modelLogs {
 		protoLog, err := convertLogModelToMessage(&v)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, protoLog)
+		rows = append(rows, protoLog)
+	}
+	if len(rows)-1 == searchOpt.Size {
+		res.Next = true
+		res.Items = rows[0 : len(rows)-1]
+	} else {
+		res.Items = rows
 	}
 	// endregion
-	return result, nil
+	return &res, nil
 }
 
-func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByConfigIdRequest) ([]*proto.Log, errors.AppError) {
+func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByConfigIdRequest) (*proto.Logs, errors.AppError) {
 	var (
-		result            []*proto.Log
+		res               proto.Logs
+		rows              []*proto.Log
 		notDefaultFilters []model.Filter
 	)
-
-	opt, err := ExtractSearchOptions(in)
-	if err != nil {
-		return nil, err
-	}
-
+	searchOpt := ExtractSearchOptions(in)
 	// region APPLYING FILTERS
 	if x := in.GetUser(); x != nil {
 		if v := x.GetId(); v != 0 {
@@ -93,7 +93,7 @@ func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByCon
 			})
 		} else if v := x.GetName(); v != "" {
 			notDefaultFilters = append(notDefaultFilters, model.Filter{
-				Column:         "user_name",
+				Column:         "coalesce(wbt_user.name::varchar, wbt_user.username::varchar)",
 				Value:          v,
 				ComparisonType: model.ILike,
 			})
@@ -107,29 +107,36 @@ func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByCon
 	})
 	// endregion
 	// region PERFORM
-	rows, appErr := a.storage.Log().Get(
+	modelLogs, appErr := a.storage.Log().Get(
 		ctx,
-		opt,
+		searchOpt,
 		append(extractDefaultFiltersFromLogSearch(in), notDefaultFilters...)...,
 	)
+	res.Page = int32(searchOpt.Page)
 	if appErr != nil {
 		if IsErrNoRows(appErr) {
-			return result, nil
+			return &res, nil
 		} else {
 			return nil, appErr
 		}
 	}
 	// endregion
 	//region CONVERT TO RESPONSE
-	for _, v := range *rows {
+	for _, v := range *modelLogs {
 		protoLog, err := convertLogModelToMessage(&v)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, protoLog)
+		rows = append(rows, protoLog)
+	}
+	if len(rows)-1 == searchOpt.Size {
+		res.Next = true
+		res.Items = rows[0 : len(rows)-1]
+	} else {
+		res.Items = rows
 	}
 	// endregion
-	return result, nil
+	return &res, nil
 }
 
 func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) errors.AppError {
@@ -151,7 +158,7 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 
 }
 
-func (a *App) InsertRabbitLogs(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId, objectId int) errors.AppError {
+func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId, objectId int) errors.AppError {
 	config, err := a.storage.Config().GetByObjectId(ctx, int(domainId), int(objectId))
 	if err != nil {
 		return err
@@ -175,7 +182,6 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	log := &proto.Log{
 		Id:     int32(m.Id),
 		Action: m.Action,
-		Date:   m.Date.Time().Unix(),
 
 		UserIp:   m.UserIp,
 		NewState: string(m.NewState),
@@ -186,6 +192,9 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 			Id:   int32(m.User.Id.Int()),
 			Name: m.User.Name.String(),
 		}
+	}
+	if !m.Date.IsZero() {
+		log.Date = m.Date.ToMilliseconds()
 	}
 	return log, nil
 }
@@ -233,7 +242,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 	if in.GetDateFrom() != 0 {
 		result = append(result, model.Filter{
 			Column:         "log.date",
-			Value:          time.Unix(in.GetDateFrom(), 0),
+			Value:          time.Unix(in.GetDateFrom(), 0).UTC(),
 			ComparisonType: model.GreaterThanOrEqual,
 		})
 	}
@@ -249,7 +258,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 	if in.GetDateTo() != 0 {
 		result = append(result, model.Filter{
 			Column:         "log.date",
-			Value:          time.Unix(in.GetDateTo(), 0),
+			Value:          time.Unix(in.GetDateTo(), 0).UTC(),
 			ComparisonType: model.LessThanOrEqual,
 		})
 	}

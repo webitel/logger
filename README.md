@@ -13,12 +13,12 @@ To start up the logger you should parse program flags.
 
 Flags available (THE DEFAULT VALUE ONLY FOR [id] flag!):
 
-| Flag   | Type     | Description                |
-|:-------| :------- | :------------------------- |
-| `amqp` | `string` | **Required**. Connection string to the rabbit client |
-| `data_source` | `string` | **Required**. Connection string to the database |
-| `consul`    | `string` | **Required**. Address of the consul |
-| `id`        | `string` | **Required**. The tag of the registered service |
+| Flag   | Type     | Description                                                                                                                            |
+|:-------| :------- |:---------------------------------------------------------------------------------------------------------------------------------------|
+| `amqp` | `string` | **Required**. Connection string to the rabbit client                                                                                   |
+| `data_source` | `string` | **Required**. Connection string to the database                                                                                        |
+| `consul`    | `string` | **Required**. Address of the consul                                                                                                    |
+| `id`        | `string` | **NOT Required**. The tag of the registered service. Default 'logger'                                                                  |
 | `grpc_addr` | `string` | **Required**. The address at which the grpc will start up and also this address will be send to the consul as the main access address. |
 
 FOR DEVS!

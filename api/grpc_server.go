@@ -26,27 +26,67 @@ var (
 	APP_DEREGESTER_CRITICAL_TTL = time.Minute * 2
 )
 
-func ServeRequests(app *app.App, config *model.ConsulConfig, errChan chan errors.AppError) {
+//func ServeRequests(app *app.App, config *model.ConsulConfig, errChan chan errors.AppError) {
+//	// * Build grpc server
+//	server, appErr := buildGrpc(app)
+//	if appErr != nil {
+//		errChan <- appErr
+//		return
+//	}
+//	//  * Open tcp connection
+//	listener, err := net.Listen("tcp", config.PublicAddress)
+//	if err != nil {
+//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
+//		return
+//	}
+//	appErr = connectConsul(config)
+//	if appErr != nil {
+//		errChan <- appErr
+//		return
+//	}
+//	err = server.Serve(listener)
+//	if err != nil {
+//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
+//		return
+//	}
+//}
+
+type AppServer struct {
+	server   *grpc.Server
+	listener net.Listener
+	config   *model.ConsulConfig
+	exitChan chan errors.AppError
+}
+
+func Build(app *app.App, config *model.ConsulConfig, exitChan chan errors.AppError) (*AppServer, errors.AppError) {
 	// * Build grpc server
 	server, appErr := buildGrpc(app)
 	if appErr != nil {
-		errChan <- appErr
-		return
+		return nil, appErr
 	}
 	//  * Open tcp connection
 	listener, err := net.Listen("tcp", config.PublicAddress)
 	if err != nil {
-		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
-		return
+		return nil, errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
 	}
-	appErr = connectConsul(config)
+
+	return &AppServer{
+		server:   server,
+		listener: listener,
+		exitChan: exitChan,
+		config:   config,
+	}, nil
+}
+
+func (a *AppServer) Start() {
+	appErr := connectConsul(a.config)
 	if appErr != nil {
-		errChan <- appErr
+		a.exitChan <- appErr
 		return
 	}
-	err = server.Serve(listener)
+	err := a.server.Serve(a.listener)
 	if err != nil {
-		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
+		a.exitChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
 		return
 	}
 }
@@ -143,7 +183,7 @@ func connectConsul(config *model.ConsulConfig) errors.AppError {
 	if err != nil {
 		return errors.NewBadRequestError("api.grpc_server.build_consul.parse_address.error", "unable to parse grpc port")
 	}
-	err = consul.RegisterService(config.Id, ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
+	err = consul.RegisterService(model.SERVICE_NAME, ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
 	if err != nil {
 		return errors.NewInternalError("api.grpc_server.build_consul.register_in_consul.error", err.Error())
 	}

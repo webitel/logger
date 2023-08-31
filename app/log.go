@@ -94,7 +94,7 @@ func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByCon
 		} else if v := x.GetName(); v != "" {
 			notDefaultFilters = append(notDefaultFilters, model.Filter{
 				Column:         "coalesce(wbt_user.name::varchar, wbt_user.username::varchar)",
-				Value:          v,
+				Value:          v + "%",
 				ComparisonType: model.ILike,
 			})
 		}
@@ -180,9 +180,8 @@ func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages [
 // region UTIL FUNCTIONS
 func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	log := &proto.Log{
-		Id:     int32(m.Id),
-		Action: m.Action,
-
+		Id:       int32(m.Id),
+		Action:   m.Action,
 		UserIp:   m.UserIp,
 		NewState: string(m.NewState),
 		ConfigId: int32(m.ConfigId),
@@ -242,7 +241,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 	if in.GetDateFrom() != 0 {
 		result = append(result, model.Filter{
 			Column:         "log.date",
-			Value:          time.Unix(in.GetDateFrom(), 0).UTC(),
+			Value:          time.Unix(in.GetDateFrom()/1000, 0).UTC(),
 			ComparisonType: model.GreaterThanOrEqual,
 		})
 	}
@@ -258,7 +257,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 	if in.GetDateTo() != 0 {
 		result = append(result, model.Filter{
 			Column:         "log.date",
-			Value:          time.Unix(in.GetDateTo(), 0).UTC(),
+			Value:          time.Unix(in.GetDateTo()/1000, 0).UTC(),
 			ComparisonType: model.LessThanOrEqual,
 		})
 	}

@@ -1,15 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/BoRuDar/configuration/v4"
-	"github.com/webitel/logger/api"
 	"github.com/webitel/logger/app"
 	"github.com/webitel/logger/model"
-	"github.com/webitel/logger/rabbit"
-	"github.com/webitel/logger/storage"
-	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/wlog"
 	"os"
 	"os/signal"
@@ -32,59 +27,32 @@ func main() {
 	wlog.RedirectStdLog(log)
 	wlog.InitGlobalLogger(log)
 
-	config, appErr := UnmarshalConfig()
+	config, appErr := loadConfig()
 	if appErr != nil {
 		wlog.Critical(appErr.Error())
 		return
 	}
-	store, appErr := BuildDatabase(config.Database)
-	if appErr != nil {
-		wlog.Critical(appErr.Error())
-		return
-	}
-	defer store.Close()
-	initSignals(store)
+	//store, appErr := BuildDatabase(config.Database)
+	//if appErr != nil {
+	//	wlog.Critical(appErr.Error())
+	//	return
+	//}
+	//defer store.Close()
+	//initSignals(store)
 	// * Create an application layer
-	app, appErr := app.New(store, config)
+	app, appErr := app.New(config)
 	if appErr != nil {
 		wlog.Critical(appErr.Error())
 		return
 	}
-
-	errChan := make(chan errors.AppError)
-	// * Build and run rabbit listener
-	go rabbit.BuildAndServe(app, config.Rabbit, errChan)
-	// * Build and run grpc server
-	go api.ServeRequests(app, config.Consul, errChan)
-
-	appErr = <-errChan
+	initSignals(app)
+	appErr = app.Start()
 	wlog.Critical(appErr.Error())
 	return
 
 }
 
-func flagDefine() {
-	configPath = flag.String("config", "./config/config.json", "Path to the config file")
-	flag.Parse()
-}
-
-func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, errors.AppError) {
-	store, err := postgres.New(config)
-	if err != nil {
-		return nil, err
-	}
-	err = store.Open()
-	if err != nil {
-		return nil, err
-	}
-	//err = store.SchemaInit()
-	//if err != nil {
-	//	return nil, err
-	//}
-	return store, nil
-}
-
-func initSignals(store storage.Storage) {
+func initSignals(app *app.App) {
 	wlog.Info("initializing stop signals")
 	sigchnl := make(chan os.Signal, 1)
 	signal.Notify(sigchnl)
@@ -92,21 +60,21 @@ func initSignals(store storage.Storage) {
 	go func() {
 		for {
 			s := <-sigchnl
-			handleSignals(s, store)
+			handleSignals(s, app)
 		}
 	}()
 
 }
 
-func handleSignals(signal os.Signal, store storage.Storage) {
+func handleSignals(signal os.Signal, app *app.App) {
 	if signal == syscall.SIGTERM || signal == syscall.SIGINT || signal == syscall.SIGKILL {
-		wlog.Info(fmt.Sprintf("got kill signal. service gracefully stopped!"))
-		store.Close()
+		wlog.Info(fmt.Sprintf("got kill signal, service gracefully stopped!"))
+		app.Stop()
 		os.Exit(0)
 	}
 }
 
-func UnmarshalConfig() (*model.AppConfig, errors.AppError) {
+func loadConfig() (*model.AppConfig, errors.AppError) {
 	var appConfig model.AppConfig
 	//if configPath == nil {
 	//	return nil, errors.NewBadRequestError("main.main.unmarshal_config.bad_arguments.config_path_is_nil", "config path is nil")

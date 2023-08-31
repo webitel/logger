@@ -14,39 +14,58 @@ import (
 	errors "github.com/webitel/engine/model"
 )
 
+type HandleFunc func(context.Context, *amqp.Delivery) errors.AppError
+
 type RabbitListener struct {
-	config *model.RabbitConfig
-	exit   chan errors.AppError
+	config     *model.RabbitConfig
+	handleFunc HandleFunc
+	connection *amqp.Connection
+	channel    *amqp.Channel
+	exit       chan errors.AppError
 }
 
-func BuildAndServe(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
+//func BuildAndServe(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) {
+//	handler, err := NewHandler(app)
+//	if err != nil {
+//		errChan <- err
+//		return
+//	}
+//	listener, err := NewListener(config, errChan)
+//	if err != nil {
+//		errChan <- err
+//		return
+//	}
+//
+//	listener.Start()
+//}
+
+func Build(app *app.App, config *model.RabbitConfig, errChan chan errors.AppError) (*RabbitListener, errors.AppError) {
 	handler, err := NewHandler(app)
 	if err != nil {
-		errChan <- err
-		return
+		return nil, err
 	}
-	listener, err := NewListener(config, errChan)
-	if err != nil {
-		errChan <- err
-		return
-	}
+	return NewListener(config, handler.Handle, errChan)
 
-	listener.Listen(handler.Handle)
 }
 
-func NewListener(config *model.RabbitConfig, errChan chan errors.AppError) (*RabbitListener, errors.AppError) {
+func NewListener(config *model.RabbitConfig, f HandleFunc, errChan chan errors.AppError) (*RabbitListener, errors.AppError) {
 	if config == nil {
 		return nil, errors.NewInternalError("rabbit.listener.new_rabit_listener.arguments_check.config_nil", "rabbit config is nil")
 	}
-	return &RabbitListener{config: config, exit: errChan}, nil
+	return &RabbitListener{config: config, handleFunc: f, exit: errChan}, nil
 }
 
-func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) errors.AppError) {
+func (l *RabbitListener) Stop() {
+	l.channel.Cancel("", true)
+}
+
+func (l *RabbitListener) Start() {
 	conn, err := amqp.Dial(l.config.Url)
 	if err != nil {
 		l.exit <- errors.NewInternalError("rabbit.listener.listen.server_connect.fail", err.Error())
 		return
 	}
+	l.connection = conn
 	defer conn.Close()
 	channel, err := conn.Channel()
 	if err != nil {
@@ -120,7 +139,7 @@ func (l *RabbitListener) Listen(handle func(context.Context, *amqp.Delivery) err
 		wlog.Info("waiting for the messages..")
 		for message = range delivery {
 			wlog.Info("message received")
-			appErr = handle(context.Background(), &message)
+			appErr = l.handleFunc(context.Background(), &message)
 			if appErr != nil {
 				if checkNoRows(appErr) {
 					wlog.Debug(fmt.Sprintf("error processing message, foreign key error, skipping message.. error: %s", appErr.Error()))

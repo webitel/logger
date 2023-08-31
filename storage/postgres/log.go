@@ -137,6 +137,10 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Action })
 			case "config_id":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.ConfigId })
+			case "object_id":
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Object.Id })
+			case "object_name":
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Object.Name })
 			default:
 				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
 			}
@@ -180,8 +184,9 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		case "config_id":
 			fields = append(fields, "log.config_id")
 		case "user":
-			fields = append(fields, "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name")
-			fields = append(fields, "log.user_id")
+			fields = append(fields, "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name", "log.user_id")
+		case "object":
+			fields = append(fields, "wbt_class.id as object_id", "wbt_class.name as object_name")
 		}
 	}
 	if len(fields) == 0 {
@@ -189,9 +194,9 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 			c.getFields()...)
 	}
 	base := c.GetQueryBase(fields)
-	//if opt.Search != "" {
-	//	base = base.Where(sq.Like{"description": "%" + strings.ToLower(opt.Search) + "%"})
-	//}
+	if opt.Search != "" {
+		base = base.Where(sq.Like{"user_ip": opt.Search})
+	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
 		if len(splitted) == 2 {
@@ -231,5 +236,7 @@ func (c *Log) getFields() []string {
 		"log.record_id",
 		"log.action",
 		"log.config_id",
+		"wbt_class.id as object_id",
+		"wbt_class.name as object_name",
 	}
 }

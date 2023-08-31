@@ -1,5 +1,9 @@
 package model
 
+const (
+	SERVICE_NAME = "logger"
+)
+
 type AppConfig struct {
 	Rabbit   *RabbitConfig   `json:"rabbit,omitempty"`
 	Database *DatabaseConfig `json:"database,omitempty"`
@@ -15,7 +19,7 @@ type DatabaseConfig struct {
 }
 
 type ConsulConfig struct {
-	Id            string `json:"id" flag:"id|1| Service id"`
+	Id            string `json:"id" flag:"id|1| Service tag"`
 	Address       string `json:"address" flag:"consul|| Host to consul"`
 	PublicAddress string `json:"publicAddress" flag:"grpc_addr|| Public grpc address with port"`
 }

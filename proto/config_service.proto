@@ -47,7 +47,7 @@ service ConfigService {
   rpc ReadConfigByObjectId(ReadConfigByObjectIdRequest) returns (Config) {
   }
 
-  rpc ReadSystemObjects(Empty) returns (SystemObjects) {
+  rpc ReadSystemObjects(ReadSystemObjectsRequest) returns (SystemObjects) {
     option (google.api.http) = {
       get: "/logger/available_objects"
     };
@@ -78,7 +78,9 @@ message SystemObjects {
   repeated Lookup items = 3;
 }
 
-
+message ReadSystemObjectsRequest {
+  bool include_existing = 1;
+}
 
 message Empty {
 }

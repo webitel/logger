@@ -28,7 +28,7 @@ type ConfigServiceClient interface {
 	DeleteConfig(ctx context.Context, in *DeleteConfigRequest, opts ...grpc.CallOption) (*Empty, error)
 	DeleteConfigBulk(ctx context.Context, in *DeleteConfigBulkRequest, opts ...grpc.CallOption) (*Empty, error)
 	ReadConfigByObjectId(ctx context.Context, in *ReadConfigByObjectIdRequest, opts ...grpc.CallOption) (*Config, error)
-	ReadSystemObjects(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SystemObjects, error)
+	ReadSystemObjects(ctx context.Context, in *ReadSystemObjectsRequest, opts ...grpc.CallOption) (*SystemObjects, error)
 	ReadConfig(ctx context.Context, in *ReadConfigRequest, opts ...grpc.CallOption) (*Config, error)
 	SearchConfig(ctx context.Context, in *SearchConfigRequest, opts ...grpc.CallOption) (*Configs, error)
 }
@@ -95,7 +95,7 @@ func (c *configServiceClient) ReadConfigByObjectId(ctx context.Context, in *Read
 	return out, nil
 }
 
-func (c *configServiceClient) ReadSystemObjects(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*SystemObjects, error) {
+func (c *configServiceClient) ReadSystemObjects(ctx context.Context, in *ReadSystemObjectsRequest, opts ...grpc.CallOption) (*SystemObjects, error) {
 	out := new(SystemObjects)
 	err := c.cc.Invoke(ctx, "/logger.ConfigService/ReadSystemObjects", in, out, opts...)
 	if err != nil {
@@ -132,7 +132,7 @@ type ConfigServiceServer interface {
 	DeleteConfig(context.Context, *DeleteConfigRequest) (*Empty, error)
 	DeleteConfigBulk(context.Context, *DeleteConfigBulkRequest) (*Empty, error)
 	ReadConfigByObjectId(context.Context, *ReadConfigByObjectIdRequest) (*Config, error)
-	ReadSystemObjects(context.Context, *Empty) (*SystemObjects, error)
+	ReadSystemObjects(context.Context, *ReadSystemObjectsRequest) (*SystemObjects, error)
 	ReadConfig(context.Context, *ReadConfigRequest) (*Config, error)
 	SearchConfig(context.Context, *SearchConfigRequest) (*Configs, error)
 	mustEmbedUnimplementedConfigServiceServer()
@@ -160,7 +160,7 @@ func (UnimplementedConfigServiceServer) DeleteConfigBulk(context.Context, *Delet
 func (UnimplementedConfigServiceServer) ReadConfigByObjectId(context.Context, *ReadConfigByObjectIdRequest) (*Config, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadConfigByObjectId not implemented")
 }
-func (UnimplementedConfigServiceServer) ReadSystemObjects(context.Context, *Empty) (*SystemObjects, error) {
+func (UnimplementedConfigServiceServer) ReadSystemObjects(context.Context, *ReadSystemObjectsRequest) (*SystemObjects, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadSystemObjects not implemented")
 }
 func (UnimplementedConfigServiceServer) ReadConfig(context.Context, *ReadConfigRequest) (*Config, error) {
@@ -291,7 +291,7 @@ func _ConfigService_ReadConfigByObjectId_Handler(srv interface{}, ctx context.Co
 }
 
 func _ConfigService_ReadSystemObjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(ReadSystemObjectsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -303,7 +303,7 @@ func _ConfigService_ReadSystemObjects_Handler(srv interface{}, ctx context.Conte
 		FullMethod: "/logger.ConfigService/ReadSystemObjects",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigServiceServer).ReadSystemObjects(ctx, req.(*Empty))
+		return srv.(ConfigServiceServer).ReadSystemObjects(ctx, req.(*ReadSystemObjectsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

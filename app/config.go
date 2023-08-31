@@ -104,8 +104,8 @@ func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchConfigReques
 
 }
 
-func (a *App) GetSystemObjects(ctx context.Context, domainId int) (*proto.SystemObjects, error) {
-	objects, err := a.storage.Config().GetAvailableSystemObjects(ctx, domainId, DEFAULT_OBJECT_FILTER)
+func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest, domainId int) (*proto.SystemObjects, error) {
+	objects, err := a.storage.Config().GetAvailableSystemObjects(ctx, domainId, in.GetIncludeExisting(), DEFAULT_OBJECT_FILTER)
 	if err != nil {
 		return nil, err
 	}

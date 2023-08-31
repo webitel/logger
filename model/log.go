@@ -5,6 +5,7 @@ type Log struct {
 	Action   string
 	Date     NullTime
 	User     Lookup
+	Object   Lookup
 	UserIp   string
 	RecordId int
 	NewState []byte

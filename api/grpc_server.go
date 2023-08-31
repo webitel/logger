@@ -132,6 +132,9 @@ func getClientIp(info metadata.MD) string {
 }
 
 func connectConsul(config *model.ConsulConfig) errors.AppError {
+	if config.Id == "" {
+		errors.NewBadRequestError("api.grpc_server.build_consul.service_id.error", "service id is empty! (set it by '-id' flag)")
+	}
 	consul, err := discovery.NewConsul(config.Id, config.Address, func() (bool, error) {
 		return true, nil
 	})
@@ -143,7 +146,7 @@ func connectConsul(config *model.ConsulConfig) errors.AppError {
 	if err != nil {
 		return errors.NewBadRequestError("api.grpc_server.build_consul.parse_address.error", "unable to parse grpc port")
 	}
-	err = consul.RegisterService(config.Id, ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
+	err = consul.RegisterService(model.SERVICE_NAME, ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
 	if err != nil {
 		return errors.NewInternalError("api.grpc_server.build_consul.register_in_consul.error", err.Error())
 	}

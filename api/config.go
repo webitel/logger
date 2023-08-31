@@ -45,7 +45,7 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 	return s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
 }
 
-func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Empty) (*proto.SystemObjects, error) {
+func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
 
 	// region AUTHORIZATION
 	session, err := s.app.GetSessionFromCtx(ctx)
@@ -56,7 +56,7 @@ func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Em
 	if !permission.CanRead() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
-	return s.app.GetSystemObjects(ctx, int(session.DomainId))
+	return s.app.GetSystemObjects(ctx, request, int(session.DomainId))
 }
 
 // ReadConfigByObjectId used for internal purpose with client, checks if config enabled

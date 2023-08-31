@@ -39,7 +39,7 @@ type LogStore interface {
 type ConfigStore interface {
 	CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint32) (bool, errors.AppError)
 	// GetAvailableSystemObjects - get all available objects from domain which are named as [filters]
-	GetAvailableSystemObjects(ctx context.Context, domainId int, filters []string) ([]model.Lookup, errors.AppError)
+	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters []string) ([]model.Lookup, errors.AppError)
 	//CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError)
 	Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, errors.AppError)
 	Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError)

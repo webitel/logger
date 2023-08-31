@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/proto"
+	"strings"
 	"time"
 
 	errors "github.com/webitel/engine/model"
@@ -29,7 +30,7 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 		} else if v := x.GetName(); v != "" {
 			notStandartFilters = append(notStandartFilters, model.Filter{
 				Column:         "wbt_class.name",
-				Value:          v,
+				Value:          strings.Replace(v, "*", "%", -1),
 				ComparisonType: model.ILike,
 			})
 		}
@@ -94,7 +95,7 @@ func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByCon
 		} else if v := x.GetName(); v != "" {
 			notDefaultFilters = append(notDefaultFilters, model.Filter{
 				Column:         "coalesce(wbt_user.name::varchar, wbt_user.username::varchar)",
-				Value:          v,
+				Value:          strings.Replace(v, "*", "%", -1),
 				ComparisonType: model.ILike,
 			})
 		}
@@ -193,6 +194,12 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 			Name: m.User.Name.String(),
 		}
 	}
+	if !m.Object.IsZero() {
+		log.Object = &proto.Lookup{
+			Id:   int32(m.Object.Id.Int()),
+			Name: m.Object.Name.String(),
+		}
+	}
 	if !m.Date.IsZero() {
 		log.Date = m.Date.ToMilliseconds()
 	}
@@ -242,7 +249,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 	if in.GetDateFrom() != 0 {
 		result = append(result, model.Filter{
 			Column:         "log.date",
-			Value:          time.Unix(in.GetDateFrom(), 0).UTC(),
+			Value:          time.Unix(in.GetDateFrom()/1000, 0).UTC(),
 			ComparisonType: model.GreaterThanOrEqual,
 		})
 	}
@@ -258,7 +265,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 	if in.GetDateTo() != 0 {
 		result = append(result, model.Filter{
 			Column:         "log.date",
-			Value:          time.Unix(in.GetDateTo(), 0).UTC(),
+			Value:          time.Unix(in.GetDateTo()/1000, 0).UTC(),
 			ComparisonType: model.LessThanOrEqual,
 		})
 	}

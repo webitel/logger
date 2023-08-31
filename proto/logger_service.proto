@@ -35,16 +35,19 @@ message SearchLogByConfigIdRequest {
   repeated string fields = 6;
 
   // REQUIRED filter
+
   int32 config_id = 7;
 
   // SPECIFIC filter
+
   Lookup user = 9;
 
   // GENERAL filters
+
   ACTION action = 8;
-  string userIp = 10;
-  int64 dateFrom = 11;
-  int64 dateTo = 12;
+  string user_ip = 10;
+  int64 date_from = 11;
+  int64 date_to = 12;
 }
 
 message SearchLogByUserIdRequest {
@@ -63,9 +66,9 @@ message SearchLogByUserIdRequest {
 
   // GENERAL filters
   ACTION action = 8;
-  string userIp = 9;
-  int64 dateFrom = 11;
-  int64 dateTo = 12;
+  string user_ip = 9;
+  int64 date_from = 11;
+  int64 date_to = 12;
 }
 
 message Logs {
@@ -83,6 +86,7 @@ message Log {
   string new_state = 6;
   int32 config_id = 7;
   Lookup record = 8;
+  Lookup object = 9;
 }
 
 message Lookup {

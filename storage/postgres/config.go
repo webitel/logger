@@ -159,7 +159,7 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 	return row, nil
 }
 
-func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, filters []string) ([]model.Lookup, errors.AppError) {
+func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters []string) ([]model.Lookup, errors.AppError) {
 	// region CREATING QUERY
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -167,13 +167,15 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, fi
 	}
 	base := sq.Select("wbt_class.id", "wbt_class.name").
 		From("directory.wbt_class").
-		Where(sq.Expr(
-			"id NOT IN (?)",
-			sq.Select("object_id").From("logger.object_config").Where(sq.Eq{"domain_id": domainId}),
-		)).
 		Where(sq.Expr("name = any(?)", pq.Array(filters))).
 		Where(sq.Eq{"dc": domainId}).
 		PlaceholderFormat(sq.Dollar)
+	if !includeExisting {
+		base = base.Where(sq.Expr(
+			"id NOT IN (?)",
+			sq.Select("object_id").From("logger.object_config").Where(sq.Eq{"domain_id": domainId}),
+		))
+	}
 	// endregion
 	fmt.Println(base.ToSql())
 	// region PREFORM

@@ -20,8 +20,10 @@ builds:
       - windows
     goarch:
       - amd64
-      - arm
       - arm64
+      - arm
+    goarm:
+      - "7"
     ignore:
       - goos: windows
         goarch: arm

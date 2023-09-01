@@ -12,11 +12,11 @@ type Watcher struct {
 	name            string
 	stop            chan struct{}
 	stopped         chan struct{}
-	pollingInterval int
+	pollingInterval int64
 	PollAndNotify   WatcherNotify
 }
 
-func MakeWatcher(name string, pollingInterval int, pollAndNotify WatcherNotify) *Watcher {
+func MakeWatcher(name string, pollingInterval int64, pollAndNotify WatcherNotify) *Watcher {
 	return &Watcher{
 		name:            name,
 		stop:            make(chan struct{}),

@@ -37,7 +37,7 @@ func (a *App) initializeLogCleaners() errors.AppError {
 	for _, v := range *configs {
 		name := FormatKey(DeleteWatcherPrefix, v.DomainId, v.Object.Id.Int())
 		a.GetWatcherByKey(name)
-		a.watchers[name] = watcher.MakeWatcher(name, int(time.Hour)*24, a.BuildWatcherDeleteFunction(v.Id, v.DaysToStore))
+		a.watchers[name] = watcher.MakeWatcher(name, int64(time.Hour)*24, a.BuildWatcherDeleteFunction(v.Id, v.DaysToStore))
 		go a.watchers[name].Start()
 	}
 	return nil
@@ -81,7 +81,7 @@ func (a *App) UpdateDeleteWatcherWithNewInterval(configId, dayseToStore int) {
 // New interval in days
 func (a *App) InsertNewDeleteWatcher(configId, dayseToStore int) {
 	name := FormatKey(DeleteWatcherPrefix, configId)
-	a.watchers[name] = watcher.MakeWatcher(name, int(time.Hour)*24, a.BuildWatcherDeleteFunction(configId, dayseToStore))
+	a.watchers[name] = watcher.MakeWatcher(name, int64(time.Hour)*24, a.BuildWatcherDeleteFunction(configId, dayseToStore))
 }
 
 //func FormatCacheKey(prefix string, domainId int, objectId int) string {

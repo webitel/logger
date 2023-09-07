@@ -8,5 +8,5 @@ type RabbitMessage struct {
 	Action   string `json:"action,omitempty"`
 	Date     int64  `json:"date,omitempty"`
 	//DomainId int    `json:"domainId,omitempty"`
-	RecordId int `json:"recordId,omitempty"`
+	RecordId int64 `json:"recordId,omitempty"`
 }

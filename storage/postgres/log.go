@@ -23,7 +23,7 @@ func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
 	return &Log{storage: store}, nil
 }
 
-func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...model.Filter) (*[]model.Log, errors.AppError) {
+func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...model.Filter) ([]*model.Log, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
@@ -39,7 +39,7 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...mode
 	if appErr != nil {
 		return nil, appErr
 	}
-	return &res, nil
+	return res, nil
 }
 
 func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
@@ -103,7 +103,7 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 	return int(affected), nil
 }
 
-func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
+func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, errors.AppError) {
 	if rows == nil {
 		return nil, errors.NewInternalError("postgres.log.scan.check_args.rows_nil", "rows are nil")
 	}
@@ -111,7 +111,7 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.scan.get_columns.error", err.Error())
 	}
-	var logs []model.Log
+	var logs []*model.Log
 
 	for rows.Next() {
 		var log model.Log
@@ -157,7 +157,7 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]model.Log, errors.AppError) {
 		if err != nil {
 			return nil, errors.NewInternalError("postgres.log.scan.scan.error", err.Error())
 		}
-		logs = append(logs, log)
+		logs = append(logs, &log)
 	}
 	if len(logs) == 0 {
 		return nil, errors.NewBadRequestError("postgres.log.scan.check_no_rows.error", sql.ErrNoRows.Error())

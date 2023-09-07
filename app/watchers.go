@@ -34,7 +34,7 @@ func (a *App) initializeLogCleaners() errors.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	for _, v := range *configs {
+	for _, v := range configs {
 		name := FormatKey(DeleteWatcherPrefix, v.DomainId, v.Object.Id.Int())
 		a.GetWatcherByKey(name)
 		a.watchers[name] = watcher.MakeWatcher(name, int64(time.Hour)*24, a.BuildWatcherDeleteFunction(v.Id, v.DaysToStore))

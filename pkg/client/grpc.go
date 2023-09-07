@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/webitel/logger/proto"
-	"sync"
+	"github.com/webitel/logger/pkg/cache"
+	"github.com/webitel/logger/pkg/discovery"
 
-	"github.com/webitel/engine/discovery"
+	"github.com/webitel/logger/proto"
 	"github.com/webitel/wlog"
 )
 
@@ -22,13 +22,14 @@ type GrpcClient interface {
 }
 
 type grpcClient struct {
-	stop             chan struct{}
-	stopped          chan struct{}
+	//stop             chan struct{}
+	//stopped          chan struct{}
 	serviceDiscovery discovery.ServiceDiscovery
 	poolConnections  discovery.Pool
-	watcher          *discovery.Watcher
-	startOnce        sync.Once
-	isOpened         bool
+	//watcher          *discovery.Watcher
+	//startOnce        sync.Once
+	isOpened    bool
+	memoryCache cache.CacheStore
 
 	config ConfigApi
 }
@@ -45,24 +46,25 @@ func (c *grpcClient) Start() error {
 			c.registerConnection(v)
 		}
 	}
-	c.startOnce.Do(func() {
-		c.watcher = discovery.MakeWatcher("logger.watcher", WatcherInterval, c.wakeUp)
-		go c.watcher.Start()
-		go func() {
-			defer func() {
-				wlog.Debug("stopped")
-				close(c.stopped)
-			}()
 
-			for {
-				select {
-				case <-c.stop:
-					wlog.Debug("r received stop signal")
-					return
-				}
-			}
-		}()
-	})
+	//c.startOnce.Do(func() {
+	//	c.watcher = discovery.MakeWatcher("logger.watcher", WatcherInterval, c.wakeUp)
+	//	go c.watcher.Start()
+	//	go func() {
+	//		defer func() {
+	//			wlog.Debug("stopped")
+	//			close(c.stopped)
+	//		}()
+	//
+	//		for {
+	//			select {
+	//			case <-c.stop:
+	//				wlog.Debug("r received stop signal")
+	//				return
+	//			}
+	//		}
+	//	}()
+	//})
 	c.isOpened = true
 	return nil
 }
@@ -73,8 +75,8 @@ func (c *grpcClient) Stop() {
 		c.poolConnections.CloseAllConnections()
 	}
 	c.isOpened = false
-	close(c.stop)
-	<-c.stopped
+	//close(c.stop)
+	//<-c.stopped
 }
 
 func (c *grpcClient) registerConnection(v *discovery.ServiceConnection) {
@@ -127,39 +129,56 @@ func (c *grpcClient) Config() ConfigApi {
 
 func NewGrpcClient(serviceDiscovery discovery.ServiceDiscovery) GrpcClient {
 	client := &grpcClient{
-		stop:             make(chan struct{}),
-		stopped:          make(chan struct{}),
+		//stop:             make(chan struct{}),
+		//stopped:          make(chan struct{}),
 		poolConnections:  discovery.NewPoolConnections(),
 		serviceDiscovery: serviceDiscovery,
 	}
 	client.config = NewConfigApi(client)
+	client.memoryCache = cache.NewMemoryCache(&cache.MemoryCacheConfig{
+		Size:          1024,
+		DefaultExpiry: 60,
+	})
 	return client
 }
 
 type ConfigApi interface {
-	CheckIsActive(ctx context.Context, domainId, objectId int) (bool, error)
+	CheckIsActive(ctx context.Context, domainId int64, objectName string) (bool, error)
 }
 
 func NewConfigApi(cli *grpcClient) ConfigApi {
 	return &configApi{client: cli}
 }
 
+func FormatKey(domainId int64, objectName string) string {
+	return fmt.Sprintf("logger.config.%d.%s", domainId, objectName)
+}
+
 type configApi struct {
 	client *grpcClient
 }
 
-func (c *configApi) CheckIsActive(ctx context.Context, domainId, objectId int) (bool, error) {
-	in := &proto.ReadConfigByObjectIdRequest{
-		ObjectId: int32(objectId),
-		DomainId: int32(domainId),
-	}
-	conn, err := c.client.getRandomClient()
+func (c *configApi) CheckIsActive(ctx context.Context, domainId int64, objectName string) (bool, error) {
+	cacheKey := FormatKey(domainId, objectName)
+	enabled, err := c.client.memoryCache.Get(ctx, cacheKey)
 	if err != nil {
-		return false, err
+		in := &proto.CheckConfigStatusRequest{
+			ObjectName: objectName,
+			DomainId:   domainId,
+		}
+		conn, err := c.client.getRandomClient()
+		if err != nil {
+			return false, err
+		}
+		res, err := conn.config.CheckConfigStatus(ctx, in)
+		if err != nil {
+			return false, err
+		}
+		c.client.memoryCache.Set(ctx, cacheKey, res.GetIsEnabled(), 120)
+		if err != nil {
+			return false, err
+		}
+		return res.GetIsEnabled(), nil
 	}
-	res, err := conn.config.ReadConfigByObjectId(ctx, in)
-	if err != nil {
-		return false, err
-	}
-	return res.GetEnabled(), nil
+	return enabled.Raw().(bool), nil
 }

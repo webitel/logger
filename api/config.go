@@ -59,9 +59,14 @@ func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Re
 	return s.app.GetSystemObjects(ctx, request, int(session.DomainId))
 }
 
-// ReadConfigByObjectId used for internal purpose with client, checks if config enabled
+// ReadConfigByObjectId used for internal purpose
 func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.ReadConfigByObjectIdRequest) (*proto.Config, error) {
 	return s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
+}
+
+// ReadConfigByObjectId used for internal purpose with client, checks if config enabled
+func (s *ConfigService) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatusRequest) (*proto.ConfigStatus, error) {
+	return s.app.CheckConfigStatus(ctx, in)
 }
 
 // SearchConfig selects all configs by domainId

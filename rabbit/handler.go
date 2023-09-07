@@ -29,8 +29,8 @@ func NewHandler(app *app.App) (*Handler, errors.AppError) {
 func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.AppError {
 	var (
 		m      client.Message
-		domain int
-		object int
+		domain int64
+		object string
 	)
 	err := json.Unmarshal(message.Body, &m)
 	if err != nil {
@@ -41,40 +41,25 @@ func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.App
 
 	splittedKey := strings.Split(message.RoutingKey, ".")
 	if len(splittedKey) >= 3 {
-		domain, _ = strconv.Atoi(splittedKey[1])
-		object, _ = strconv.Atoi(splittedKey[2])
+		domain, _ = strconv.ParseInt(splittedKey[1], 10, 64)
+		object = splittedKey[2]
 	}
-	if m.RecordsStates != nil {
+	if m.Records != nil {
 		var rabbitMessages []*model.RabbitMessage
-		for i, v := range m.RecordsStates {
+		for _, v := range m.Records {
 			rabbitMessage := &model.RabbitMessage{
 				//ObjectId: object,
-				NewState: v,
+				NewState: v.NewState,
 				UserId:   m.UserId,
 				UserIp:   m.UserIp,
 				Action:   m.Action,
 				Date:     m.Date,
 				//DomainId: domain,
-				RecordId: i,
+				RecordId: v.Id,
 			}
 			rabbitMessages = append(rabbitMessages, rabbitMessage)
 		}
 		appErr := h.app.InsertLogByRabbitMessageBulk(ctx, rabbitMessages, domain, object)
-		if appErr != nil {
-			return appErr
-		}
-	} else {
-		rabbitMessage := &model.RabbitMessage{
-			//	ObjectId: domain,
-			NewState: m.NewState,
-			UserId:   m.UserId,
-			UserIp:   m.UserIp,
-			Action:   m.Action,
-			Date:     m.Date,
-			//DomainId: domain,
-			RecordId: m.RecordId,
-		}
-		appErr := h.app.InsertLogByRabbitMessage(ctx, rabbitMessage, domain, object)
 		if appErr != nil {
 			return appErr
 		}

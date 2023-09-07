@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/webitel/engine/discovery"
+	"github.com/webitel/logger/pkg/discovery"
 )
 
 type Client struct {

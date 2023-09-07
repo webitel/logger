@@ -7,6 +7,7 @@ import (
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/proto"
 	"github.com/webitel/wlog"
+	"strings"
 	"time"
 
 	errors "github.com/webitel/engine/model"
@@ -178,6 +179,54 @@ func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions
 
 }
 
+func (a *App) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatusRequest) (*proto.ConfigStatus, errors.AppError) {
+
+	var (
+		response proto.ConfigStatus
+	)
+
+	cacheKey := FormatKey("config.objectId", in.GetDomainId(), in.GetObjectName())
+	objectName := strings.ToLower(in.GetObjectName())
+	domainId := in.GetDomainId()
+
+	value, err := a.cache.Get(ctx, cacheKey)
+	if err != nil {
+		searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, model.Filter{
+			Column:         "wbt_class.name",
+			Value:          objectName,
+			ComparisonType: model.ILike,
+		},
+			model.Filter{
+				Column:         "object_config.domain_id",
+				Value:          domainId,
+				ComparisonType: model.Equal,
+			})
+		if appErr != nil {
+			if IsErrNoRows(appErr) {
+				err = a.cache.Set(ctx, cacheKey, false, MEMORY_CACHE_DEFAULT_EXPIRES)
+				if err != nil {
+					wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
+				}
+				response.IsEnabled = false
+				return &response, nil
+			}
+
+			return nil, appErr
+		}
+		enabled := searchResult[0].Enabled
+		err := a.cache.Set(ctx, cacheKey, enabled, MEMORY_CACHE_DEFAULT_EXPIRES)
+		if err != nil {
+			wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
+		}
+		response.IsEnabled = enabled
+	} else {
+		response.IsEnabled = value.Raw().(bool)
+	}
+
+	return &response, nil
+
+}
+
 func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*proto.Config, errors.AppError) {
 	var res *proto.Config
 	newModel, appErr := a.storage.Config().GetById(ctx, rbac, id)
@@ -245,8 +294,8 @@ func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, domain
 			return nil, err
 		}
 	}
-	for _, v := range *modelConfigs {
-		proto, err := a.convertConfigModelToMessage(&v)
+	for _, v := range modelConfigs {
+		proto, err := a.convertConfigModelToMessage(v)
 		if err != nil {
 			return nil, err
 		}

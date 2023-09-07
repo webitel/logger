@@ -619,6 +619,15 @@
         }
       }
     },
+    "loggerConfigStatus": {
+      "type": "object",
+      "properties": {
+        "is_enabled": {
+          "type": "boolean",
+          "format": "boolean"
+        }
+      }
+    },
     "loggerConfigs": {
       "type": "object",
       "properties": {

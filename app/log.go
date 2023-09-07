@@ -60,8 +60,8 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 
 	// endregion
 	//region CONVERT TO RESPONSE
-	for _, v := range *modelLogs {
-		protoLog, err := convertLogModelToMessage(&v)
+	for _, v := range modelLogs {
+		protoLog, err := convertLogModelToMessage(v)
 		if err != nil {
 			return nil, err
 		}
@@ -123,8 +123,8 @@ func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByCon
 	}
 	// endregion
 	//region CONVERT TO RESPONSE
-	for _, v := range *modelLogs {
-		protoLog, err := convertLogModelToMessage(&v)
+	for _, v := range modelLogs {
+		protoLog, err := convertLogModelToMessage(v)
 		if err != nil {
 			return nil, err
 		}
@@ -159,11 +159,24 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 
 }
 
-func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId, objectId int) errors.AppError {
-	config, err := a.storage.Config().GetByObjectId(ctx, int(domainId), int(objectId))
+func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64, objectName string) errors.AppError {
+	searchResult, err := a.storage.Config().Get(ctx, nil, nil,
+		model.Filter{
+			Column:         "wbt_class.name",
+			Value:          objectName,
+			ComparisonType: model.Like,
+		},
+		model.Filter{
+			Column:         "object_config.domain_id",
+			Value:          domainId,
+			ComparisonType: model.Equal,
+		},
+	)
 	if err != nil {
 		return err
 	}
+	config := searchResult[0]
+
 	logs, err := convertRabbitMessageToModelBulk(rabbitMessages, config.Id)
 	if err != nil {
 		return err

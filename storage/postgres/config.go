@@ -8,6 +8,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
+	"github.com/webitel/wlog"
 	"strings"
 	"time"
 
@@ -159,7 +160,7 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int) (*m
 	return row, nil
 }
 
-func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters []string) ([]model.Lookup, errors.AppError) {
+func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters []string) ([]*model.Lookup, errors.AppError) {
 	// region CREATING QUERY
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -187,14 +188,14 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 	defer rows.Close()
 	// endregion
 	// region SCAN
-	var res []model.Lookup
+	var res []*model.Lookup
 	for rows.Next() {
 		var obj model.Lookup
 		r := rows.Scan(&obj.Id, &obj.Name)
 		if r != nil {
 			return nil, errors.NewInternalError("postgres.config.get_available_objects.scan.fail", r.Error())
 		}
-		res = append(res, obj)
+		res = append(res, &obj)
 	}
 	if appErr != nil {
 		return nil, appErr
@@ -214,6 +215,8 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 		Where("acl.subject = any( ?::int[])", pq.Array(groups)).
 		Where("acl.access & ? = ?", access, access).PlaceholderFormat(sq.Dollar)
 	base := sq.Select("1").Where(sq.Expr("exists(?)", subquery))
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	res := base.RunWith(db).QueryRowContext(ctx)
 	var ac bool
 	err := res.Scan(&ac)
@@ -228,7 +231,11 @@ func (c *Config) Delete(ctx context.Context, id int32) errors.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	res, err := sq.Delete("logger.object_config").Where(sq.Eq{"id": id}).PlaceholderFormat(sq.Dollar).RunWith(db).ExecContext(ctx)
+	base := sq.Delete("logger.object_config").Where(sq.Eq{"id": id}).PlaceholderFormat(sq.Dollar)
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
+	res, err := base.RunWith(db).ExecContext(ctx)
+	wlog.Debug(sql)
 	if err != nil {
 		return errors.NewInternalError("postgres.config.delete.query.error", err.Error())
 	}
@@ -253,6 +260,8 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 			Limit(1)
 		base = base.Where(sq.Expr("exists(?)", subquery))
 	}
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return errors.NewInternalError("postgres.config.delete_many.query.error", err.Error())
@@ -269,7 +278,8 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 		return nil, appErr
 	}
 	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.object_id": objId}, sq.Eq{"object_config.domain_id": domainId})
-
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 
 	if err != nil {
@@ -289,6 +299,8 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 		return nil, appErr
 	}
 	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{"object_config.id": id})
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
@@ -301,13 +313,16 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	return config, nil
 }
 
-func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) (*[]model.Config, errors.AppError) {
+func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) ([]*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
 	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters...)
 	rows, err := base.RunWith(db).QueryContext(ctx)
+	sql, args, _ := base.ToSql()
+	fmt.Println(args)
+	wlog.Debug(sql)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
 	}
@@ -316,7 +331,7 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 	if appErr != nil {
 		return nil, appErr
 	}
-	return &res, nil
+	return res, nil
 }
 
 // endregion
@@ -328,10 +343,10 @@ func (c *Config) ScanRow(rows *sql.Rows) (*model.Config, errors.AppError) {
 	if err != nil {
 		return nil, err
 	}
-	return &res[0], nil
+	return res[0], nil
 }
 
-func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
+func (c *Config) ScanRows(rows *sql.Rows) ([]*model.Config, errors.AppError) {
 	if rows == nil {
 		return nil, errors.NewInternalError("postgres.config.scan.check_args.rows_nil", "rows are nil")
 	}
@@ -339,7 +354,7 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.scan.get_columns.error", err.Error())
 	}
-	var configs []model.Config
+	var configs []*model.Config
 
 	for rows.Next() {
 		var config model.Config
@@ -393,7 +408,7 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]model.Config, errors.AppError) {
 		if err != nil {
 			return nil, errors.NewInternalError("postgres.config.scan.scan.error", err.Error())
 		}
-		configs = append(configs, config)
+		configs = append(configs, &config)
 	}
 	if len(configs) == 0 {
 		return nil, errors.NewBadRequestError("postgres.config.scan.check_no_rows.error", sql.ErrNoRows.Error())

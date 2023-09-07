@@ -17,24 +17,20 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
     goarch:
       - amd64
       - arm64
       - arm
     goarm:
       - "7"
-    ignore:
-      - goos: windows
-        goarch: arm
     mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/kirychukyurii/wdeploy/cmd.version={{ .Version }}
-      - -X github.com/kirychukyurii/wdeploy/cmd.commit={{ .Commit }}
-      - -X github.com/kirychukyurii/wdeploy/cmd.commitDate={{ .CommitDate }}
+      - -X github.com/webitel/logger/cmd.version={{ .Version }}
+      - -X github.com/webitel/logger/cmd.commit={{ .Commit }}
+      - -X github.com/webitel/logger/cmd.commitDate={{ .CommitDate }}
 
 universal_binaries:
   - replace: false

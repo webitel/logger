@@ -97,12 +97,6 @@ nfpms:
     # Templates: allowed. (since v1.18)
     package_name: webitel-logger
 
-    # You can change the file name of the package.
-    #
-    # Default: '{{ .PackageName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
-    # Templates: allowed.
-    file_name_template: "{{ .ConventionalFileName }}"
-
     # Your app's vendor.
     vendor: Webitel Ltd.
 
@@ -156,25 +150,6 @@ nfpms:
       lintian_overrides:
         - statically-linked-binary
         - changelog-file-missing-in-native-package
-
-      # The package is signed if a key_file is set
-      signature:
-        # PGP secret key file path (can also be ASCII-armored).
-        # The passphrase is taken from the environment variable
-        # `$NFPM_ID_DEB_PASSPHRASE` with a fallback to `$NFPM_ID_PASSPHRASE`,
-        # where ID is the id of the current nfpm config.
-        # The id will be transformed to uppercase.
-        # E.g. If your nfpm id is 'default' then the deb-specific passphrase
-        # should be set as `$NFPM_DEFAULT_DEB_PASSPHRASE`
-        #
-        # Templates: allowed.
-        key_file: "{{ .Env.GPG_KEY_PATH }}"
-
-        # The type describes the signers role, possible values are "origin",
-        # "maint" and "archive".
-        #
-        # Default: 'origin'
-        type: origin
 
 milestones:
   - close: true

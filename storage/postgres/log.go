@@ -195,7 +195,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	}
 	base := c.GetQueryBase(fields)
 	if opt.Search != "" {
-		base = base.Where(sq.Like{"user_ip": opt.Search})
+		base = base.Where(sq.Like{"user_ip": opt.Search + "%"})
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")

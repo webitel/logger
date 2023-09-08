@@ -216,6 +216,12 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	if !m.Date.IsZero() {
 		log.Date = m.Date.ToMilliseconds()
 	}
+	if m.RecordId != 0 {
+		log.Record = &proto.Lookup{
+			Id:   int32(m.RecordId),
+			Name: "",
+		}
+	}
 	return log, nil
 }
 
@@ -253,7 +259,7 @@ type LogSearch interface {
 	GetDateFrom() int64
 	GetDateTo() int64
 	GetUserIp() string
-	GetAction() proto.ACTION
+	GetAction() proto.Action
 }
 
 func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
@@ -267,7 +273,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 		})
 	}
 
-	if in.GetAction() != proto.ACTION_DEFAULT_NO_ACTION {
+	if in.GetAction() != proto.Action_default_no_action {
 		result = append(result, model.Filter{
 			Column:         "log.action",
 			Value:          in.GetAction().String(),

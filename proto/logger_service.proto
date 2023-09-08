@@ -18,12 +18,12 @@ service LoggerService {
   }
 }
 
-enum ACTION {
-  DEFAULT_NO_ACTION = 0;
-  CREATE = 1;
-  UPDATE = 2;
-  READ = 3;
-  DELETE = 4;
+enum Action {
+  default_no_action = 0;
+  create = 1;
+  update = 2;
+  read = 3;
+  delete = 4;
 }
 
 message SearchLogByConfigIdRequest {
@@ -44,7 +44,7 @@ message SearchLogByConfigIdRequest {
 
   // GENERAL filters
 
-  ACTION action = 8;
+  Action action = 8;
   string user_ip = 10;
   int64 date_from = 11;
   int64 date_to = 12;
@@ -65,7 +65,7 @@ message SearchLogByUserIdRequest {
   Lookup object = 10;
 
   // GENERAL filters
-  ACTION action = 8;
+  Action action = 8;
   string user_ip = 9;
   int64 date_from = 11;
   int64 date_to = 12;

@@ -86,9 +86,13 @@ func ExtractSearchOptions(t Search) *model.SearchOptions {
 	}
 	if t.GetSize() <= 0 || t.GetSize() > MAX_PAGE_SIZE {
 		res.Size = DEFAULT_PAGE_SIZE
+	} else {
+		res.Size = int(t.GetSize())
 	}
 	if t.GetPage() <= 0 {
 		res.Page = DEFAULT_PAGE
+	} else {
+		res.Page = int(t.GetPage())
 	}
 	if t.GetQ() != "" {
 		res.Search = strings.Replace(res.Search, "*", "%", -1)

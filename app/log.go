@@ -273,7 +273,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
 		})
 	}
 
-	if in.GetAction() != proto.Action_DefaultNoAction {
+	if in.GetAction() != proto.Action_default_no_action {
 		result = append(result, model.Filter{
 			Column:         "log.action",
 			Value:          in.GetAction().String(),

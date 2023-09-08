@@ -423,13 +423,13 @@
             "required": false,
             "type": "string",
             "enum": [
-              "DefaultNoAction",
-              "Create",
-              "Update",
-              "Read",
-              "Delete"
+              "default_no_action",
+              "create",
+              "update",
+              "read",
+              "delete"
             ],
-            "default": "DefaultNoAction"
+            "default": "default_no_action"
           },
           {
             "name": "user_ip",
@@ -542,13 +542,13 @@
             "required": false,
             "type": "string",
             "enum": [
-              "DefaultNoAction",
-              "Create",
-              "Update",
-              "Read",
-              "Delete"
+              "default_no_action",
+              "create",
+              "update",
+              "read",
+              "delete"
             ],
-            "default": "DefaultNoAction"
+            "default": "default_no_action"
           },
           {
             "name": "user_ip",
@@ -581,13 +581,13 @@
     "loggerAction": {
       "type": "string",
       "enum": [
-        "DefaultNoAction",
-        "Create",
-        "Update",
-        "Read",
-        "Delete"
+        "default_no_action",
+        "create",
+        "update",
+        "read",
+        "delete"
       ],
-      "default": "DefaultNoAction"
+      "default": "default_no_action"
     },
     "loggerConfig": {
       "type": "object",

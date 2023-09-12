@@ -17,9 +17,9 @@ const (
 	MEMORY_CACHE_DEFAULT_EXPIRES = 2 * 60
 )
 
-var (
-	DEFAULT_OBJECT_FILTER = []string{"schema", "cc_queue"}
-)
+//var (
+//	DEFAULT_OBJECT_FILTER = []string{"schema", "cc_queue"}
+//)
 
 func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
@@ -106,7 +106,12 @@ func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchConfigReques
 }
 
 func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest, domainId int) (*proto.SystemObjects, error) {
-	objects, err := a.storage.Config().GetAvailableSystemObjects(ctx, domainId, in.GetIncludeExisting(), DEFAULT_OBJECT_FILTER)
+	var filters []string
+	for _, name := range proto.AvailableSystemObjects_name {
+		filters = append(filters, name)
+	}
+	objects, err := a.storage.Config().GetAvailableSystemObjects(ctx, domainId, in.GetIncludeExisting(),
+		filters...)
 	if err != nil {
 		return nil, err
 	}

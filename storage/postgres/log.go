@@ -51,9 +51,9 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	_, err := db.ExecContext(ctx,
 		`INSERT INTO
 			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id, object_name)
-			select $1, $2, $3, $4, $5, $6, $7, directory.wbt_class.name FROM logger.object_config c INNER JOIN directory.wbt_class o ON $7 = o.id
+			 $1, $2, $3, $4, $5, $6, $7, $8
 		`,
-		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId,
+		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name,
 	)
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())

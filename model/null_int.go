@@ -55,6 +55,9 @@ func NewNullInt(i any) (*NullInt, error) {
 	case int:
 		value := int64(data)
 		return (*NullInt)(&value), nil
+	case int32:
+		value := int64(data)
+		return (*NullInt)(&value), nil
 	case string:
 		var (
 			value int64

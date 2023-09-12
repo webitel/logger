@@ -141,6 +141,11 @@ message ReadConfigRequest {
   //  int32 domainId = 8;
 }
 
+enum AvailableSystemObjects {
+  cc_queue = 0;
+  schema = 1;
+}
+
 message SearchConfigRequest {
   int32 page = 1;
   int32 size = 2;

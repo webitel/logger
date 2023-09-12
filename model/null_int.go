@@ -3,9 +3,10 @@ package model
 import (
 	"database/sql/driver"
 	"fmt"
+	"strconv"
 )
 
-type NullInt int
+type NullInt int64
 
 // - database/sql.Valuer
 func (t NullInt) Value() (driver.Value, error) {
@@ -47,8 +48,27 @@ func (t *NullInt) Int32() int32 {
 	return 0
 }
 
-func NewNullInt(i int) *NullInt {
-	return (*NullInt)(&i)
+func NewNullInt(i any) (*NullInt, error) {
+	switch data := i.(type) {
+	case int64:
+		return (*NullInt)(&data), nil
+	case int:
+		value := int64(data)
+		return (*NullInt)(&value), nil
+	case string:
+		var (
+			value int64
+			err   error
+		)
+		value, err = strconv.ParseInt(data, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return (*NullInt)(&value), nil
+	default:
+		return nil, fmt.Errorf("null_int: unknown format")
+	}
+
 }
 
 func (t *NullInt) Scan(v interface{}) error {

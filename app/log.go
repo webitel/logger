@@ -216,12 +216,18 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	if !m.Date.IsZero() {
 		log.Date = m.Date.ToMilliseconds()
 	}
-	if m.RecordId != 0 {
+	if s := m.Record.Id.Int32(); s != 0 {
 		log.Record = &proto.Lookup{
-			Id:   int32(m.RecordId),
-			Name: "",
+			Id:   s,
+			Name: m.Record.Name.String(),
 		}
 	}
+	//if s := m.Record.Name.String(); s != 0 {
+	//	log.Record = &proto.Lookup{
+	//		Id:  s,
+	//
+	//	}
+	//}
 	return log, nil
 }
 
@@ -231,14 +237,18 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
 		UserIp:   m.UserIp,
 		NewState: m.NewState,
-		RecordId: m.RecordId,
 		ConfigId: configId,
-		User:     model.Lookup{Id: model.NewNullInt(m.UserId)},
 	}
-	// log.User = m.UserId)
-	//if err != nil {
-	//	return nil, errors.NewBadRequestError("app.log.convert_rabbit_message_to_model.scan.error", err.Error())
-	//}
+	userId, err := model.NewNullInt(m.UserId)
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.convert_rabbit_message.convert_to_null_user.error", err.Error())
+	}
+	log.User = model.Lookup{Id: userId}
+	recordId, err := model.NewNullInt(m.RecordId)
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.convert_rabbit_message.convert_to_null_record.error", err.Error())
+	}
+	log.Record = model.Lookup{Id: recordId}
 
 	return log, nil
 }

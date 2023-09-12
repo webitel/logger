@@ -119,17 +119,6 @@ nfpms:
     umask: 0o002
     bindir: /usr/local/bin
 
-    # Version Epoch.
-    # Default: extracted from `version` if it is semver compatible
-    epoch: 2
-
-    # Version Metadata (previously deb.metadata).
-    # Setting metadata might interfere with version comparisons depending on the
-    # packager.
-    #
-    # Default: extracted from `version` if it is semver compatible
-    version_metadata: git
-
     # Version Release.
     release: 23.09
 

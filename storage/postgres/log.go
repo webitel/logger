@@ -8,6 +8,7 @@ import (
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
+	"github.com/webitel/wlog"
 	"strings"
 	"time"
 )
@@ -49,12 +50,10 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	}
 	_, err := db.ExecContext(ctx,
 		`INSERT INTO
-			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id) 
-		VALUES
-			(
-			$1, $2, $3, $4, $5, $6, $7
-			)`,
-		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.RecordId, log.ConfigId,
+			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id, object_name)
+			select $1, $2, $3, $4, $5, $6, $7, directory.wbt_class.name FROM logger.object_config c INNER JOIN directory.wbt_class o ON $7 = o.id
+		`,
+		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId,
 	)
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
@@ -68,15 +67,17 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	return nil
 }
 
-func (c *Log) InsertMany(ctx context.Context, log []*model.Log) errors.AppError {
+func (c *Log) InsertMany(ctx context.Context, logs []*model.Log) errors.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id").PlaceholderFormat(sq.Dollar)
-	for _, v := range log {
-		base = base.Values(v.Date, v.Action, v.User.Id, v.UserIp, v.NewState, v.RecordId, v.ConfigId)
+	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id", "object_name").PlaceholderFormat(sq.Dollar)
+	for _, log := range logs {
+		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name)
 	}
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	_, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.query.error", err.Error())
@@ -132,7 +133,7 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, errors.AppError) {
 			case "new_state":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.NewState })
 			case "record_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.RecordId })
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Record.Id })
 			case "action":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Action })
 			case "config_id":
@@ -177,7 +178,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 			fields = append(fields, "log.user_ip")
 		case "new_state":
 			fields = append(fields, "log.new_state")
-		case "record_id":
+		case "record":
 			fields = append(fields, "log.record_id")
 		case "action":
 			fields = append(fields, "log.action")
@@ -186,7 +187,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		case "user":
 			fields = append(fields, "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name", "log.user_id")
 		case "object":
-			fields = append(fields, "wbt_class.id as object_id", "wbt_class.name as object_name")
+			fields = append(fields, "object_config.object_id", "log.object_name")
 		}
 	}
 	if len(fields) == 0 {
@@ -217,13 +218,80 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 }
 
 func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
-	return sq.Select(fields...).
+	base := sq.Select(fields...).
 		From("logger.log").
 		JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id").
 		JoinClause("LEFT JOIN logger.object_config ON object_config.id = log.config_id").
-		JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
+		//JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
 		PlaceholderFormat(sq.Dollar)
+
+	return base
 }
+
+//func (c *Log) FillRecordLookup(ctx context.Context, models []*model.Log, domainId int64) errors.AppError {
+//	var (
+//		uniqueRecordIds map[string][]int64 // determining what records should be selected in the query
+//		resultLookups   []*model.Lookup
+//	)
+//
+//	// range through all records to know the unique record for each object
+//	for _, record := range models {
+//		if objectName := record.Object.Name.String(); objectName != "" { // check for valid object name
+//			if record.Record.Id.Int() != 0 { // check for valid record id
+//				if value, ok := uniqueRecordIds[objectName]; ok {
+//					// ! append to the existing table
+//					uniqueRecordIds[objectName] = append(value, record.Record.Id.Int64())
+//				} else {
+//					uniqueRecordIds[objectName] = []int64{record.Record.Id.Int64()}
+//				}
+//			}
+//		}
+//	}
+//
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return appErr
+//	}
+//	for key, values := range uniqueRecordIds {
+//
+//		base, appErr := c.GetRecordQuery(key, domainId, values)
+//		if appErr != nil {
+//			continue
+//		}
+//		query, args, _ := base.ToSql()
+//		queryRes, err := db.QueryxContext(ctx, query, args)
+//		//queryRes, err := base.RunWith(db).PlaceholderFormat(sq.Dollar).QueryContext(ctx)
+//		if err != nil {
+//			return errors.NewInternalError("postgres.log.fill_record_lookup.query.fail", err.Error())
+//		}
+//		for queryRes.Next() {
+//			var res model.Lookup
+//			err = queryRes.StructScan(&res)
+//			if err != nil {
+//				return errors.NewInternalError("postgres.log.fill_record_lookup.scan.fail", err.Error())
+//			}
+//			resultLookups = append(resultLookups, &res)
+//		}
+//		for _, log := range models {
+//			for _, lookup := range resultLookups {
+//				if log.Object.Name.String() == key && log.Record.Id.Int64() == lookup.Id.Int64() {
+//					log.Record.Name = model.NewNullString(lookup.Name.String())
+//				}
+//			}
+//		}
+//	}
+//	return nil
+//}
+
+//func (c *Log) GetRecordQuery(objectName string, domainId int64, recordsId []int64) (sq.SelectBuilder, errors.AppError) {
+//	value, ok := storage.RecordTablesMapping[objectName]
+//	if !ok {
+//		errors.NewInternalError("postgres.log.get_record_query.search_for_table.fail", "there are record in logs that has unknown object")
+//	}
+//	base := sq.Select("id", value.ColumnName).From(value.GetFullPath()).Where(sq.Eq{value.ColumnDomain: domainId}).Where("id = any(?)", pq.Array(recordsId))
+//
+//	return base, nil
+//}
 
 func (c *Log) getFields() []string {
 	return []string{
@@ -236,7 +304,7 @@ func (c *Log) getFields() []string {
 		"log.record_id",
 		"log.action",
 		"log.config_id",
-		"wbt_class.id as object_id",
-		"wbt_class.name as object_name",
+		"object_config.object_id",
+		"log.object_name",
 	}
 }

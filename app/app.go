@@ -82,7 +82,7 @@ type Search interface {
 func ExtractSearchOptions(t Search) *model.SearchOptions {
 	var res model.SearchOptions
 	if t.GetSort() != "" {
-		res.Sort = ConvertSort(res.Sort)
+		res.Sort = ConvertSort(t.GetSort())
 	}
 	if t.GetSize() <= 0 || t.GetSize() > MAX_PAGE_SIZE {
 		res.Size = DEFAULT_PAGE_SIZE
@@ -95,7 +95,10 @@ func ExtractSearchOptions(t Search) *model.SearchOptions {
 		res.Page = int(t.GetPage())
 	}
 	if t.GetQ() != "" {
-		res.Search = strings.Replace(res.Search, "*", "%", -1)
+		//	if input := strings.Replace(t.GetQ(), "*", "%", -1); input == "" {
+		res.Search = strings.Replace(t.GetQ(), "*", "%", -1)
+		//	}
+
 	}
 	if s := t.GetFields(); len(s) != 0 {
 		res.Fields = s

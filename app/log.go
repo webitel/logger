@@ -23,13 +23,13 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 	if x := in.GetObject(); x != nil {
 		if v := x.GetId(); v != 0 {
 			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "wbt_class.id",
+				Column:         "object_config.object_id",
 				Value:          v,
 				ComparisonType: model.Equal,
 			})
 		} else if v := x.GetName(); v != "" {
 			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "wbt_class.name",
+				Column:         "log.object_name",
 				Value:          strings.Replace(v, "*", "%", -1),
 				ComparisonType: model.ILike,
 			})
@@ -216,12 +216,18 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	if !m.Date.IsZero() {
 		log.Date = m.Date.ToMilliseconds()
 	}
-	if m.RecordId != 0 {
+	if s := m.Record.Id.Int32(); s != 0 {
 		log.Record = &proto.Lookup{
-			Id:   int32(m.RecordId),
-			Name: "",
+			Id:   s,
+			Name: m.Record.Name.String(),
 		}
 	}
+	//if s := m.Record.Name.String(); s != 0 {
+	//	log.Record = &proto.Lookup{
+	//		Id:  s,
+	//
+	//	}
+	//}
 	return log, nil
 }
 
@@ -231,14 +237,19 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
 		UserIp:   m.UserIp,
 		NewState: m.NewState,
-		RecordId: m.RecordId,
 		ConfigId: configId,
-		User:     model.Lookup{Id: model.NewNullInt(m.UserId)},
+		Object:   model.Lookup{Name: model.NewNullString(m.Schema)},
 	}
-	// log.User = m.UserId)
-	//if err != nil {
-	//	return nil, errors.NewBadRequestError("app.log.convert_rabbit_message_to_model.scan.error", err.Error())
-	//}
+	userId, err := model.NewNullInt(m.UserId)
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.convert_rabbit_message.convert_to_null_user.error", err.Error())
+	}
+	log.User = model.Lookup{Id: userId}
+	recordId, err := model.NewNullInt(m.RecordId)
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.convert_rabbit_message.convert_to_null_record.error", err.Error())
+	}
+	log.Record = model.Lookup{Id: recordId}
 
 	return log, nil
 }

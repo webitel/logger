@@ -9,4 +9,5 @@ type RabbitMessage struct {
 	Date     int64  `json:"date,omitempty"`
 	//DomainId int    `json:"domainId,omitempty"`
 	RecordId int64 `json:"recordId,omitempty"`
+	Schema   string
 }

@@ -323,7 +323,11 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
-	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
+	storageId, err := model.NewNullInt(in.GetStorage().GetId())
+	if err != nil {
+		return nil, errors.NewInternalError("app.config.convert_update_config_message.convert_storage_id.fail", err.Error())
+	}
+	config.Storage.Id = storageId
 	return config, nil
 }
 
@@ -338,7 +342,11 @@ func (a *App) convertPatchConfigMessageToModel(in *proto.PatchConfigRequest, dom
 		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
-	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
+	storageId, err := model.NewNullInt(in.GetStorage().GetId())
+	if err != nil {
+		return nil, errors.NewInternalError("app.config.convert_patch_config_message.convert_storage_id.fail", err.Error())
+	}
+	config.Storage.Id = storageId
 	return config, nil
 }
 
@@ -353,8 +361,17 @@ func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, d
 		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
-	config.Object.Id = model.NewNullInt(int(in.GetObject().GetId()))
-	config.Storage.Id = model.NewNullInt(int(in.GetStorage().GetId()))
+	objectId, err := model.NewNullInt(in.GetObject().GetId())
+	if err != nil {
+		return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_object_id.fail", err.Error())
+	}
+	config.Object.Id = objectId
+
+	storageId, err := model.NewNullInt(in.GetObject().GetId())
+	if err != nil {
+		return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
+	}
+	config.Storage.Id = storageId
 	return config, nil
 }
 

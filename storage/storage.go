@@ -24,6 +24,22 @@ type Storage interface {
 	Close() errors.AppError
 }
 
+//var RecordTablesMapping = map[string]TableProperties{
+//	"schema":   {Schema: "flow", Table: "acr_routing_scheme", ColumnDomain: "domain_id", ColumnName: "name"},
+//	"cc_queue": {Schema: "call_center", Table: "cc_queue", ColumnDomain: "domain_id", ColumnName: "name"},
+//}
+//
+//type TableProperties struct {
+//	Schema       string
+//	Table        string
+//	ColumnDomain string
+//	ColumnName   string
+//}
+//
+//func (t *TableProperties) GetFullPath() string {
+//	return fmt.Sprintf("%s.%s", t.Schema, t.Table)
+//}
+
 type LogStore interface {
 	Insert(context.Context, *model.Log) errors.AppError
 	//GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError)

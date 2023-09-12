@@ -23,13 +23,13 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 	if x := in.GetObject(); x != nil {
 		if v := x.GetId(); v != 0 {
 			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "wbt_class.id",
+				Column:         "object_config.object_id",
 				Value:          v,
 				ComparisonType: model.Equal,
 			})
 		} else if v := x.GetName(); v != "" {
 			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "wbt_class.name",
+				Column:         "log.object_name",
 				Value:          strings.Replace(v, "*", "%", -1),
 				ComparisonType: model.ILike,
 			})
@@ -238,6 +238,7 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 		UserIp:   m.UserIp,
 		NewState: m.NewState,
 		ConfigId: configId,
+		Object:   model.Lookup{Name: model.NewNullString(m.Schema)},
 	}
 	userId, err := model.NewNullInt(m.UserId)
 	if err != nil {

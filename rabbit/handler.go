@@ -56,6 +56,7 @@ func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.App
 				Date:     m.Date,
 				//DomainId: domain,
 				RecordId: v.Id,
+				Schema:   object,
 			}
 			rabbitMessages = append(rabbitMessages, rabbitMessage)
 		}

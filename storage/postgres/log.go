@@ -8,6 +8,7 @@ import (
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
+	"github.com/webitel/wlog"
 	"strings"
 	"time"
 )
@@ -49,11 +50,9 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	}
 	_, err := db.ExecContext(ctx,
 		`INSERT INTO
-			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id) 
-		VALUES
-			(
-			$1, $2, $3, $4, $5, $6, $7
-			)`,
+			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id, object_name)
+			select $1, $2, $3, $4, $5, $6, $7, directory.wbt_class.name FROM logger.object_config c INNER JOIN directory.wbt_class o ON $7 = o.id
+		`,
 		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId,
 	)
 	if err != nil {
@@ -68,15 +67,17 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	return nil
 }
 
-func (c *Log) InsertMany(ctx context.Context, log []*model.Log) errors.AppError {
+func (c *Log) InsertMany(ctx context.Context, logs []*model.Log) errors.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id").PlaceholderFormat(sq.Dollar)
-	for _, v := range log {
-		base = base.Values(v.Date, v.Action, v.User.Id, v.UserIp, v.NewState, v.Record.Id, v.ConfigId)
+	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id", "object_name").PlaceholderFormat(sq.Dollar)
+	for _, log := range logs {
+		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name)
 	}
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	_, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.query.error", err.Error())
@@ -186,7 +187,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		case "user":
 			fields = append(fields, "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name", "log.user_id")
 		case "object":
-			fields = append(fields, "wbt_class.id as object_id", "wbt_class.name as object_name")
+			fields = append(fields, "object_config.object_id", "log.object_name")
 		}
 	}
 	if len(fields) == 0 {
@@ -221,7 +222,7 @@ func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
 		From("logger.log").
 		JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id").
 		JoinClause("LEFT JOIN logger.object_config ON object_config.id = log.config_id").
-		JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
+		//JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
 		PlaceholderFormat(sq.Dollar)
 
 	return base
@@ -303,7 +304,7 @@ func (c *Log) getFields() []string {
 		"log.record_id",
 		"log.action",
 		"log.config_id",
-		"wbt_class.id as object_id",
-		"wbt_class.name as object_name",
+		"object_config.object_id",
+		"log.object_name",
 	}
 }

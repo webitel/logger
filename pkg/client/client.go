@@ -14,7 +14,7 @@ func (c *Client) IsOpened() bool {
 }
 
 // ! NewClient creates new client for logger.
-// * rabbitUrl - connection string to rabbit server
+// * rabbitUrl - connection string to rabbit1 server
 // * clientId - name that will be recognized by consul
 // * address - address to connect to consul server
 func NewClient(rabbitUrl string, clientId string, consulAddress string) (*Client, error) {

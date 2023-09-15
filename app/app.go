@@ -4,18 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
-	"github.com/webitel/logger/api"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/pkg/cache"
-	"github.com/webitel/logger/rabbit"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/logger/watcher"
 	"google.golang.org/grpc/metadata"
-	"strings"
-	"time"
 
 	errors "github.com/webitel/engine/model"
 )
@@ -24,16 +22,10 @@ const (
 	DeleteWatcherPrefix = "config.watcher"
 	SESSION_CACHE_SIZE  = 35000
 	SESSION_CACHE_TIME  = 60 * 5
-	RequestContextName  = "grpc_ctx"
 
 	DEFAULT_PAGE_SIZE = 40
 	DEFAULT_PAGE      = 1
 	MAX_PAGE_SIZE     = 40000
-)
-
-var (
-	APP_SERVICE_TTL             = time.Second * 30
-	APP_DEREGESTER_CRITICAL_TTL = time.Minute * 2
 )
 
 type App struct {
@@ -44,8 +36,8 @@ type App struct {
 	sessionManager   auth_manager.AuthManager
 	cache            cache.CacheStore
 	exitChan         chan errors.AppError
-	rabbit           *rabbit.RabbitListener
-	server           *api.AppServer
+	rabbit           *RabbitListener
+	server           *AppServer
 }
 
 func New(config *model.AppConfig) (*App, errors.AppError) {
@@ -77,14 +69,14 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 	}
 	app.storage = BuildDatabase(config.Database)
 
-	// init of rabbit
-	r, appErr := rabbit.Build(app, app.config.Rabbit, app.exitChan)
+	// init of rabbit1
+	r, appErr := BuildRabbit(app, app.config.Rabbit, app.exitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
 	app.rabbit = r
 	// init of grpc server
-	s, appErr := api.Build(app, app.config.Consul, app.exitChan)
+	s, appErr := BuildServer(app, app.config.Consul, app.exitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -106,11 +98,11 @@ func (a *App) Start() errors.AppError {
 	if err != nil {
 		return err
 	}
-	// * Build and run rabbit listener
-	go a.rabbit.Start()
+	// * Build and run rabbit1 listener
+	go a.Start()
 	// * Build and run grpc server
 	go a.server.Start()
-	//go api.ServeRequests(a, a.config.Consul, a.exitChan)
+	//go ServeRequests(a, a.config.Consul, a.exitChan)
 	return <-a.exitChan
 }
 
@@ -168,7 +160,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if len(token) < 1 {
-		return nil, errors.NewInternalError("api.context.session_expired.app_error", "token not found")
+		return nil, errors.NewInternalError("context.session_expired.app_error", "token not found")
 	}
 
 	session, err = a.GetSession(token[0])
@@ -177,7 +169,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if session.IsExpired() {
-		return nil, errors.NewForbiddenError("api.context.session_expired.app_error", "token="+token[0])
+		return nil, errors.NewForbiddenError("context.session_expired.app_error", "token="+token[0])
 	}
 
 	return session, nil
@@ -185,7 +177,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 
 func (a *App) MakePermissionError(session *auth_manager.Session, permission auth_manager.SessionPermission, access auth_manager.PermissionAccess) errors.AppError {
 
-	return errors.NewForbiddenError("api.context.permissions.app_error", fmt.Sprintf("userId=%d, permission=%s access=%s", session.UserId, permission.Name, access.Name()))
+	return errors.NewForbiddenError("context.permissions.app_error", fmt.Sprintf("userId=%d, permission=%s access=%s", session.UserId, permission.Name, access.Name()))
 }
 
 func (a *App) Stop() errors.AppError {

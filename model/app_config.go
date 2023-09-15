@@ -3,7 +3,7 @@ package model
 const SERVICE_NAME = "logger"
 
 type AppConfig struct {
-	Rabbit   *RabbitConfig   `json:"rabbit,omitempty"`
+	Rabbit   *RabbitConfig   `json:"rabbit1,omitempty"`
 	Database *DatabaseConfig `json:"database,omitempty"`
 	Consul   *ConsulConfig   `json:"consul,omitempty" `
 }

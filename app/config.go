@@ -2,15 +2,13 @@ package app
 
 import (
 	"context"
-	"fmt"
-	"github.com/webitel/engine/auth_manager"
-	"github.com/webitel/logger/model"
-	"github.com/webitel/logger/proto"
-	"github.com/webitel/wlog"
 	"strings"
 	"time"
 
+	"github.com/webitel/engine/auth_manager"
 	errors "github.com/webitel/engine/model"
+	"github.com/webitel/logger/model"
+	proto "github.com/webitel/protos/logger"
 )
 
 const (
@@ -160,25 +158,25 @@ func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions
 
 	var res *proto.Config
 
-	cacheKey := FormatKey("config.objectId", domainId, objectId)
+	//cacheKey := FormatKey("config.objectId", domainId, objectId)
 
-	value, err := a.cache.Get(ctx, cacheKey)
-	if err != nil {
-		newModel, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
-		if appErr != nil {
-			return nil, appErr
-		}
-		res, appErr = a.convertConfigModelToMessage(newModel)
-		if appErr != nil {
-			return nil, appErr
-		}
-		err := a.cache.Set(ctx, cacheKey, res, MEMORY_CACHE_DEFAULT_EXPIRES)
-		if err != nil {
-			wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
-		}
-	} else {
-		res = value.Raw().(*proto.Config)
+	//value, err := a.cache.Get(ctx, cacheKey)
+	//if err != nil {
+	newModel, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
+	if appErr != nil {
+		return nil, appErr
 	}
+	res, appErr = a.convertConfigModelToMessage(newModel)
+	if appErr != nil {
+		return nil, appErr
+	}
+	//err := a.cache.Set(ctx, cacheKey, res, MEMORY_CACHE_DEFAULT_EXPIRES)
+	//if err != nil {
+	//	wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
+	//}
+	//} else {
+	//	res = value.Raw().(*proto.Config)
+	//}
 
 	return res, nil
 
@@ -190,43 +188,43 @@ func (a *App) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatus
 		response proto.ConfigStatus
 	)
 
-	cacheKey := FormatKey("config.objectId", in.GetDomainId(), in.GetObjectName())
+	//cacheKey := FormatKey("config.objectId", in.GetDomainId(), in.GetObjectName())
 	objectName := strings.ToLower(in.GetObjectName())
 	domainId := in.GetDomainId()
 
-	value, err := a.cache.Get(ctx, cacheKey)
-	if err != nil {
-		searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, model.Filter{
-			Column:         "wbt_class.name",
-			Value:          objectName,
-			ComparisonType: model.ILike,
-		},
-			model.Filter{
+	//value, err := a.cache.Get(ctx, cacheKey)
+	//if err != nil {
+	searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
+		Bunch: []*model.Filter{
+			{
+				Column:         "wbt_class.name",
+				Value:          objectName,
+				ComparisonType: model.ILike,
+			},
+			{
 				Column:         "object_config.domain_id",
 				Value:          domainId,
 				ComparisonType: model.Equal,
-			})
-		if appErr != nil {
-			if IsErrNoRows(appErr) {
-				err = a.cache.Set(ctx, cacheKey, false, MEMORY_CACHE_DEFAULT_EXPIRES)
-				if err != nil {
-					wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
-				}
-				response.IsEnabled = false
-				return &response, nil
-			}
+			}},
+		ConnectionType: 0,
+	})
+	if appErr != nil {
+		if IsErrNoRows(appErr) {
+			response.IsEnabled = false
+			return &response, nil
+		}
 
-			return nil, appErr
-		}
-		enabled := searchResult[0].Enabled
-		err := a.cache.Set(ctx, cacheKey, enabled, MEMORY_CACHE_DEFAULT_EXPIRES)
-		if err != nil {
-			wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
-		}
-		response.IsEnabled = enabled
-	} else {
-		response.IsEnabled = value.Raw().(bool)
+		return nil, appErr
 	}
+	enabled := searchResult[0].Enabled
+	//err := a.cache.Set(ctx, cacheKey, enabled, MEMORY_CACHE_DEFAULT_EXPIRES)
+	//if err != nil {
+	//	wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
+	//}
+	response.IsEnabled = enabled
+	//} else {
+	//	response.IsEnabled = value.Raw().(bool)
+	//}
 
 	return &response, nil
 

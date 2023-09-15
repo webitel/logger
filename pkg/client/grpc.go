@@ -6,7 +6,7 @@ import (
 	"github.com/webitel/logger/pkg/cache"
 	"github.com/webitel/logger/pkg/discovery"
 
-	"github.com/webitel/logger/proto"
+	proto "github.com/webitel/protos/logger"
 	"github.com/webitel/wlog"
 )
 

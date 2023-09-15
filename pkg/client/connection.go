@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/webitel/logger/proto"
+	proto "github.com/webitel/protos/logger"
 	"time"
 
 	"google.golang.org/grpc"

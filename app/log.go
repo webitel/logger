@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+
 	"github.com/webitel/logger/model"
-	"github.com/webitel/logger/proto"
-	"strings"
+
 	"time"
+
+	proto "github.com/webitel/protos/logger"
 
 	errors "github.com/webitel/engine/model"
 )
@@ -13,41 +15,48 @@ import (
 // region PERFORM ACTIONS
 func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserIdRequest) (*proto.Logs, errors.AppError) {
 	var (
-		res                proto.Logs
-		rows               []*proto.Log
-		notStandartFilters []model.Filter
+		res  proto.Logs
+		rows []*proto.Log
+		//filters []model.Filter
 	)
+	filters := model.FilterArray{
+		Filters:    []*model.FilterBunch{{ConnectionType: model.AND}},
+		Connection: model.AND,
+	}
 
 	searchOpt := ExtractSearchOptions(in)
 	// region APPLYING FILTERS
-	if x := in.GetObject(); x != nil {
-		if v := x.GetId(); v != 0 {
-			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "object_config.object_id",
-				Value:          v,
-				ComparisonType: model.Equal,
-			})
-		} else if v := x.GetName(); v != "" {
-			notStandartFilters = append(notStandartFilters, model.Filter{
-				Column:         "log.object_name",
-				Value:          strings.Replace(v, "*", "%", -1),
-				ComparisonType: model.ILike,
-			})
-		}
+	newFilterBunch := model.FilterBunch{
+		ConnectionType: model.OR,
 	}
+	for _, v := range in.GetObjectId() {
+		newFilterBunch.Bunch = append(newFilterBunch.Bunch, &model.Filter{
+			Column:         "object_config.object_id",
+			Value:          v,
+			ComparisonType: model.Equal,
+		})
+
+	}
+	filters.Filters = append(filters.Filters, &newFilterBunch)
+
 	// REQUIRED !
-	notStandartFilters = append(notStandartFilters, model.Filter{
+	requiredFilterBunch := model.FilterBunch{
+		ConnectionType: model.AND,
+	}
+	requiredFilterBunch.Bunch = append(requiredFilterBunch.Bunch, &model.Filter{
 		Column:         "user_id",
 		Value:          in.GetUserId(),
 		ComparisonType: model.Equal,
 	})
 
+	filters.Filters = append(filters.Filters, extractDefaultFiltersFromLogSearch(in)...)
+	filters.Filters = append(filters.Filters, &requiredFilterBunch)
 	// endregion
 	// region PERFORM
 	modelLogs, appErr := a.storage.Log().Get(
 		ctx,
 		searchOpt,
-		append(extractDefaultFiltersFromLogSearch(in), notStandartFilters...)...,
+		filters,
 	)
 	res.Page = int32(searchOpt.Page)
 	if appErr != nil {
@@ -79,39 +88,45 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 
 func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByConfigIdRequest) (*proto.Logs, errors.AppError) {
 	var (
-		res               proto.Logs
-		rows              []*proto.Log
-		notDefaultFilters []model.Filter
+		res  proto.Logs
+		rows []*proto.Log
+		//notDefaultFilters []model.Filter
 	)
+	filters := model.FilterArray{
+		Connection: model.AND,
+	}
 	searchOpt := ExtractSearchOptions(in)
+	newFilterBunch := model.FilterBunch{
+		ConnectionType: model.OR,
+	}
 	// region APPLYING FILTERS
-	if x := in.GetUser(); x != nil {
-		if v := x.GetId(); v != 0 {
-			notDefaultFilters = append(notDefaultFilters, model.Filter{
-				Column:         "user_id",
-				Value:          v,
-				ComparisonType: model.Equal,
-			})
-		} else if v := x.GetName(); v != "" {
-			notDefaultFilters = append(notDefaultFilters, model.Filter{
-				Column:         "coalesce(wbt_user.name::varchar, wbt_user.username::varchar)",
-				Value:          strings.Replace(v, "*", "%", -1),
-				ComparisonType: model.ILike,
-			})
-		}
+	for _, v := range in.GetUserId() {
+		newFilterBunch.Bunch = append(newFilterBunch.Bunch, &model.Filter{
+			Column:         "user_id",
+			Value:          v,
+			ComparisonType: model.Equal,
+		})
+	}
+	if len(newFilterBunch.Bunch) != 0 {
+		filters.Filters = append(filters.Filters, &newFilterBunch)
 	}
 	// REQUIRED !
-	notDefaultFilters = append(notDefaultFilters, model.Filter{
+	requiredFilterBunch := model.FilterBunch{
+		ConnectionType: model.AND,
+	}
+	requiredFilterBunch.Bunch = append(requiredFilterBunch.Bunch, &model.Filter{
 		Column:         "log.config_id",
 		Value:          in.GetConfigId(),
 		ComparisonType: 0,
 	})
+	filters.Filters = append(filters.Filters, extractDefaultFiltersFromLogSearch(in)...)
+	filters.Filters = append(filters.Filters, &requiredFilterBunch)
 	// endregion
 	// region PERFORM
 	modelLogs, appErr := a.storage.Log().Get(
 		ctx,
 		searchOpt,
-		append(extractDefaultFiltersFromLogSearch(in), notDefaultFilters...)...,
+		filters,
 	)
 	res.Page = int32(searchOpt.Page)
 	if appErr != nil {
@@ -160,18 +175,21 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 }
 
 func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64, objectName string) errors.AppError {
-	searchResult, err := a.storage.Config().Get(ctx, nil, nil,
-		model.Filter{
-			Column:         "wbt_class.name",
-			Value:          objectName,
-			ComparisonType: model.Like,
+	searchResult, err := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
+		Bunch: []*model.Filter{
+			{
+				Column:         "wbt_class.name",
+				Value:          objectName,
+				ComparisonType: model.Like,
+			},
+			{
+				Column:         "object_config.domain_id",
+				Value:          domainId,
+				ComparisonType: model.Equal,
+			},
 		},
-		model.Filter{
-			Column:         "object_config.domain_id",
-			Value:          domainId,
-			ComparisonType: model.Equal,
-		},
-	)
+		ConnectionType: model.AND,
+	})
 	if err != nil {
 		return err
 	}
@@ -270,41 +288,54 @@ type LogSearch interface {
 	GetDateFrom() int64
 	GetDateTo() int64
 	GetUserIp() string
-	GetAction() proto.Action
+	GetAction() []proto.Action
 }
 
-func extractDefaultFiltersFromLogSearch(in LogSearch) []model.Filter {
-	var result []model.Filter
-
+func extractDefaultFiltersFromLogSearch(in LogSearch) []*model.FilterBunch {
+	var result []*model.FilterBunch
+	andBunch := &model.FilterBunch{
+		ConnectionType: model.AND,
+	}
+	orBunch := &model.FilterBunch{
+		ConnectionType: model.OR,
+	}
 	if in.GetDateFrom() != 0 {
-		result = append(result, model.Filter{
+		andBunch.Bunch = append(andBunch.Bunch, &model.Filter{
 			Column:         "log.date",
 			Value:          time.Unix(in.GetDateFrom()/1000, 0).UTC(),
 			ComparisonType: model.GreaterThanOrEqual,
 		})
 	}
-
-	if in.GetAction() != proto.Action_default_no_action {
-		result = append(result, model.Filter{
-			Column:         "log.action",
-			Value:          in.GetAction().String(),
-			ComparisonType: model.ILike,
-		})
+	for _, v := range in.GetAction() {
+		if v != proto.Action_default_no_action {
+			orBunch.Bunch = append(orBunch.Bunch, &model.Filter{
+				Column:         "log.action",
+				Value:          v.String(),
+				ComparisonType: model.ILike,
+			})
+		}
 	}
 
 	if in.GetDateTo() != 0 {
-		result = append(result, model.Filter{
+		andBunch.Bunch = append(andBunch.Bunch, &model.Filter{
 			Column:         "log.date",
 			Value:          time.Unix(in.GetDateTo()/1000, 0).UTC(),
 			ComparisonType: model.LessThanOrEqual,
 		})
 	}
 	if in.GetUserIp() != "" {
-		result = append(result, model.Filter{
+		andBunch.Bunch = append(andBunch.Bunch, &model.Filter{
 			Column:         "log.user_ip",
 			Value:          in.GetUserIp(),
 			ComparisonType: model.Equal,
 		})
+	}
+	if len(orBunch.Bunch) != 0 {
+		result = append(result, orBunch)
+	}
+
+	if len(andBunch.Bunch) != 0 {
+		result = append(result, andBunch)
 	}
 
 	return result

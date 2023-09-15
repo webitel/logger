@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/wlog"
-	"strings"
-	"time"
 
 	errors "github.com/webitel/engine/model"
 )
@@ -313,12 +314,12 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	return config, nil
 }
 
-func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters ...model.Filter) ([]*model.Config, errors.AppError) {
+func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters...)
+	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	sql, args, _ := base.ToSql()
 	fmt.Println(args)

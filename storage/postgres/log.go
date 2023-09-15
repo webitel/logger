@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
+
 	sq "github.com/Masterminds/squirrel"
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/wlog"
-	"strings"
-	"time"
 )
 
 type Log struct {
@@ -24,12 +25,31 @@ func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
 	return &Log{storage: store}, nil
 }
 
-func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters ...model.Filter) ([]*model.Log, errors.AppError) {
+//func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters *model.FilterArray) ([]*model.Log, errors.AppError) {
+//	db, appErr := c.storage.Database()
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters)
+//	fmt.Println(base.ToSql())
+//	rows, err := base.RunWith(db).QueryContext(ctx)
+//	if err != nil {
+//		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+//	}
+//	defer rows.Close()
+//	res, appErr := c.ScanRows(rows)
+//	if appErr != nil {
+//		return nil, appErr
+//	}
+//	return res, nil
+//}
+
+func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters...)
+	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters)
 	fmt.Println(base.ToSql())
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
@@ -58,12 +78,6 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
 	}
-	//defer rows.Close()
-	//res, appErr := c.ScanRows(rows)
-	//if appErr != nil {
-	//	return nil, appErr
-	//}
-	//newModel = res[0]
 	return nil
 }
 
@@ -222,76 +236,10 @@ func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
 		From("logger.log").
 		JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = log.user_id").
 		JoinClause("LEFT JOIN logger.object_config ON object_config.id = log.config_id").
-		//JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
 		PlaceholderFormat(sq.Dollar)
 
 	return base
 }
-
-//func (c *Log) FillRecordLookup(ctx context.Context, models []*model.Log, domainId int64) errors.AppError {
-//	var (
-//		uniqueRecordIds map[string][]int64 // determining what records should be selected in the query
-//		resultLookups   []*model.Lookup
-//	)
-//
-//	// range through all records to know the unique record for each object
-//	for _, record := range models {
-//		if objectName := record.Object.Name.String(); objectName != "" { // check for valid object name
-//			if record.Record.Id.Int() != 0 { // check for valid record id
-//				if value, ok := uniqueRecordIds[objectName]; ok {
-//					// ! append to the existing table
-//					uniqueRecordIds[objectName] = append(value, record.Record.Id.Int64())
-//				} else {
-//					uniqueRecordIds[objectName] = []int64{record.Record.Id.Int64()}
-//				}
-//			}
-//		}
-//	}
-//
-//	db, appErr := c.storage.Database()
-//	if appErr != nil {
-//		return appErr
-//	}
-//	for key, values := range uniqueRecordIds {
-//
-//		base, appErr := c.GetRecordQuery(key, domainId, values)
-//		if appErr != nil {
-//			continue
-//		}
-//		query, args, _ := base.ToSql()
-//		queryRes, err := db.QueryxContext(ctx, query, args)
-//		//queryRes, err := base.RunWith(db).PlaceholderFormat(sq.Dollar).QueryContext(ctx)
-//		if err != nil {
-//			return errors.NewInternalError("postgres.log.fill_record_lookup.query.fail", err.Error())
-//		}
-//		for queryRes.Next() {
-//			var res model.Lookup
-//			err = queryRes.StructScan(&res)
-//			if err != nil {
-//				return errors.NewInternalError("postgres.log.fill_record_lookup.scan.fail", err.Error())
-//			}
-//			resultLookups = append(resultLookups, &res)
-//		}
-//		for _, log := range models {
-//			for _, lookup := range resultLookups {
-//				if log.Object.Name.String() == key && log.Record.Id.Int64() == lookup.Id.Int64() {
-//					log.Record.Name = model.NewNullString(lookup.Name.String())
-//				}
-//			}
-//		}
-//	}
-//	return nil
-//}
-
-//func (c *Log) GetRecordQuery(objectName string, domainId int64, recordsId []int64) (sq.SelectBuilder, errors.AppError) {
-//	value, ok := storage.RecordTablesMapping[objectName]
-//	if !ok {
-//		errors.NewInternalError("postgres.log.get_record_query.search_for_table.fail", "there are record in logs that has unknown object")
-//	}
-//	base := sq.Select("id", value.ColumnName).From(value.GetFullPath()).Where(sq.Eq{value.ColumnDomain: domainId}).Where("id = any(?)", pq.Array(recordsId))
-//
-//	return base, nil
-//}
 
 func (c *Log) getFields() []string {
 	return []string{

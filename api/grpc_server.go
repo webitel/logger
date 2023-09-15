@@ -7,7 +7,8 @@ import (
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/app"
 	"github.com/webitel/logger/model"
-	"github.com/webitel/logger/proto"
+
+	proto "github.com/webitel/protos/logger"
 	"github.com/webitel/wlog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

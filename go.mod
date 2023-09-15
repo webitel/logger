@@ -15,7 +15,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/webitel/engine v0.0.0-20230807141341-7249b13de313
-	github.com/webitel/protos/logger v0.0.0-20230913134138-dce81f9a3916
+	github.com/webitel/protos/logger v0.0.0-20230914134833-de2ca71f5093
 	github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28
 	google.golang.org/grpc v1.57.0
 )

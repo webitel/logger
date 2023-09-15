@@ -203,6 +203,8 @@ github.com/webitel/engine v0.0.0-20230807141341-7249b13de313 h1:F4/elD0IQxsdHzPH
 github.com/webitel/engine v0.0.0-20230807141341-7249b13de313/go.mod h1:Po2yOj+SjVT00LaURUOwXxhjhNllkc550axvWF5zKqo=
 github.com/webitel/protos/logger v0.0.0-20230913134138-dce81f9a3916 h1:zi69APpo9uizHcTKBnOyDiw/iFsXOYIsuSgNzfpgexI=
 github.com/webitel/protos/logger v0.0.0-20230913134138-dce81f9a3916/go.mod h1:9uMJikLHPAe+TLosybf7edZoU5qfjkKc2BO1QurQv0o=
+github.com/webitel/protos/logger v0.0.0-20230914134833-de2ca71f5093 h1:btDkI1o6wTmygun+tJZDheHyV/7M/CIuq+/uGGG2FeQ=
+github.com/webitel/protos/logger v0.0.0-20230914134833-de2ca71f5093/go.mod h1:9uMJikLHPAe+TLosybf7edZoU5qfjkKc2BO1QurQv0o=
 github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28 h1:24KMgyr2jjLgfBJWDSVKDdLo27Z9uXU+WVHJJ4J58t8=
 github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28/go.mod h1:TZS9UCbaIaCiUCWAIZTlX4hDbtZOZ51JohoJM/GbtR0=
 go.uber.org/goleak v1.2.1 h1:NBol2c7O1ZokfZ0LEU9K6Whx/KnwvepVetCUhtKja4A=

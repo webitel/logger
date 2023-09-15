@@ -1,11 +1,16 @@
-package api
+package app
 
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/webitel/engine/discovery"
 	errors "github.com/webitel/engine/model"
-	"github.com/webitel/logger/app"
 	"github.com/webitel/logger/model"
 
 	proto "github.com/webitel/protos/logger"
@@ -14,11 +19,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"net"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -27,32 +27,72 @@ var (
 	APP_DEREGESTER_CRITICAL_TTL = time.Minute * 2
 )
 
-func ServeRequests(app *app.App, config *model.ConsulConfig, errChan chan errors.AppError) {
+//func ServeRequests(app *App, config *model.ConsulConfig, errChan chan errors.AppError) {
+//	// * Build grpc server
+//	server, appErr := buildGrpc(app)
+//	if appErr != nil {
+//		errChan <- appErr
+//		return
+//	}
+//	//  * Open tcp connection
+//	listener, err := net.Listen("tcp", config.PublicAddress)
+//	if err != nil {
+//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
+//		return
+//	}
+//	appErr = connectConsul(config)
+//	if appErr != nil {
+//		errChan <- appErr
+//		return
+//	}
+//	err = server.Serve(listener)
+//	if err != nil {
+//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
+//		return
+//	}
+//}
+
+type AppServer struct {
+	server   *grpc.Server
+	listener net.Listener
+	config   *model.ConsulConfig
+	exitChan chan errors.AppError
+}
+
+func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppError) (*AppServer, errors.AppError) {
 	// * Build grpc server
 	server, appErr := buildGrpc(app)
 	if appErr != nil {
-		errChan <- appErr
-		return
+		return nil, appErr
 	}
 	//  * Open tcp connection
 	listener, err := net.Listen("tcp", config.PublicAddress)
 	if err != nil {
-		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
-		return
+		return nil, errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
 	}
-	appErr = connectConsul(config)
+
+	return &AppServer{
+		server:   server,
+		listener: listener,
+		exitChan: exitChan,
+		config:   config,
+	}, nil
+}
+
+func (a *AppServer) Start() {
+	appErr := connectConsul(a.config)
 	if appErr != nil {
-		errChan <- appErr
+		a.exitChan <- appErr
 		return
 	}
-	err = server.Serve(listener)
+	err := a.server.Serve(a.listener)
 	if err != nil {
-		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
+		a.exitChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
 		return
 	}
 }
 
-func buildGrpc(app *app.App) (*grpc.Server, errors.AppError) {
+func buildGrpc(app *App) (*grpc.Server, errors.AppError) {
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor))
 	// * Creating services

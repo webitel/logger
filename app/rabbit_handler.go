@@ -1,27 +1,27 @@
-package rabbit
+package app
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/webitel/logger/app"
+	"strconv"
+	"strings"
+
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/pkg/client"
 	"github.com/webitel/wlog"
-	"strconv"
-	"strings"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	errors "github.com/webitel/engine/model"
 )
 
 type Handler struct {
-	app *app.App
+	app *App
 }
 
-func NewHandler(app *app.App) (*Handler, errors.AppError) {
+func NewHandler(app *App) (*Handler, errors.AppError) {
 	if app == nil {
-		return nil, errors.NewInternalError("rabbit.handler.new_handler.arguments_check.app_nil", "can't configure handler, app is nil")
+		return nil, errors.NewInternalError("rabbit1.handler.new_handler.arguments_check.app_nil", "can't configure handler, app is nil")
 	}
 	return &Handler{app: app}, nil
 }

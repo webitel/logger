@@ -1,11 +1,10 @@
-package api
+package app
 
 import (
 	"context"
-	"github.com/webitel/engine/auth_manager"
-	"github.com/webitel/logger/app"
-	"github.com/webitel/logger/model"
 
+	"github.com/webitel/engine/auth_manager"
+	"github.com/webitel/logger/model"
 	proto "github.com/webitel/protos/logger"
 
 	errors "github.com/webitel/engine/model"
@@ -15,10 +14,10 @@ import (
 
 type ConfigService struct {
 	proto.UnimplementedConfigServiceServer
-	app *app.App
+	app *App
 }
 
-func NewConfigService(app *app.App) (*ConfigService, errors.AppError) {
+func NewConfigService(app *App) (*ConfigService, errors.AppError) {
 	if app == nil {
 		return nil, errors.NewInternalError("api.config.new_config_service.args_check.app_nill", "app is nil")
 	}

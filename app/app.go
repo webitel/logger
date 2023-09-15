@@ -4,14 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/pkg/cache"
 	"github.com/webitel/logger/storage"
+	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/logger/watcher"
 	"google.golang.org/grpc/metadata"
-	"strings"
 
 	errors "github.com/webitel/engine/model"
 )
@@ -20,7 +22,6 @@ const (
 	DeleteWatcherPrefix = "config.watcher"
 	SESSION_CACHE_SIZE  = 35000
 	SESSION_CACHE_TIME  = 60 * 5
-	RequestContextName  = "grpc_ctx"
 
 	DEFAULT_PAGE_SIZE = 40
 	DEFAULT_PAGE      = 1
@@ -34,32 +35,52 @@ type App struct {
 	serviceDiscovery discovery.ServiceDiscovery
 	sessionManager   auth_manager.AuthManager
 	cache            cache.CacheStore
+	exitChan         chan errors.AppError
+	rabbit           *RabbitListener
+	server           *AppServer
 }
 
-func New(store storage.Storage, config *model.AppConfig) (*App, errors.AppError) {
-	if store == nil {
-		return nil, errors.NewInternalError("app.app.new.check_arguments.fail", "store is nil")
-	}
-	app := &App{storage: store, config: config}
+func New(config *model.AppConfig) (*App, errors.AppError) {
+	app := &App{config: config, exitChan: make(chan errors.AppError)}
 
-	appErr := app.initializeWatchers()
-	if appErr != nil {
-		return nil, appErr
-	}
+	// service registration
 	disc, err := discovery.NewServiceDiscovery(config.Consul.Id, config.Consul.Address, func() (bool, error) {
 		return true, nil
 	})
+
 	if err != nil {
 		return nil, errors.NewInternalError("app.app.new.discovery_connection.fail", err.Error())
 	}
+	app.serviceDiscovery = disc
+	// init of auth manager
 	app.sessionManager = auth_manager.NewAuthManager(SESSION_CACHE_SIZE, SESSION_CACHE_TIME, disc)
 	if err := app.sessionManager.Start(); err != nil {
 		return nil, errors.NewInternalError("app.app.new.auth_manager_start.fail", err.Error())
 	}
+	// init of cache storage
 	app.cache = cache.NewMemoryCache(&cache.MemoryCacheConfig{
 		Size:          200000,
 		DefaultExpiry: 120,
 	})
+
+	// init of database
+	if config.Database == nil {
+		errors.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
+	}
+	app.storage = BuildDatabase(config.Database)
+
+	// init of rabbit1
+	r, appErr := BuildRabbit(app, app.config.Rabbit, app.exitChan)
+	if appErr != nil {
+		return nil, appErr
+	}
+	app.rabbit = r
+	// init of grpc server
+	s, appErr := BuildServer(app, app.config.Consul, app.exitChan)
+	if appErr != nil {
+		return nil, appErr
+	}
+	app.server = s
 	return app, nil
 }
 
@@ -69,6 +90,20 @@ func (a *App) GetConfig() *model.AppConfig {
 
 func IsErrNoRows(err errors.AppError) bool {
 	return strings.Contains(err.Error(), sql.ErrNoRows.Error())
+}
+
+func (a *App) Start() errors.AppError {
+
+	err := a.storage.Open()
+	if err != nil {
+		return err
+	}
+	// * Build and run rabbit1 listener
+	go a.rabbit.Start()
+	// * Build and run grpc server
+	go a.server.Start()
+	//go ServeRequests(a, a.config.Consul, a.exitChan)
+	return <-a.exitChan
 }
 
 type Search interface {
@@ -106,6 +141,10 @@ func ExtractSearchOptions(t Search) *model.SearchOptions {
 	return &res
 }
 
+func BuildDatabase(config *model.DatabaseConfig) storage.Storage {
+	return postgres.New(config)
+}
+
 func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, errors.AppError) {
 	var session *auth_manager.Session
 	var err errors.AppError
@@ -128,7 +167,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if len(token) < 1 {
-		return nil, errors.NewInternalError("api.context.session_expired.app_error", "token not found")
+		return nil, errors.NewInternalError("context.session_expired.app_error", "token not found")
 	}
 
 	session, err = a.GetSession(token[0])
@@ -137,7 +176,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if session.IsExpired() {
-		return nil, errors.NewForbiddenError("api.context.session_expired.app_error", "token="+token[0])
+		return nil, errors.NewForbiddenError("context.session_expired.app_error", "token="+token[0])
 	}
 
 	return session, nil
@@ -145,7 +184,16 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 
 func (a *App) MakePermissionError(session *auth_manager.Session, permission auth_manager.SessionPermission, access auth_manager.PermissionAccess) errors.AppError {
 
-	return errors.NewForbiddenError("api.context.permissions.app_error", fmt.Sprintf("userId=%d, permission=%s access=%s", session.UserId, permission.Name, access.Name()))
+	return errors.NewForbiddenError("context.permissions.app_error", fmt.Sprintf("userId=%d, permission=%s access=%s", session.UserId, permission.Name, access.Name()))
+}
+
+func (a *App) Stop() errors.AppError {
+	if a.serviceDiscovery != nil {
+		a.serviceDiscovery.Shutdown()
+	}
+	a.storage.Close()
+
+	return nil
 }
 
 func ConvertSort(in string) string {

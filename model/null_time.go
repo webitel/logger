@@ -29,7 +29,7 @@ func (t *NullTime) ToMilliseconds() int64 {
 		return 0
 	}
 
-	return t.Time().UnixNano() / int64(time.Millisecond)
+	return t.Time().UnixMilli()
 }
 
 func NewNullTime(i time.Time) *NullTime {

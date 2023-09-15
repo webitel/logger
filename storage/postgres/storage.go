@@ -17,11 +17,9 @@ type PostgresStore struct {
 	configStore storage.ConfigStore
 }
 
-func New(config *model.DatabaseConfig) (*PostgresStore, errors.AppError) {
-	if config == nil {
-		errors.NewInternalError("postgres.storage.new_config.check.bad_arguments", "error creating storage, config is nil")
-	}
-	return &PostgresStore{config: config}, nil
+func New(config *model.DatabaseConfig) *PostgresStore {
+
+	return &PostgresStore{config: config}
 }
 
 func (s *PostgresStore) Log() storage.LogStore {

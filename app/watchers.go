@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/webitel/wlog"
+
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/watcher"
-	"time"
 )
 
 func (a *App) initializeWatchers() errors.AppError {
@@ -91,7 +94,7 @@ func (a *App) InsertNewDeleteWatcher(configId, dayseToStore int) {
 func FormatKey(prefix string, args ...any) string {
 	base := prefix
 	for _, v := range args {
-		base += fmt.Sprintf(".%s", v)
+		base += fmt.Sprintf(".%d", v)
 	}
 	return base
 }
@@ -101,9 +104,9 @@ func (a *App) BuildWatcherDeleteFunction(configId, daysToStore int) watcher.Watc
 	return func() {
 		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
 		if err != nil {
-			fmt.Printf("error while executing watcher function. watcher - %s, error: %s", name, err.Error())
+			wlog.Info(fmt.Sprintf("error while executing watcher function. watcher - %s, error: %s", name, err.Error()))
 		}
-		fmt.Printf("watcher - %s cleaned %d rows", name, res)
+		wlog.Info(fmt.Sprintf("watcher - %s cleaned %d rows", name, res))
 	}
 }
 

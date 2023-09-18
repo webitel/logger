@@ -2,8 +2,9 @@ package watcher
 
 import (
 	"fmt"
-	"github.com/webitel/wlog"
 	"time"
+
+	"github.com/webitel/wlog"
 )
 
 type WatcherNotify func()
@@ -36,7 +37,7 @@ func (watcher *Watcher) Start() {
 	}()
 
 	for {
-		wlog.Info(fmt.Sprintf("watcher %s will run after %d", watcher.name, watcher.pollingInterval))
+		wlog.Info(fmt.Sprintf("watcher [%s] will run after %d seconds", watcher.name, watcher.pollingInterval))
 		select {
 		case <-watcher.stop:
 			wlog.Info(fmt.Sprintf("watcher [%s] received stop signal", watcher.name))

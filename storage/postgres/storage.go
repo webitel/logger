@@ -140,6 +140,8 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 			base = base.Where(result)
 			return base
 		}
+	case model.Filter:
+		base = base.Where(applyFilter(&data))
 	}
 
 	return base
@@ -148,8 +150,6 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 func applyFilter(filter *model.Filter) squirrel.Sqlizer {
 	var result squirrel.Sqlizer
 	switch filter.ComparisonType {
-	case model.Equal:
-		result = squirrel.Eq{filter.Column: filter.Value}
 	case model.GreaterThan:
 		result = squirrel.Gt{filter.Column: filter.Value}
 	case model.GreaterThanOrEqual:
@@ -164,6 +164,8 @@ func applyFilter(filter *model.Filter) squirrel.Sqlizer {
 		result = squirrel.Like{filter.Column: filter.Value}
 	case model.ILike:
 		result = squirrel.ILike{filter.Column: filter.Value}
+	default:
+		result = squirrel.Eq{filter.Column: filter.Value}
 	}
 	return result
 }

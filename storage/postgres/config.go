@@ -320,10 +320,10 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 		return nil, appErr
 	}
 	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters)
-	rows, err := base.RunWith(db).QueryContext(ctx)
-	sql, args, _ := base.ToSql()
-	fmt.Println(args)
+	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
+	rows, err := base.RunWith(db).QueryContext(ctx)
+
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
 	}

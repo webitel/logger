@@ -98,6 +98,11 @@ func (a *App) Start() errors.AppError {
 	if err != nil {
 		return err
 	}
+
+	appErr := a.initializeWatchers()
+	if appErr != nil {
+		return appErr
+	}
 	// * Build and run rabbit1 listener
 	go a.rabbit.Start()
 	// * Build and run grpc server

@@ -11,14 +11,6 @@ import (
 	proto "github.com/webitel/protos/logger"
 )
 
-const (
-	MEMORY_CACHE_DEFAULT_EXPIRES = 2 * 60
-)
-
-//var (
-//	DEFAULT_OBJECT_FILTER = []string{"schema", "cc_queue"}
-//)
-
 func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
 		result *model.Config
@@ -40,18 +32,8 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 	if err != nil {
 		return nil, err
 	}
-	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.Object.Id.Int())
-	if oldModel.Enabled == true && result.Enabled == false {
-		a.DeleteWatcherByKey(watcherName)
-	} else {
-		if a.GetWatcherByKey(watcherName) != nil {
-			a.UpdateDeleteWatcherWithNewInterval(result.Id, result.DaysToStore)
-		} else {
-			a.InsertNewDeleteWatcher(result.Id, result.DaysToStore)
-		}
-	}
 
-	//}
+	a.UpdateDeleteWatcherForConfig(oldModel.Enabled == true && result.Enabled == false, result.DaysToStore, result.Id, domainId, result.Object.Id.Int())
 
 	res, err := a.convertConfigModelToMessage(result)
 	if err != nil {
@@ -82,18 +64,8 @@ func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchConfigReques
 	if err != nil {
 		return nil, err
 	}
-	watcherName := FormatKey(DeleteWatcherPrefix, result.DomainId, result.Object.Id.Int())
-	if oldModel.Enabled == true && result.Enabled == false {
-		a.DeleteWatcherByKey(watcherName)
-	} else {
-		if a.GetWatcherByKey(watcherName) != nil {
-			a.UpdateDeleteWatcherWithNewInterval(result.Id, result.DaysToStore)
-		} else {
-			a.InsertNewDeleteWatcher(result.Id, result.DaysToStore)
-		}
-	}
 
-	//}
+	a.UpdateDeleteWatcherForConfig(oldModel.Enabled == true && result.Enabled == false, result.DaysToStore, result.Id, domainId, result.Object.Id.Int())
 
 	res, err := a.convertConfigModelToMessage(result)
 	if err != nil {
@@ -125,6 +97,19 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 		Items: r,
 	}, nil
 
+}
+
+func (a *App) UpdateDeleteWatcherForConfig(statusChangedToDisabled bool, daysToStore, configId, domainId, objectId int) {
+	watcherName := FormatKey(DeleteWatcherPrefix, domainId, objectId)
+	if statusChangedToDisabled {
+		a.DeleteWatcherByKey(watcherName)
+	} else {
+		if a.GetWatcherByKey(watcherName) != nil {
+			a.UpdateDeleteWatcherWithNewInterval(configId, daysToStore)
+		} else {
+			a.InsertNewDeleteWatcher(configId, daysToStore)
+		}
+	}
 }
 
 func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
@@ -206,7 +191,7 @@ func (a *App) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatus
 				Value:          domainId,
 				ComparisonType: model.Equal,
 			}},
-		ConnectionType: 0,
+		ConnectionType: model.AND,
 	})
 	if appErr != nil {
 		if IsErrNoRows(appErr) {
@@ -217,14 +202,7 @@ func (a *App) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatus
 		return nil, appErr
 	}
 	enabled := searchResult[0].Enabled
-	//err := a.cache.Set(ctx, cacheKey, enabled, MEMORY_CACHE_DEFAULT_EXPIRES)
-	//if err != nil {
-	//	wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
-	//}
 	response.IsEnabled = enabled
-	//} else {
-	//	response.IsEnabled = value.Raw().(bool)
-	//}
 
 	return &response, nil
 

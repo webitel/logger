@@ -20,24 +20,28 @@ func (a *App) SearchLogsByUserId(ctx context.Context, in *proto.SearchLogByUserI
 		//filters []model.Filter
 	)
 	filters := model.FilterArray{
-		Filters:    []*model.FilterBunch{{ConnectionType: model.AND}},
+		Filters:    []*model.FilterBunch{},
 		Connection: model.AND,
 	}
 
 	searchOpt := ExtractSearchOptions(in)
 	// region APPLYING FILTERS
-	newFilterBunch := model.FilterBunch{
-		ConnectionType: model.OR,
-	}
-	for _, v := range in.GetObjectId() {
-		newFilterBunch.Bunch = append(newFilterBunch.Bunch, &model.Filter{
-			Column:         "object_config.object_id",
-			Value:          v,
-			ComparisonType: model.Equal,
-		})
+
+	if len(in.GetObjectId()) != 0 {
+		newFilterBunch := model.FilterBunch{
+			ConnectionType: model.OR,
+		}
+		for _, v := range in.GetObjectId() {
+			newFilterBunch.Bunch = append(newFilterBunch.Bunch, &model.Filter{
+				Column:         "object_config.object_id",
+				Value:          v,
+				ComparisonType: model.Equal,
+			})
+
+		}
+		filters.Filters = append(filters.Filters, &newFilterBunch)
 
 	}
-	filters.Filters = append(filters.Filters, &newFilterBunch)
 
 	// REQUIRED !
 	requiredFilterBunch := model.FilterBunch{

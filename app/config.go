@@ -348,7 +348,7 @@ func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, d
 	}
 	config.Object.Id = objectId
 
-	storageId, err := model.NewNullInt(in.GetObject().GetId())
+	storageId, err := model.NewNullInt(in.GetStorage().GetId())
 	if err != nil {
 		return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
 	}

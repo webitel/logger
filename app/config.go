@@ -304,11 +304,15 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
-	storageId, err := model.NewNullInt(in.GetStorage().GetId())
-	if err != nil {
-		return nil, errors.NewInternalError("app.config.convert_update_config_message.convert_storage_id.fail", err.Error())
+
+	if v := in.GetStorage().GetId(); v != 0 {
+		storageId, err := model.NewNullInt(in.GetStorage().GetId())
+		if err != nil {
+			return nil, errors.NewInternalError("app.config.convert_update_config_message.convert_storage_id.fail", err.Error())
+		}
+		config.Storage.Id = storageId
 	}
-	config.Storage.Id = storageId
+
 	return config, nil
 }
 
@@ -323,15 +327,23 @@ func (a *App) convertPatchConfigMessageToModel(in *proto.PatchConfigRequest, dom
 		Description: *model.NewNullString(in.GetDescription()),
 	}
 	a.calculateNextPeriod(config)
-	storageId, err := model.NewNullInt(in.GetStorage().GetId())
-	if err != nil {
-		return nil, errors.NewInternalError("app.config.convert_patch_config_message.convert_storage_id.fail", err.Error())
+
+	if v := in.GetStorage().GetId(); v != 0 {
+		storageId, err := model.NewNullInt(in.GetStorage().GetId())
+		if err != nil {
+			return nil, errors.NewInternalError("app.config.convert_patch_config_message.convert_storage_id.fail", err.Error())
+		}
+		config.Storage.Id = storageId
 	}
-	config.Storage.Id = storageId
+
 	return config, nil
 }
 
 func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId int) (*model.Config, errors.AppError) {
+
+	if in.GetDaysToStore() <= 0 {
+		return nil, errors.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
+	}
 	config := &model.Config{
 
 		Enabled:     in.GetEnabled(),
@@ -348,15 +360,19 @@ func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, d
 	}
 	config.Object.Id = objectId
 
-	storageId, err := model.NewNullInt(in.GetStorage().GetId())
-	if err != nil {
-		return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
+	if v := in.GetStorage().GetId(); v != 0 {
+		storageId, err := model.NewNullInt(in.GetStorage().GetId())
+		if err != nil {
+			return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
+		}
+		config.Storage.Id = storageId
 	}
-	config.Storage.Id = storageId
+
 	return config, nil
 }
 
 func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
+
 	conf := &proto.Config{
 		Id:          int32(in.Id),
 		Enabled:     in.Enabled,

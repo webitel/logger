@@ -159,6 +159,93 @@ func (a *App) SearchLogsByConfigId(ctx context.Context, in *proto.SearchLogByCon
 	return &res, nil
 }
 
+func (a *App) SearchLogsByRecordId(ctx context.Context, in *proto.SearchLogByRecordIdRequest) (*proto.Logs, errors.AppError) {
+	var (
+		res  proto.Logs
+		rows []*proto.Log
+		//notDefaultFilters []model.Filter
+	)
+	filters := model.FilterArray{
+		Connection: model.AND,
+	}
+	searchOpt := ExtractSearchOptions(in)
+	userFilterBunch := model.FilterBunch{
+		ConnectionType: model.OR,
+	}
+	// region APPLYING FILTERS
+
+	// region NOT REQUIRED !
+	// multiselect user filter
+	// [OR] connection between multiselect
+	for _, v := range in.GetUserId() {
+		userFilterBunch.Bunch = append(userFilterBunch.Bunch, &model.Filter{
+			Column:         "user_id",
+			Value:          v,
+			ComparisonType: model.Equal,
+		})
+	}
+	if len(userFilterBunch.Bunch) != 0 {
+		filters.Filters = append(filters.Filters, &userFilterBunch)
+	}
+	// endregion
+
+	// region REQUIRED !
+	// [AND] connection between required filters
+	requiredFilterBunch := model.FilterBunch{
+		ConnectionType: model.AND,
+	}
+	// object filter
+	requiredFilterBunch.Bunch = append(requiredFilterBunch.Bunch, &model.Filter{
+		Column:         "log.object_name",
+		Value:          in.GetObject().String(),
+		ComparisonType: model.Equal,
+	})
+	// record id filter
+	requiredFilterBunch.Bunch = append(requiredFilterBunch.Bunch, &model.Filter{
+		Column:         "log.record_id",
+		Value:          in.GetRecordId(),
+		ComparisonType: model.Equal,
+	})
+
+	filters.Filters = append(filters.Filters, extractDefaultFiltersFromLogSearch(in)...)
+	filters.Filters = append(filters.Filters, &requiredFilterBunch)
+	// endregion
+
+	// endregion
+
+	// region PERFORM
+	modelLogs, appErr := a.storage.Log().Get(
+		ctx,
+		searchOpt,
+		filters,
+	)
+	res.Page = int32(searchOpt.Page)
+	if appErr != nil {
+		if IsErrNoRows(appErr) {
+			return &res, nil
+		} else {
+			return nil, appErr
+		}
+	}
+	// endregion
+	//region CONVERT TO RESPONSE
+	for _, v := range modelLogs {
+		protoLog, err := convertLogModelToMessage(v)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, protoLog)
+	}
+	if len(rows)-1 == searchOpt.Size {
+		res.Next = true
+		res.Items = rows[0 : len(rows)-1]
+	} else {
+		res.Items = rows
+	}
+	// endregion
+	return &res, nil
+}
+
 func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) errors.AppError {
 
 	config, err := a.storage.Config().GetByObjectId(ctx, domainId, objectId)

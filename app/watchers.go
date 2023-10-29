@@ -1,9 +1,13 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
+
+	proto "github.com/webitel/protos/logger"
 
 	"github.com/webitel/wlog"
 
@@ -12,18 +16,9 @@ import (
 	"github.com/webitel/logger/watcher"
 )
 
+// region COMMON
 func (a *App) initializeWatchers() errors.AppError {
-	err := a.initializeLogCleaners()
-	if err != nil {
-		if !IsErrNoRows(err) {
-			return err
-		}
-	}
-	return nil
-}
 
-func (a *App) initializeLogCleaners() errors.AppError {
-	a.watchers = make(map[string]*watcher.Watcher)
 	configs, appErr := a.storage.Config().Get(
 		context.Background(),
 		nil,
@@ -35,62 +30,221 @@ func (a *App) initializeLogCleaners() errors.AppError {
 		},
 	)
 	if appErr != nil {
-		return appErr
+		if !IsErrNoRows(appErr) {
+			return appErr
+		}
 	}
-	for _, v := range configs {
-		name := FormatKey(DeleteWatcherPrefix, v.DomainId, v.Object.Id.Int())
-		a.GetWatcherByKey(name)
-		a.watchers[name] = watcher.MakeWatcher(name, int64(time.Hour)*24, a.BuildWatcherDeleteFunction(v.Id, v.DaysToStore))
-		go a.watchers[name].Start()
+	a.uploadWatchers, a.deleteWatchers = make(map[string]*watcher.UploadWatcher), make(map[string]*watcher.Watcher)
+	for _, config := range configs {
+		a.InsertLogCleaner(config.Id, nil, config.DaysToStore)
+		params := &watcher.UploadWatcherParams{
+			StorageId:    config.Storage.Id.Int(),
+			Period:       config.Period,
+			NextUploadOn: config.NextUploadOn.Time(),
+			LastLogId:    config.LastUploadedLog.Int(),
+			UserId:       config.UpdatedBy.Int(),
+			DomainId:     config.DomainId,
+		}
+		a.InsertLogUploader(config.Id, nil, params)
 	}
 	return nil
 }
 
-func (a *App) initializeStorageUploaders() errors.AppError {
-	//panic("unimplemented")
-	//connections, appErr := a.serviceDiscovery.GetByName("storage")
-	return nil
+func (a *App) DeleteWatchers(configId ...int) {
+	a.DeleteLogUploader(configId...)
+	a.DeleteLogCleaner(configId...)
 }
 
-func (a *App) DeleteWatcherByKey(key string) {
-	val, ok := a.watchers[key]
-	if !ok {
-		return
-	}
-	val.Stop()
-	delete(a.watchers, key)
+// endregion
+
+// region LOG CLEANER
+func (a *App) InsertLogCleaner(configId int, startParams *watcher.StartParams, dayseToStore int) {
+	name := FormatKey(DeleteWatcherPrefix, configId)
+	a.deleteWatchers[name] = watcher.MakeWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, time.Hour*24, a.BuildLogCleanerFunction(configId, dayseToStore))
+	go a.deleteWatchers[name].Start()
 }
 
-func (a *App) GetWatcherByKey(key string) *watcher.Watcher {
-	val, ok := a.watchers[key]
+func (a *App) GetLogCleaner(configId int) *watcher.Watcher {
+	key := FormatKey(DeleteWatcherPrefix, configId)
+	val, ok := a.deleteWatchers[key]
 	if !ok {
 		return nil
 	}
 	return val
 }
 
-// New interval in days
-func (a *App) UpdateDeleteWatcherWithNewInterval(configId, dayseToStore int) {
+func (a *App) DeleteLogCleaner(configId ...int) {
+	for _, s := range configId {
+		key := FormatKey(DeleteWatcherPrefix, s)
+		val, ok := a.deleteWatchers[key]
+		if !ok {
+			return
+		}
+		val.Stop()
+		delete(a.deleteWatchers, key)
+	}
+
+}
+
+func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 	name := FormatKey(DeleteWatcherPrefix, configId)
-	val, ok := a.watchers[name]
+	val, ok := a.deleteWatchers[name]
 	if !ok {
 		return
 	}
 	val.Stop()
-	val.PollAndNotify = a.BuildWatcherDeleteFunction(configId, dayseToStore)
+	val.PollAndNotify = a.BuildLogCleanerFunction(configId, dayseToStore)
 	go val.Start()
 }
 
-// New interval in days
-func (a *App) InsertNewDeleteWatcher(configId, dayseToStore int) {
+func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherNotify {
 	name := FormatKey(DeleteWatcherPrefix, configId)
-	a.watchers[name] = watcher.MakeWatcher(name, int64(time.Hour)*24, a.BuildWatcherDeleteFunction(configId, dayseToStore))
+	return func() {
+		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
+		if err != nil {
+			wlog.Info(fmt.Sprintf("watcher [%s]: %s", name, err.Error()))
+		} else {
+			wlog.Info(fmt.Sprintf("watcher [%s]: cleaned %d rows", name, res))
+		}
+	}
 }
 
-//func FormatCacheKey(prefix string, domainId int, objectId int) string {
-//	return fmt.Sprintf("%s.%d.%d", prefix, domainId, objectId)
-//}
+// endregion
 
+// region LOG UPLOADER
+
+func (a *App) DeleteLogUploader(configId ...int) {
+	for _, s := range configId {
+		key := FormatKey(UploadWatcherPrefix, s)
+		val, ok := a.uploadWatchers[key]
+		if !ok {
+			return
+		}
+		val.Stop()
+		delete(a.uploadWatchers, key)
+	}
+
+}
+
+func (a *App) GetLogUploader(configId int) *watcher.UploadWatcher {
+	key := FormatKey(UploadWatcherPrefix, configId)
+	val, ok := a.uploadWatchers[key]
+	if !ok {
+		return nil
+	}
+	return val
+}
+
+func (a *App) GetLogUploaderParams(configId int) *watcher.UploadWatcherParams {
+	name := FormatKey(UploadWatcherPrefix, configId)
+	val, ok := a.uploadWatchers[name]
+	if !ok {
+		return nil
+	}
+	return val.Params
+}
+
+func (a *App) InsertLogUploader(configId int, startParams *watcher.StartParams, params *watcher.UploadWatcherParams) {
+	name := FormatKey(UploadWatcherPrefix, configId)
+	a.uploadWatchers[name] = watcher.MakeUploadWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, time.Hour*24, params, a.BuildWatcherUploadFunction(configId, params))
+	go a.uploadWatchers[name].Start()
+}
+
+func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.WatcherNotify {
+	format := func(text string) string {
+		return fmt.Sprintf("watcher - %s: %s", FormatKey(UploadWatcherPrefix, configId), text)
+	}
+	return func() {
+		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {
+			filters := []*model.Filter{
+				{
+					Column:         "config_id",
+					Value:          configId,
+					ComparisonType: model.Equal,
+				}}
+			if v := params.LastLogId; v != 0 {
+				filters = append(filters, &model.Filter{
+					Column:         "id",
+					Value:          v,
+					ComparisonType: model.GreaterThan,
+				})
+			}
+			logs, appErr := a.storage.Log().Get(context.Background(), &model.SearchOptions{
+				Sort: "-id",
+			}, model.FilterBunch{
+				Bunch:          filters,
+				ConnectionType: model.AND,
+			})
+			if appErr != nil {
+				if !IsErrNoRows(appErr) {
+					wlog.Info(format(appErr.Error()))
+					return
+				}
+				wlog.Info(format("no new logs..."))
+				return
+			}
+			convertedLogs, appErr := convertLogModelToMessageBulk(logs)
+			if appErr != nil {
+				wlog.Info(format(appErr.Error()))
+				return
+			}
+			buf := &bytes.Buffer{}
+			s := proto.Logs{Items: convertedLogs}
+			encodeResult, err := json.Marshal(s)
+			if err != nil {
+				wlog.Info(format(err.Error()))
+				return
+			}
+			_, err = buf.Write(encodeResult)
+			if err != nil {
+				wlog.Info(format(err.Error()))
+				return
+			}
+			year, month, day := time.Now().Date()
+			fileName := fmt.Sprintf("log_%d_%d_%s_%d.json", configId, year, month, day)
+			_, err = a.UploadFile(context.Background(), int64(params.DomainId), "", buf, model.File{
+				Name:     fileName,
+				Size:     int64(buf.Len()),
+				MimeType: "application/json",
+				ViewName: &fileName,
+			})
+			if err != nil {
+				wlog.Info(format(err.Error()))
+				return
+			}
+			lastLogId := logs[0].Id
+			nextUpload := calculateNextPeriodFromNow(int32(params.Period))
+
+			params.NextUploadOn = calculateNextPeriodFromNow(int32(params.Period))
+			params.LastLogId = lastLogId
+
+			nullLogId, err := model.NewNullInt(convertedLogs[0].Id)
+			if err != nil {
+				wlog.Info(format(err.Error()))
+				return
+			}
+			_, appErr = a.storage.Config().Update(
+				context.Background(),
+				&model.Config{
+					Id:              configId,
+					NextUploadOn:    *model.NewNullTime(nextUpload),
+					LastUploadedLog: *nullLogId,
+				},
+				[]string{"next_upload_on", "last_uploaded_log_id"},
+				params.UserId,
+			)
+			if appErr != nil {
+				wlog.Info(format(appErr.Error()))
+				return
+			}
+			wlog.Info(format("logs successfully uploaded to the storage!"))
+		}
+	}
+}
+
+// endregion
+
+// region UTILS
 func FormatKey(prefix string, args ...any) string {
 	base := prefix
 	for _, v := range args {
@@ -99,25 +253,4 @@ func FormatKey(prefix string, args ...any) string {
 	return base
 }
 
-func (a *App) BuildWatcherDeleteFunction(configId, daysToStore int) watcher.WatcherNotify {
-	name := FormatKey(DeleteWatcherPrefix, configId)
-	return func() {
-		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
-		if err != nil {
-			wlog.Info(fmt.Sprintf("error while executing watcher function. watcher - %s, error: %s", name, err.Error()))
-		}
-		wlog.Info(fmt.Sprintf("watcher - %s cleaned %d rows", name, res))
-	}
-}
-
-func (a *App) BuildWatcherUploadFunction(domainId, objectId, daysToStore int) watcher.WatcherNotify {
-	panic("unimplemented")
-	//name := FormatConfigKey(DeleteWatcherPrefix, domainId, objectId)
-	//return func() {
-	//
-	//	if err != nil {
-	//		wlog.Debug(fmt.Sprintf("error while executing watcher function. watcher - %s, error: %s", name, err.Error()))
-	//	}
-	//	wlog.Debug(fmt.Sprintf("watcher - %s cleaned %d rows", name, res))
-	//}
-}
+// endregion

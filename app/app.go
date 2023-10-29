@@ -6,20 +6,26 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/webitel/engine/auth_manager"
-	"github.com/webitel/engine/discovery"
+	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/pkg/cache"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/webitel/engine/auth_manager"
+	"github.com/webitel/engine/discovery"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/logger/watcher"
+	strg "github.com/webitel/protos/storage"
 	"google.golang.org/grpc/metadata"
 
 	errors "github.com/webitel/engine/model"
 )
 
 const (
-	DeleteWatcherPrefix = "config.watcher"
+	DeleteWatcherPrefix = "config.delete.watcher"
+	UploadWatcherPrefix = "config.upload.watcher"
 	SESSION_CACHE_SIZE  = 35000
 	SESSION_CACHE_TIME  = 60 * 5
 
@@ -31,7 +37,9 @@ const (
 type App struct {
 	config           *model.AppConfig
 	storage          storage.Storage
-	watchers         map[string]*watcher.Watcher
+	file             strg.FileServiceClient
+	uploadWatchers   map[string]*watcher.UploadWatcher
+	deleteWatchers   map[string]*watcher.Watcher
 	serviceDiscovery discovery.ServiceDiscovery
 	sessionManager   auth_manager.AuthManager
 	cache            cache.CacheStore
@@ -81,6 +89,16 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 		return nil, appErr
 	}
 	app.server = s
+
+	conn, err := grpc.Dial(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, errors.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
+	}
+
+	app.file = strg.NewFileServiceClient(conn)
 	return app, nil
 }
 

@@ -21,20 +21,27 @@ type Config struct {
 }
 
 var (
-	logFieldsMap = map[string]string{
-		"id":             "object_config.id",
-		"enabled":        "object_config.enabled",
-		"days_to_store":  "object_config.days_to_store",
-		"period":         "object_config.period",
-		"next_upload_on": "object_config.next_upload_on",
-		"object":         "object_config.object_id, wbt_class.name as object_name",
-		"storage":        "object_config.storage_id, file_backend_profiles.name as storage_name",
-		"domain_id":      "object_config.domain_id",
-		"created_at":     "object_config.created_at",
-		"created_by":     "object_config.created_by",
-		"updated_at":     "object_config.updated_at",
-		"updated_by":     "object_config.updated_by",
-		"description":    "object_config.description",
+	configFieldsMap = map[string]string{
+		"id":                   "object_config.id",
+		"enabled":              "object_config.enabled",
+		"days_to_store":        "object_config.days_to_store",
+		"period":               "object_config.period",
+		"next_upload_on":       "object_config.next_upload_on",
+		"object_name":          "wbt_class.name as object_name",
+		"object_id":            "object_config.object_id",
+		"storage_id":           "object_config.storage_id",
+		"storage_name":         "file_backend_profiles.name as storage_name",
+		"domain_id":            "object_config.domain_id",
+		"created_at":           "object_config.created_at",
+		"created_by":           "object_config.created_by",
+		"updated_at":           "object_config.updated_at",
+		"updated_by":           "object_config.updated_by",
+		"description":          "object_config.description",
+		"last_uploaded_log_id": "object_config.last_uploaded_log_id",
+
+		// [alias]
+		"storage": "object_config.storage_id, file_backend_profiles.name as storage_name",
+		"object":  "object_config.object_id, wbt_class.name as object_name",
 	}
 )
 
@@ -54,11 +61,13 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	if appErr != nil {
 		return nil, appErr
 	}
+	if userId < 0 {
+		return nil, errors.NewBadRequestError("postgres.config.update.invalid_args.user_id", "user id is invalid !")
+	}
 
 	base := sq.Update("logger.object_config").
 		Where(sq.Eq{"id": conf.Id}).
 		Set("updated_at", time.Now()).
-		Set("updated_by", userId).
 		PlaceholderFormat(sq.Dollar)
 	if len(fields) == 0 {
 		fields = []string{"enabled", "days_to_store", "period", "next_upload_on", "storage", "description"}
@@ -77,6 +86,8 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 			base = base.Set("storage_id", conf.Storage.Id)
 		case "description":
 			base = base.Set("description", conf.Description)
+		case "last_uploaded_log_id":
+			base = base.Set("last_uploaded_log_id", conf.LastUploadedLog)
 		}
 	}
 	query, args, _ := base.ToSql()
@@ -96,7 +107,8 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 			   p.storage_id,
 			   p.domain_id,
 			   p.object_id,
-               p.description
+               p.description,
+               p.last_uploaded_log_id
 		from p
 				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
@@ -179,7 +191,6 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 		))
 	}
 	// endregion
-	fmt.Println(base.ToSql())
 	// region PREFORM
 	rows, err := base.RunWith(db).QueryContext(ctx)
 
@@ -319,7 +330,7 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), filters)
+	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), configFieldsMap, filters)
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
@@ -393,6 +404,8 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]*model.Config, errors.AppError) {
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedBy })
 			case "description":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Description })
+			case "last_uploaded_log_id":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LastUploadedLog })
 			default:
 				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
 			}
@@ -417,7 +430,6 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]*model.Config, errors.AppError) {
 	return configs, nil
 }
 
-// Refactor GetQueryBaseFromSearchOptions for beauty
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
 
@@ -425,7 +437,11 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		return c.GetQueryBase(c.getFields(), rbac)
 	}
 	for _, v := range opt.Fields {
-		fields = append(fields, logFieldsMap[v])
+		if columnName, ok := logFieldsMap[v]; ok {
+			fields = append(fields, columnName)
+		} else {
+			fields = append(fields, v)
+		}
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
@@ -474,7 +490,7 @@ func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOpti
 
 func (c *Config) getFields() []string {
 	var fields []string
-	for _, value := range logFieldsMap {
+	for _, value := range configFieldsMap {
 		fields = append(fields, value)
 	}
 	return fields

@@ -249,7 +249,7 @@ func (a *App) SearchLogsByRecordId(ctx context.Context, in *proto.SearchLogByRec
 	return &res, nil
 }
 
-func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, sFile io.Reader, metadata model.File) (*model.File, errors.AppError) {
+func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, storageId int, sFile io.Reader, metadata model.File) (*model.File, errors.AppError) {
 	stream, err := a.file.UploadFile(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("app.log.upload_file.request_stream.error", err.Error())
@@ -258,10 +258,11 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, sFile
 	err = stream.Send(&strg.UploadFileRequest{
 		Data: &strg.UploadFileRequest_Metadata_{
 			Metadata: &strg.UploadFileRequest_Metadata{
-				DomainId: domainId,
-				Name:     metadata.Name,
-				MimeType: metadata.MimeType,
-				Uuid:     uuid,
+				DomainId:  domainId,
+				Name:      metadata.Name,
+				MimeType:  metadata.MimeType,
+				Uuid:      uuid,
+				ProfileId: int64(storageId),
 			},
 		},
 	})

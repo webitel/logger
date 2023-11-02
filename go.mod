@@ -16,7 +16,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/webitel/engine v0.0.0-20230929132314-e8f08f52c140
 	github.com/webitel/protos/logger v0.0.0-20231012100410-2e28f14ab59e
-	github.com/webitel/protos/storage v0.0.0-20231024111420-9edb95d34039
+	github.com/webitel/protos/storage v0.0.0-20231101132502-15455cfe862e
 	github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28
 	google.golang.org/grpc v1.58.3
 )

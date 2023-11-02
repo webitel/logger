@@ -659,6 +659,8 @@ github.com/webitel/protos/logger v0.0.0-20231012100410-2e28f14ab59e h1:sx3uZ4YQB
 github.com/webitel/protos/logger v0.0.0-20231012100410-2e28f14ab59e/go.mod h1:GHdxjZvyVJtl6gdI86Z3rOyq7Mjid7uP0n0umEDbC3M=
 github.com/webitel/protos/storage v0.0.0-20231024111420-9edb95d34039 h1:miDb3yyyF39uo4/tE38z8SbUYGdSoRuW6WTQ7qKKVbQ=
 github.com/webitel/protos/storage v0.0.0-20231024111420-9edb95d34039/go.mod h1:b2PCpMDFhtASZ++ttDyEI1dbipKstRJGgYB4YuqIMu0=
+github.com/webitel/protos/storage v0.0.0-20231101132502-15455cfe862e h1:ZxDol5fkeG/uu/36U8dGVCgNEBGDJuj/iJgiBkF+k44=
+github.com/webitel/protos/storage v0.0.0-20231101132502-15455cfe862e/go.mod h1:b2PCpMDFhtASZ++ttDyEI1dbipKstRJGgYB4YuqIMu0=
 github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28 h1:24KMgyr2jjLgfBJWDSVKDdLo27Z9uXU+WVHJJ4J58t8=
 github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28/go.mod h1:TZS9UCbaIaCiUCWAIZTlX4hDbtZOZ51JohoJM/GbtR0=
 github.com/yagipy/maintidx v1.0.0 h1:h5NvIsCz+nRDapQ0exNv4aJ0yXSI0420omVANTv3GJM=

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+
 	"github.com/webitel/logger/pkg/cache"
 	"github.com/webitel/logger/pkg/discovery"
 
@@ -46,25 +47,6 @@ func (c *grpcClient) Start() error {
 			c.registerConnection(v)
 		}
 	}
-
-	//c.startOnce.Do(func() {
-	//	c.watcher = discovery.MakeWatcher("logger.watcher", WatcherInterval, c.wakeUp)
-	//	go c.watcher.Start()
-	//	go func() {
-	//		defer func() {
-	//			wlog.Debug("stopped")
-	//			close(c.stopped)
-	//		}()
-	//
-	//		for {
-	//			select {
-	//			case <-c.stop:
-	//				wlog.Debug("r received stop signal")
-	//				return
-	//			}
-	//		}
-	//	}()
-	//})
 	c.isOpened = true
 	return nil
 }

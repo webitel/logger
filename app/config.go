@@ -2,8 +2,13 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
+
+	"github.com/webitel/logger/watcher"
+
+	"github.com/webitel/wlog"
 
 	"github.com/webitel/engine/auth_manager"
 	errors "github.com/webitel/engine/model"
@@ -13,12 +18,12 @@ import (
 
 func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
-		result *model.Config
+		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldModel, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
 	if err != nil {
 		return nil, err
 	}
@@ -28,14 +33,14 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 	if err != nil {
 		return nil, err
 	}
-	result, err = a.storage.Config().Update(ctx, model, []string{}, userId)
+	newConfig, err = a.storage.Config().Update(ctx, model, []string{}, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	a.UpdateDeleteWatcherForConfig(oldModel.Enabled == true && result.Enabled == false, result.DaysToStore, result.Id, domainId, result.Object.Id.Int())
+	a.UpdateConfigWatchers(oldConfig, newConfig)
 
-	res, err := a.convertConfigModelToMessage(result)
+	res, err := a.convertConfigModelToMessage(newConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -45,29 +50,26 @@ func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, d
 
 func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
 	var (
-		result *model.Config
+		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldModel, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
 	if err != nil {
 		return nil, err
 	}
 
-	model, err := a.convertPatchConfigMessageToModel(in, domainId)
-
+	updatedConfigModel, err := a.convertPatchConfigMessageToModel(in, domainId)
 	if err != nil {
 		return nil, err
 	}
-	result, err = a.storage.Config().Update(ctx, model, in.GetFields(), userId)
+	newConfig, err = a.storage.Config().Update(ctx, updatedConfigModel, in.GetFields(), userId)
 	if err != nil {
 		return nil, err
 	}
-
-	a.UpdateDeleteWatcherForConfig(oldModel.Enabled == true && result.Enabled == false, result.DaysToStore, result.Id, domainId, result.Object.Id.Int())
-
-	res, err := a.convertConfigModelToMessage(result)
+	a.UpdateConfigWatchers(oldConfig, newConfig)
+	res, err := a.convertConfigModelToMessage(newConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -99,17 +101,72 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 
 }
 
-func (a *App) UpdateDeleteWatcherForConfig(statusChangedToDisabled bool, daysToStore, configId, domainId, objectId int) {
-	watcherName := FormatKey(DeleteWatcherPrefix, domainId, objectId)
-	if statusChangedToDisabled {
-		a.DeleteWatcherByKey(watcherName)
-	} else {
-		if a.GetWatcherByKey(watcherName) != nil {
-			a.UpdateDeleteWatcherWithNewInterval(configId, daysToStore)
-		} else {
-			a.InsertNewDeleteWatcher(configId, daysToStore)
+func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
+	configId := newConfig.Id
+	domainId := newConfig.DomainId
+	if !newConfig.Enabled && oldConfig.Enabled { // changed to disabled
+		a.DeleteWatchers(configId)
+		wlog.Info(fmt.Sprintf("config with id %d disabled... watchers have been deleted !", configId))
+	} else if newConfig.Enabled && oldConfig.Enabled || (newConfig.Enabled && !oldConfig.Enabled) { // status wasn't changed and it's still enabled OR changed to enabled
+
+		if newConfig.DaysToStore != oldConfig.DaysToStore { // if days to store changed
+			if a.GetLogCleaner(configId) != nil { // if upload watcher exists then update it's new days to store
+				a.UpdateLogCleanerWithNewInterval(configId, newConfig.DaysToStore)
+				wlog.Info(fmt.Sprintf("config with id %d changed it's log capacity... watcher have been notified and updated !", configId))
+			} else {
+				a.InsertLogCleaner(configId, nil, newConfig.DaysToStore)
+				wlog.Info(fmt.Sprintf("config with id %d changed it's log capacity... new watcher have been created !", configId))
+			}
 		}
+
+		//if newConfig.Period != oldConfig.Period { // if period changed
+		//	if params := a.GetLogUploaderParams(configId); params != nil {
+		//		params.Period = newConfig.Period
+		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... watcher have been notified and updated !", configId))
+		//	} else {
+		//		a.InsertLogUploader(configId, &watcher.UploadWatcherParams{
+		//			StorageId:    newConfig.Storage.Id.Int(),
+		//			Period:       newConfig.Period,
+		//			NextUploadOn: newConfig.NextUploadOn.Time(),
+		//			LastLogId:    newConfig.LastUploadedLog.Int(),
+		//			DomainId:     domainId,
+		//		})
+		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... new watcher have been created !", configId))
+		//	}
+		//}
+		//
+		//if newConfig.Storage.Id.Int() != oldConfig.Storage.Id.Int() { // if storage changed
+		//	if params := a.GetLogUploaderParams(configId); params != nil {
+		//		params.StorageId = newConfig.Storage.Id.Int()
+		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... watcher have been notified and updated !", configId))
+		//	} else {
+		//		a.InsertLogUploader(configId, &watcher.UploadWatcherParams{
+		//			StorageId:    newConfig.Storage.Id.Int(),
+		//			Period:       newConfig.Period,
+		//			NextUploadOn: newConfig.NextUploadOn.Time(),
+		//			LastLogId:    newConfig.LastUploadedLog.Int(),
+		//			DomainId:     domainId,
+		//		})
+		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... new watcher have been created !", configId))
+		//	}
+		//}
+		if params := a.GetLogUploaderParams(configId); params != nil {
+			params.UserId = newConfig.UpdatedBy.Int()
+			params.StorageId = newConfig.Storage.Id.Int()
+			params.Period = newConfig.Period
+			params.NextUploadOn = newConfig.NextUploadOn.Time()
+		} else {
+			a.InsertLogUploader(configId, nil, &watcher.UploadWatcherParams{
+				StorageId:    newConfig.Storage.Id.Int(),
+				Period:       newConfig.Period,
+				NextUploadOn: newConfig.NextUploadOn.Time(),
+				LastLogId:    newConfig.LastUploadedLog.Int(),
+				DomainId:     domainId,
+			})
+		}
+		wlog.Info(fmt.Sprintf("config with id %d updated... watchers have been updated too !", configId))
 	}
+	// else status still disabled
 }
 
 func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
@@ -128,7 +185,14 @@ func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, d
 		return nil, err
 	}
 	if newModel.Enabled {
-		a.InsertNewDeleteWatcher(newModel.Id, newModel.DaysToStore)
+		a.InsertLogCleaner(newModel.Id, nil, newModel.DaysToStore)
+		a.InsertLogUploader(newModel.Id, nil, &watcher.UploadWatcherParams{
+			StorageId:    newModel.Storage.Id.Int(),
+			Period:       newModel.Period,
+			NextUploadOn: newModel.NextUploadOn.Time(),
+			LastLogId:    0,
+			DomainId:     domainId,
+		})
 	}
 
 	res, err := a.convertConfigModelToMessage(newModel)
@@ -136,7 +200,6 @@ func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, d
 		return nil, err
 	}
 	return res, nil
-
 }
 
 func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions,*/, domainId int, objectId int) (*proto.Config, errors.AppError) {
@@ -300,10 +363,10 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
 		//Storage.Id:  int(in.GetStorageId()),
-		DomainId:    domainId,
-		Description: *model.NewNullString(in.GetDescription()),
+		DomainId:     domainId,
+		Description:  *model.NewNullString(in.GetDescription()),
+		NextUploadOn: *model.NewNullTime(calculateNextPeriodFromNow(in.Period)),
 	}
-	a.calculateNextPeriod(config)
 
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
@@ -323,11 +386,10 @@ func (a *App) convertPatchConfigMessageToModel(in *proto.PatchConfigRequest, dom
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
 		//Storage.Id:  int(in.GetStorageId()),
-		DomainId:    domainId,
-		Description: *model.NewNullString(in.GetDescription()),
+		DomainId:     domainId,
+		Description:  *model.NewNullString(in.GetDescription()),
+		NextUploadOn: *model.NewNullTime(calculateNextPeriodFromNow(in.Period)),
 	}
-	a.calculateNextPeriod(config)
-
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
@@ -350,10 +412,10 @@ func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, d
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
 		//StorageId:   int(in.GetStorageId()),
-		DomainId:    domainId,
-		Description: *model.NewNullString(in.GetDescription()),
+		DomainId:     domainId,
+		Description:  *model.NewNullString(in.GetDescription()),
+		NextUploadOn: *model.NewNullTime(calculateNextPeriodFromNow(in.Period)),
 	}
-	a.calculateNextPeriod(config)
 	objectId, err := model.NewNullInt(in.GetObject().GetId())
 	if err != nil {
 		return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_object_id.fail", err.Error())
@@ -396,6 +458,12 @@ func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, erro
 	return conf, nil
 }
 
-func (a *App) calculateNextPeriod(in *model.Config) {
-	in.NextUploadOn = *model.NewNullTime(time.Now().Add(time.Hour * 24 * time.Duration(in.Period)))
+func calculateNextPeriodFromDate(period int, from time.Time) *model.NullTime {
+	return model.NewNullTime(from.Add(time.Hour * 24 * time.Duration(period)))
+
+}
+
+func calculateNextPeriodFromNow(period int32) time.Time {
+	now := time.Now().Add(time.Hour * 24 * time.Duration(period))
+	return now
 }

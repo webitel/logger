@@ -93,8 +93,8 @@ func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 		return
 	}
 	val.Stop()
-	val.PollAndNotify = a.BuildLogCleanerFunction(configId, dayseToStore)
-	go val.Start()
+	delete(a.deleteWatchers, name)
+	a.InsertLogCleaner(configId, nil, dayseToStore)
 }
 
 func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherNotify {

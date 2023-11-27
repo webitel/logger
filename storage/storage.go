@@ -42,14 +42,14 @@ type Storage interface {
 //}
 
 type LogStore interface {
-	Insert(context.Context, *model.Log) errors.AppError
+	Insert(ctx context.Context, log *model.Log, domainId int) errors.AppError
 	//GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError)
 	//GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
 	//GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError)
 	//GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
 	//GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, errors.AppError)
 	Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError)
-	InsertMany(ctx context.Context, log []*model.Log) errors.AppError
+	InsertMany(ctx context.Context, log []*model.Log, domainId int) errors.AppError
 	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError)
 	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError)
 }

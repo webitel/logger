@@ -3,6 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
+
+	strg "github.com/webitel/protos/storage"
 
 	"github.com/webitel/logger/model"
 
@@ -256,6 +259,70 @@ func (a *App) SearchLogsByRecordId(ctx context.Context, in *proto.SearchLogByRec
 	return &res, nil
 }
 
+func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, storageId int, sFile io.Reader, metadata model.File) (*model.File, errors.AppError) {
+	stream, err := a.file.UploadFile(ctx)
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.upload_file.request_stream.error", err.Error())
+	}
+
+	err = stream.Send(&strg.UploadFileRequest{
+		Data: &strg.UploadFileRequest_Metadata_{
+			Metadata: &strg.UploadFileRequest_Metadata{
+				DomainId:  domainId,
+				Name:      metadata.Name,
+				MimeType:  metadata.MimeType,
+				Uuid:      uuid,
+				ProfileId: int64(storageId),
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.upload_file.send_metadata.error", err.Error())
+	}
+
+	defer stream.CloseSend()
+
+	buf := make([]byte, 4*1024)
+	var n int
+	for {
+		n, err = sFile.Read(buf)
+		buf = buf[:n]
+		if err != nil {
+			break
+		}
+		err = stream.Send(&strg.UploadFileRequest{
+			Data: &strg.UploadFileRequest_Chunk{
+				Chunk: buf,
+			},
+		})
+		if err != nil {
+			break
+		}
+	}
+
+	if err == io.EOF {
+		err = nil
+	}
+
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.upload_file.send_stream.error", err.Error())
+	}
+
+	var res *strg.UploadFileResponse
+	res, err = stream.CloseAndRecv()
+	if err != nil {
+		return nil, errors.NewInternalError("app.log.upload_file.close_stream.error", err.Error())
+	}
+
+	metadata.Id = int(res.FileId)
+	metadata.Size = res.Size
+	metadata.Url = res.FileUrl
+	metadata.PublicUrl = res.Server + res.FileUrl
+
+	return &metadata, nil
+}
+
 func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) errors.AppError {
 
 	config, err := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
@@ -266,7 +333,7 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 	if err != nil {
 		return err
 	}
-	err = a.storage.Log().Insert(ctx, model)
+	err = a.storage.Log().Insert(ctx, model, domainId)
 	if err != nil {
 		return err
 	}
@@ -276,31 +343,31 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 }
 
 func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64, objectName string) errors.AppError {
-	searchResult, err := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
-		Bunch: []*model.Filter{
-			{
-				Column:         "wbt_class.name",
-				Value:          objectName,
-				ComparisonType: model.Like,
-			},
-			{
-				Column:         "object_config.domain_id",
-				Value:          domainId,
-				ComparisonType: model.Equal,
-			},
-		},
-		ConnectionType: model.AND,
-	})
-	if err != nil {
-		return err
-	}
-	config := searchResult[0]
+	//searchResult, err := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
+	//	Bunch: []*model.Filter{
+	//		{
+	//			Column:         "wbt_class.name",
+	//			Value:          objectName,
+	//			ComparisonType: model.Like,
+	//		},
+	//		{
+	//			Column:         "object_config.domain_id",
+	//			Value:          domainId,
+	//			ComparisonType: model.Equal,
+	//		},
+	//	},
+	//	ConnectionType: model.AND,
+	//})
+	//if err != nil {
+	//	return err
+	//}
+	//config := searchResult[0]
 
-	logs, err := convertRabbitMessageToModelBulk(rabbitMessages, config.Id)
+	logs, err := convertRabbitMessageToModelBulk(rabbitMessages, 0)
 	if err != nil {
 		return err
 	}
-	err = a.storage.Log().InsertMany(ctx, *logs)
+	err = a.storage.Log().InsertMany(ctx, *logs, int(domainId))
 	if err != nil {
 		return err
 	}
@@ -348,6 +415,18 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	//	}
 	//}
 	return log, nil
+}
+
+func convertLogModelToMessageBulk(m []*model.Log) ([]*proto.Log, errors.AppError) {
+	var rows []*proto.Log
+	for _, v := range m {
+		protoLog, err := convertLogModelToMessage(v)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, protoLog)
+	}
+	return rows, nil
 }
 
 func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.Log, errors.AppError) {

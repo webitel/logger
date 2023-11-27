@@ -16,6 +16,13 @@ type LoggerService struct {
 	app *App
 }
 
+func NewLoggerService(app *App) (*LoggerService, errors.AppError) {
+	if app == nil {
+		return nil, errors.NewInternalError("api.config.new_logger_service.args_check.app_nil", "app is nil")
+	}
+	return &LoggerService{app: app}, nil
+}
+
 func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.SearchLogByRecordIdRequest) (*proto.Logs, error) {
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
@@ -27,12 +34,6 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
 	}
 	return s.app.SearchLogsByRecordId(ctx, in)
-}
-func NewLoggerService(app *App) (*LoggerService, errors.AppError) {
-	if app == nil {
-		return nil, errors.NewInternalError("api.config.new_logger_service.args_check.app_nil", "app is nil")
-	}
-	return &LoggerService{app: app}, nil
 }
 
 func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchLogByUserIdRequest) (*proto.Logs, error) {

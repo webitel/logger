@@ -69,7 +69,9 @@ func (s *PostgresStore) Close() errors.AppError {
 
 }
 
-func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.SelectBuilder {
+// ApplyFiltersToBuilder determines type of {filters} parameter and applies {filters} to the {base} according to the determined type.
+// columnAlias is additional parameter applied to every model.Filter existing in {filters} and checks if {model.Filter.Column} has alias in the {columnAlias}
+func ApplyFiltersToBuilder(base squirrel.SelectBuilder, columnAlias map[string]string, filters any) squirrel.SelectBuilder {
 	switch data := filters.(type) {
 	case model.FilterArray:
 		switch data.Connection {
@@ -80,14 +82,14 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 				case model.AND:
 					lowerResult := squirrel.And{}
 					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter))
+						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
 					}
 					result = append(result, lowerResult)
 
 				case model.OR:
 					lowerResult := squirrel.Or{}
 					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter))
+						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
 					}
 					result = append(result, lowerResult)
 
@@ -103,7 +105,7 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 				case model.AND:
 					lowerResult := squirrel.And{}
 					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter))
+						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
 					}
 					result = append(result, lowerResult)
 					base = base.Where(result)
@@ -111,7 +113,7 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 				case model.OR:
 					lowerResult := squirrel.Or{}
 					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter))
+						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
 					}
 					result = append(result, lowerResult)
 					base = base.Where(result)
@@ -127,7 +129,7 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 		case model.AND:
 			result := squirrel.And{}
 			for _, filter := range data.Bunch {
-				result = append(result, applyFilter(filter))
+				result = append(result, applyFilter(filter, columnAlias))
 			}
 
 			base = base.Where(result)
@@ -135,37 +137,45 @@ func ApplyFiltersToBuilder(base squirrel.SelectBuilder, filters any) squirrel.Se
 		case model.OR:
 			result := squirrel.Or{}
 			for _, filter := range data.Bunch {
-				result = append(result, applyFilter(filter))
+				result = append(result, applyFilter(filter, columnAlias))
 			}
 			base = base.Where(result)
 			return base
 		}
 	case model.Filter:
-		base = base.Where(applyFilter(&data))
+		base = base.Where(applyFilter(&data, columnAlias))
 	}
 
 	return base
 }
 
-func applyFilter(filter *model.Filter) squirrel.Sqlizer {
+// Apply filter performs convertation between model.Filter and squirrel.Sqlizer.
+// columnAlias is additional parameter to determine if model.Filter in the Column property has alias of the column and NOT the real DB column name.
+func applyFilter(filter *model.Filter, columnsAlias map[string]string) squirrel.Sqlizer {
+	columnName := filter.Column
+	if columnsAlias != nil {
+		if alias, ok := columnsAlias[columnName]; ok {
+			columnName = alias
+		}
+	}
 	var result squirrel.Sqlizer
 	switch filter.ComparisonType {
 	case model.GreaterThan:
-		result = squirrel.Gt{filter.Column: filter.Value}
+		result = squirrel.Gt{columnName: filter.Value}
 	case model.GreaterThanOrEqual:
-		result = squirrel.GtOrEq{filter.Column: filter.Value}
+		result = squirrel.GtOrEq{columnName: filter.Value}
 	case model.LessThan:
-		result = squirrel.Lt{filter.Column: filter.Value}
+		result = squirrel.Lt{columnName: filter.Value}
 	case model.LessThanOrEqual:
-		result = squirrel.LtOrEq{filter.Column: filter.Value}
+		result = squirrel.LtOrEq{columnName: filter.Value}
 	case model.NotEqual:
-		result = squirrel.NotEq{filter.Column: filter.Value}
+		result = squirrel.NotEq{columnName: filter.Value}
 	case model.Like:
-		result = squirrel.Like{filter.Column: filter.Value}
+		result = squirrel.Like{columnName: filter.Value}
 	case model.ILike:
-		result = squirrel.ILike{filter.Column: filter.Value}
+		result = squirrel.ILike{columnName: filter.Value}
 	default:
-		result = squirrel.Eq{filter.Column: filter.Value}
+		result = squirrel.Eq{columnName: filter.Value}
 	}
 	return result
 }

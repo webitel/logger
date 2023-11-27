@@ -16,15 +16,22 @@ import (
 
 var (
 	logFieldsMap = map[string]string{
-		"id":        "log.id",
-		"date":      "log.date",
-		"user":      "log.user_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
-		"user_ip":   "log.user_ip",
-		"new_state": "log.new_state",
-		"record":    "log.record_id",
-		"action":    "log.action",
-		"config_id": "log.config_id",
-		"object":    "object_config.object_id, log.object_name",
+		"id":          "log.id",
+		"user_id":     "log.user_id",
+		"user_name":   "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+		"user_ip":     "log.user_ip",
+		"record_id":   "log.record_id",
+		"action":      "log.action",
+		"config_id":   "log.config_id",
+		"object_id":   "object_config.object_id",
+		"object_name": "log.object_name",
+		"date":        "log.date",
+		"new_state":   "log.new_state",
+
+		// [combined alias]
+		"object": "log.object_name, object_config.object_id",
+		"user":   "log.user_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+		"record": "log.record_id",
 	}
 	recordTableMap = map[string]*storage.Table{
 		"cc_queue": {
@@ -54,9 +61,9 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters)
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
+	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), logFieldsMap, filters)
+	query, _, _ := base.ToSql()
+	wlog.Debug(query)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -67,6 +74,14 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 		return nil, appErr
 	}
 	return res, nil
+}
+
+func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) errors.AppError {
+	err := c.InsertMany(ctx, []*model.Log{log}, domainId)
+	if err != nil {
+		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
+	}
+	return nil
 }
 
 func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError) {
@@ -95,35 +110,18 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 	return true, nil
 }
 
-func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return appErr
-	}
-	query := `INSERT INTO
-			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id, object_name)
-			 $1, $2, $3, $4, $5, $6, $7, $8`
-	wlog.Debug(query)
-	_, err := db.ExecContext(ctx,
-		query, log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name,
-	)
-	if err != nil {
-		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
-	}
-	return nil
-}
-
-func (c *Log) InsertMany(ctx context.Context, logs []*model.Log) errors.AppError {
+func (c *Log) InsertMany(ctx context.Context, logs []*model.Log, domainId int) errors.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
 	}
 	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id", "object_name").PlaceholderFormat(sq.Dollar)
 	for _, log := range logs {
-		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name)
+		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, sq.Expr("(SELECT object_config.id FROM logger.object_config INNER JOIN directory.wbt_class ON object_config.object_id = wbt_class.id WHERE object_config.domain_id = ? AND wbt_class.name = ?)", domainId, log.Object.Name), log.Object.Name)
 	}
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
+	query, _, _ := base.ToSql()
+	wlog.Debug(query)
+
 	_, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.query.error", err.Error())
@@ -136,9 +134,15 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 	if appErr != nil {
 		return 0, appErr
 	}
+
 	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
 	wlog.Debug(query)
-	rows, err := db.ExecContext(ctx, query, date, configId)
+	rows, err := db.ExecContext(
+		ctx,
+		query,
+		date,
+		configId,
+	)
 	if err != nil {
 		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
 	}
@@ -217,7 +221,11 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		return c.GetQueryBase(c.getFields())
 	}
 	for _, v := range opt.Fields {
-		fields = append(fields, logFieldsMap[v])
+		if columnName, ok := logFieldsMap[v]; ok {
+			fields = append(fields, columnName)
+		} else {
+			fields = append(fields, v)
+		}
 	}
 	if len(fields) == 0 {
 		fields = append(fields,

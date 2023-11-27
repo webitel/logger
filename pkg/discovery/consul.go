@@ -3,13 +3,14 @@ package discovery
 import (
 	"errors"
 	"fmt"
-	"github.com/hashicorp/consul/api"
-	"github.com/webitel/wlog"
 	"net/http"
 	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/webitel/wlog"
 )
 
-type consul struct {
+type Consul struct {
 	id              string
 	cli             *api.Client
 	kv              *api.KV
@@ -24,7 +25,7 @@ type consul struct {
 
 type CheckFunction func() (bool, error)
 
-func NewConsul(id, addr string, check CheckFunction) (*consul, error) {
+func NewConsul(id, addr string, check CheckFunction) (ServiceDiscovery, error) {
 	conf := api.DefaultConfig()
 	conf.Address = addr
 
@@ -34,7 +35,7 @@ func NewConsul(id, addr string, check CheckFunction) (*consul, error) {
 		return nil, err
 	}
 
-	c := &consul{
+	c := &Consul{
 		id:              id,
 		registerService: true,
 		cli:             cli,
@@ -47,7 +48,7 @@ func NewConsul(id, addr string, check CheckFunction) (*consul, error) {
 	return c, nil
 }
 
-func (c *consul) GetByName(serviceName string) (ListConnections, error) {
+func (c *Consul) GetByName(serviceName string) (ListConnections, error) {
 	list, err := c.agent.ServicesWithFilter(fmt.Sprintf("Service == %s", serviceName))
 	if err != nil {
 		return nil, err
@@ -67,7 +68,7 @@ func (c *consul) GetByName(serviceName string) (ListConnections, error) {
 }
 
 // RegisterService TODO
-func (c *consul) RegisterService(name string, pubHost string, pubPort int, ttl, criticalTtl time.Duration) error {
+func (c *Consul) RegisterService(name string, pubHost string, pubPort int, ttl, criticalTtl time.Duration) error {
 	if !c.registerService {
 		return nil
 	}
@@ -88,7 +89,7 @@ func (c *consul) RegisterService(name string, pubHost string, pubPort int, ttl, 
 	return c.register(c.as)
 }
 
-func (c *consul) register(as *api.AgentServiceRegistration) error {
+func (c *Consul) register(as *api.AgentServiceRegistration) error {
 	var err error
 	if err = c.agent.ServiceRegister(as); err != nil {
 		return err
@@ -119,7 +120,7 @@ func (c *consul) register(as *api.AgentServiceRegistration) error {
 	return nil
 }
 
-func (c *consul) update(as *api.AgentServiceRegistration) {
+func (c *Consul) update(as *api.AgentServiceRegistration) {
 	ok, err := c.check()
 	if !ok {
 		if agentErr := c.agent.FailTTL(c.checkId, err.Error()); agentErr != nil {
@@ -132,7 +133,7 @@ func (c *consul) update(as *api.AgentServiceRegistration) {
 	}
 }
 
-func (c *consul) handlePassTTLError(err error, as *api.AgentServiceRegistration) {
+func (c *Consul) handlePassTTLError(err error, as *api.AgentServiceRegistration) {
 	switch wrapErr := err.(type) {
 	case api.StatusError:
 		if wrapErr.Code == http.StatusInternalServerError {
@@ -147,7 +148,7 @@ func (c *consul) handlePassTTLError(err error, as *api.AgentServiceRegistration)
 	}
 }
 
-func (c *consul) updateTTL(ttl time.Duration, as *api.AgentServiceRegistration) {
+func (c *Consul) updateTTL(ttl time.Duration, as *api.AgentServiceRegistration) {
 	defer wlog.Info("stopped consul checker")
 
 	ticker := time.NewTicker(ttl / 2)
@@ -161,16 +162,16 @@ func (c *consul) updateTTL(ttl time.Duration, as *api.AgentServiceRegistration) 
 	}
 }
 
-func (c *consul) Shutdown() {
+func (c *Consul) Shutdown() {
 	close(c.stop)
 	c.agent.ServiceDeregister(c.id)
 }
 
-func (c *consul) GetValueByKey(key string) string {
+func (c *Consul) GetValueByKey(key string) string {
 	kvp, _, _ := c.kv.Get(key, nil)
 	return string(kvp.Value)
 }
 
-func (c *consul) SaveValue(key, value string) {
+func (c *Consul) SaveValue(key, value string) {
 	c.kv.Put(&api.KVPair{Key: key, Value: []byte(value)}, nil)
 }

@@ -26,6 +26,16 @@ var (
 		"config_id": "log.config_id",
 		"object":    "object_config.object_id, log.object_name",
 	}
+	recordTableMap = map[string]*storage.Table{
+		"cc_queue": {
+			Path:       "call_center.cc_queue",
+			NameColumn: "name",
+		},
+		"scheme": {
+			Path:       "flow.acr_routing_scheme",
+			NameColumn: "name",
+		},
+	}
 )
 
 type Log struct {
@@ -57,6 +67,32 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 		return nil, appErr
 	}
 	return res, nil
+}
+
+func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError) {
+	db, appErr := c.storage.Database()
+	if appErr != nil {
+		return false, appErr
+	}
+	table, ok := recordTableMap[objectName]
+	if !ok {
+		return false, errors.NewBadRequestError("postgres.log.check_record.invalid_args.error", "object does not exist")
+	}
+	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
+	res, err := base.RunWith(db).ExecContext(ctx)
+	if err != nil {
+		return false, errors.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, errors.NewBadRequestError("postgres.log.check_record.get_res.fail", err.Error())
+	}
+	if rowsAffected <= 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {

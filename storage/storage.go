@@ -51,6 +51,7 @@ type LogStore interface {
 	Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError)
 	InsertMany(ctx context.Context, log []*model.Log) errors.AppError
 	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError)
+	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError)
 }
 
 type ConfigStore interface {
@@ -67,4 +68,8 @@ type ConfigStore interface {
 	GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, errors.AppError)
 	Delete(ctx context.Context, id int32) errors.AppError
 	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) errors.AppError
+}
+type Table struct {
+	Path       string
+	NameColumn string
 }

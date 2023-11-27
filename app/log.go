@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/webitel/logger/model"
 
@@ -165,6 +166,15 @@ func (a *App) SearchLogsByRecordId(ctx context.Context, in *proto.SearchLogByRec
 		rows []*proto.Log
 		//notDefaultFilters []model.Filter
 	)
+	recordId := in.GetRecordId()
+	objectName := in.GetObject().String()
+	ok, err := a.storage.Log().CheckRecordExist(ctx, objectName, recordId)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errors.NewBadRequestError("app.app.search_logs_by_record_id.not_found.error", fmt.Sprintf("record with this id (%d) doesn't exist", in.GetRecordId()))
+	}
 	filters := model.FilterArray{
 		Connection: model.AND,
 	}
@@ -197,13 +207,13 @@ func (a *App) SearchLogsByRecordId(ctx context.Context, in *proto.SearchLogByRec
 	// object filter
 	requiredFilterBunch.Bunch = append(requiredFilterBunch.Bunch, &model.Filter{
 		Column:         "log.object_name",
-		Value:          in.GetObject().String(),
+		Value:          objectName,
 		ComparisonType: model.Equal,
 	})
 	// record id filter
 	requiredFilterBunch.Bunch = append(requiredFilterBunch.Bunch, &model.Filter{
 		Column:         "log.record_id",
-		Value:          in.GetRecordId(),
+		Value:          recordId,
 		ComparisonType: model.Equal,
 	})
 

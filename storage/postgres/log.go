@@ -14,6 +14,20 @@ import (
 	"github.com/webitel/wlog"
 )
 
+var (
+	logFieldsMap = map[string]string{
+		"id":        "log.id",
+		"date":      "log.date",
+		"user":      "log.user_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+		"user_ip":   "log.user_ip",
+		"new_state": "log.new_state",
+		"record":    "log.record_id",
+		"action":    "log.action",
+		"config_id": "log.config_id",
+		"object":    "object_config.object_id, log.object_name",
+	}
+)
+
 type Log struct {
 	storage storage.Storage
 }
@@ -25,32 +39,14 @@ func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
 	return &Log{storage: store}, nil
 }
 
-//func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters *model.FilterArray) ([]*model.Log, errors.AppError) {
-//	db, appErr := c.storage.Database()
-//	if appErr != nil {
-//		return nil, appErr
-//	}
-//	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters)
-//	fmt.Println(base.ToSql())
-//	rows, err := base.RunWith(db).QueryContext(ctx)
-//	if err != nil {
-//		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
-//	}
-//	defer rows.Close()
-//	res, appErr := c.ScanRows(rows)
-//	if appErr != nil {
-//		return nil, appErr
-//	}
-//	return res, nil
-//}
-
 func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
 	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), filters)
-	fmt.Println(base.ToSql())
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -68,12 +64,12 @@ func (c *Log) Insert(ctx context.Context, log *model.Log) errors.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	_, err := db.ExecContext(ctx,
-		`INSERT INTO
+	query := `INSERT INTO
 			logger.log(date, action, user_id, user_ip, new_state, record_id, config_id, object_name)
-			 $1, $2, $3, $4, $5, $6, $7, $8
-		`,
-		log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name,
+			 $1, $2, $3, $4, $5, $6, $7, $8`
+	wlog.Debug(query)
+	_, err := db.ExecContext(ctx,
+		query, log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, log.ConfigId, log.Object.Name,
 	)
 	if err != nil {
 		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
@@ -104,10 +100,9 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 	if appErr != nil {
 		return 0, appErr
 	}
-	rows, err := db.ExecContext(ctx,
-		`DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `,
-		date, configId,
-	)
+	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
+	wlog.Debug(query)
+	rows, err := db.ExecContext(ctx, query, date, configId)
 	if err != nil {
 		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
 	}
@@ -182,27 +177,11 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, errors.AppError) {
 
 func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectBuilder {
 	var fields []string
+	if opt == nil {
+		return c.GetQueryBase(c.getFields())
+	}
 	for _, v := range opt.Fields {
-		switch v {
-		case "id":
-			fields = append(fields, "log.id")
-		case "date":
-			fields = append(fields, "log.date")
-		case "user_ip":
-			fields = append(fields, "log.user_ip")
-		case "new_state":
-			fields = append(fields, "log.new_state")
-		case "record":
-			fields = append(fields, "log.record_id")
-		case "action":
-			fields = append(fields, "log.action")
-		case "config_id":
-			fields = append(fields, "log.config_id")
-		case "user":
-			fields = append(fields, "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name", "log.user_id")
-		case "object":
-			fields = append(fields, "object_config.object_id", "log.object_name")
-		}
+		fields = append(fields, logFieldsMap[v])
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
@@ -242,17 +221,9 @@ func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
 }
 
 func (c *Log) getFields() []string {
-	return []string{
-		"log.id",
-		"log.date",
-		"log.user_id",
-		"coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
-		"log.user_ip",
-		"log.new_state",
-		"log.record_id",
-		"log.action",
-		"log.config_id",
-		"object_config.object_id",
-		"log.object_name",
+	var fields []string
+	for _, value := range logFieldsMap {
+		fields = append(fields, value)
 	}
+	return fields
 }

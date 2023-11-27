@@ -21,7 +21,7 @@ type Config struct {
 }
 
 var (
-	logFieldsMap = map[string]string{
+	configFieldsMap = map[string]string{
 		"id":             "object_config.id",
 		"enabled":        "object_config.enabled",
 		"days_to_store":  "object_config.days_to_store",
@@ -179,7 +179,8 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 		))
 	}
 	// endregion
-	fmt.Println(base.ToSql())
+	sql, _, _ := base.ToSql()
+	wlog.Debug(sql)
 	// region PREFORM
 	rows, err := base.RunWith(db).QueryContext(ctx)
 
@@ -236,7 +237,6 @@ func (c *Config) Delete(ctx context.Context, id int32) errors.AppError {
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
-	wlog.Debug(sql)
 	if err != nil {
 		return errors.NewInternalError("postgres.config.delete.query.error", err.Error())
 	}
@@ -282,7 +282,6 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
-
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get_by_object.query.fail", err.Error())
 	}
@@ -417,7 +416,6 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]*model.Config, errors.AppError) {
 	return configs, nil
 }
 
-// Refactor GetQueryBaseFromSearchOptions for beauty
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
 
@@ -425,7 +423,7 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		return c.GetQueryBase(c.getFields(), rbac)
 	}
 	for _, v := range opt.Fields {
-		fields = append(fields, logFieldsMap[v])
+		fields = append(fields, configFieldsMap[v])
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
@@ -474,7 +472,7 @@ func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOpti
 
 func (c *Config) getFields() []string {
 	var fields []string
-	for _, value := range logFieldsMap {
+	for _, value := range configFieldsMap {
 		fields = append(fields, value)
 	}
 	return fields

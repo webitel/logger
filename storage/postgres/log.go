@@ -251,7 +251,10 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	if offset < 0 {
 		offset = 0
 	}
-	return base.Offset(uint64(offset)).Limit(uint64(opt.Size + 1))
+	if opt.Size != 0 {
+		base = base.Limit(uint64(opt.Size + 1))
+	}
+	return base.Offset(uint64(offset))
 }
 
 func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {

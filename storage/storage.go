@@ -15,6 +15,8 @@ type Storage interface {
 	Log() LogStore
 	// Interface to the config table
 	Config() ConfigStore
+	// Interface to the version table
+	SchemaVersion() SchemaVersionStore
 	// Database connection
 	Database() (*sqlx.DB, errors.AppError)
 	// Initializes logger schema
@@ -52,6 +54,11 @@ type LogStore interface {
 	InsertMany(ctx context.Context, log []*model.Log, domainId int) errors.AppError
 	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError)
 	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError)
+}
+
+type SchemaVersionStore interface {
+	Insert(ctx context.Context, version *model.SchemaVersion) errors.AppError
+	Search(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.SchemaVersion, errors.AppError)
 }
 
 type ConfigStore interface {

@@ -45,7 +45,7 @@ type App struct {
 	cache            cache.CacheStore
 	exitChan         chan errors.AppError
 	rabbit           *RabbitListener
-	server           *AppServer
+	apiServer        *ApiServer
 }
 
 func New(config *model.AppConfig) (*App, errors.AppError) {
@@ -83,12 +83,12 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 		return nil, appErr
 	}
 	app.rabbit = r
-	// init of grpc server
+	// init of grpc apiServer
 	s, appErr := BuildServer(app, app.config.Consul, app.exitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
-	app.server = s
+	app.apiServer = s
 
 	conn, err := grpc.Dial(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
@@ -123,8 +123,8 @@ func (a *App) Start() errors.AppError {
 	}
 	// * Build and run rabbit1 listener
 	go a.rabbit.Start()
-	// * Build and run grpc server
-	go a.server.Start()
+	// * Build and run grpc apiServer
+	go a.apiServer.Start()
 	//go ServeRequests(a, a.config.Consul, a.exitChan)
 	return <-a.exitChan
 }
@@ -190,7 +190,7 @@ func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, err
 	}
 
 	if len(token) < 1 {
-		return nil, errors.NewInternalError("context.session_expired.app_error", "token not found")
+		return nil, errors.NewForbiddenError("context.session_expired.app_error", "token not found")
 	}
 
 	session, err = a.GetSession(token[0])

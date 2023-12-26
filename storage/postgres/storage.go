@@ -11,10 +11,11 @@ import (
 )
 
 type PostgresStore struct {
-	config      *model.DatabaseConfig
-	conn        *sqlx.DB
-	logStore    storage.LogStore
-	configStore storage.ConfigStore
+	config             *model.DatabaseConfig
+	conn               *sqlx.DB
+	logStore           storage.LogStore
+	configStore        storage.ConfigStore
+	schemaVersionStore storage.SchemaVersionStore
 }
 
 func New(config *model.DatabaseConfig) *PostgresStore {
@@ -42,6 +43,18 @@ func (s *PostgresStore) Config() storage.ConfigStore {
 	}
 	return s.configStore
 }
+
+func (s *PostgresStore) SchemaVersion() storage.SchemaVersionStore {
+	if s.schemaVersionStore == nil {
+		conf, err := newSchemaVersionStore(s)
+		if err != nil {
+			return nil
+		}
+		s.schemaVersionStore = conf
+	}
+	return s.schemaVersionStore
+}
+
 func (s *PostgresStore) Database() (*sqlx.DB, errors.AppError) {
 	if s.conn == nil {
 		errors.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")

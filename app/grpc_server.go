@@ -27,40 +27,15 @@ var (
 	APP_DEREGESTER_CRITICAL_TTL = time.Minute * 2
 )
 
-//func ServeRequests(app *App, config *model.ConsulConfig, errChan chan errors.AppError) {
-//	// * Build grpc server
-//	server, appErr := buildGrpc(app)
-//	if appErr != nil {
-//		errChan <- appErr
-//		return
-//	}
-//	//  * Open tcp connection
-//	listener, err := net.Listen("tcp", config.PublicAddress)
-//	if err != nil {
-//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
-//		return
-//	}
-//	appErr = connectConsul(config)
-//	if appErr != nil {
-//		errChan <- appErr
-//		return
-//	}
-//	err = server.Serve(listener)
-//	if err != nil {
-//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
-//		return
-//	}
-//}
-
-type AppServer struct {
+type ApiServer struct {
 	server   *grpc.Server
 	listener net.Listener
 	config   *model.ConsulConfig
 	exitChan chan errors.AppError
 }
 
-func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppError) (*AppServer, errors.AppError) {
-	// * Build grpc server
+func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppError) (*ApiServer, errors.AppError) {
+	// * Build grpc apiServer
 	server, appErr := buildGrpc(app)
 	if appErr != nil {
 		return nil, appErr
@@ -71,7 +46,7 @@ func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppE
 		return nil, errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
 	}
 
-	return &AppServer{
+	return &ApiServer{
 		server:   server,
 		listener: listener,
 		exitChan: exitChan,
@@ -79,7 +54,7 @@ func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppE
 	}, nil
 }
 
-func (a *AppServer) Start() {
+func (a *ApiServer) Start() {
 	appErr := connectConsul(a.config)
 	if appErr != nil {
 		a.exitChan <- appErr
@@ -104,11 +79,17 @@ func buildGrpc(app *App) (*grpc.Server, errors.AppError) {
 	if appErr != nil {
 		return nil, appErr
 	}
+	s, appErr := NewSchemaVersionService(app)
+	if appErr != nil {
+		return nil, appErr
+	}
 
 	// * register logger service
 	proto.RegisterLoggerServiceServer(grpcServer, l)
 	// * register config service
 	proto.RegisterConfigServiceServer(grpcServer, c)
+	// * register schema versions service
+	proto.RegisterSchemaVersionsServiceServer(grpcServer, s)
 
 	return grpcServer, nil
 }
@@ -191,5 +172,6 @@ func connectConsul(config *model.ConsulConfig) errors.AppError {
 	if err != nil {
 		return errors.NewInternalError("api.grpc_server.build_consul.register_in_consul.error", err.Error())
 	}
+	wlog.Info(fmt.Sprintf("[GRPC] apiServer started listening (%s)", config.PublicAddress))
 	return nil
 }

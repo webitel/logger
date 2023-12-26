@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	proto "github.com/webitel/protos/logger"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -57,6 +58,7 @@ type RequiredFields struct {
 type Record struct {
 	Id       int64  `json:"id,omitempty"`
 	NewState []byte `json:"newState,omitempty"`
+	Note     string `json:"note,omitempty"`
 }
 
 type Message struct {
@@ -122,12 +124,14 @@ func (c *rabbitClient) SendContext(ctx context.Context, message *Message) error 
 	if !c.IsOpened() {
 		return fmt.Errorf("connection not opened")
 	}
-	enabled, err := c.client.Grpc().Config().CheckIsActive(ctx, message.RequiredFields.DomainId, message.RequiredFields.ObjectName)
-	if err != nil {
-		return err
-	}
-	if !enabled {
-		return nil
+	if message.ObjectName != proto.AvailableSystemObjects_schema.String() {
+		enabled, err := c.client.Grpc().Config().CheckIsActive(ctx, message.RequiredFields.DomainId, message.RequiredFields.ObjectName)
+		if err != nil {
+			return err
+		}
+		if !enabled {
+			return nil
+		}
 	}
 
 	if err := message.checkRecordsValidity(); err != nil {

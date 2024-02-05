@@ -215,6 +215,7 @@ func (a *App) Stop() errors.AppError {
 		a.serviceDiscovery.Shutdown()
 	}
 	a.storage.Close()
+	a.rabbit.Stop()
 
 	return nil
 }

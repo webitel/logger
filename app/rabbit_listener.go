@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/webitel/logger/model"
 	"github.com/webitel/wlog"
@@ -66,6 +67,7 @@ func (l *RabbitListener) Start() {
 			if err != nil {
 				wlog.Info(fmtBrokerLog(err.Error()))
 			}
+			time.Sleep(time.Second * 10)
 		}
 	}()
 	//var forever chan struct{}

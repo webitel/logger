@@ -3,16 +3,17 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/webitel/logger/pkg/cache"
-	"github.com/webitel/logger/pkg/discovery"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
+	cache "github.com/hashicorp/golang-lru/v2/expirable"
 	proto "github.com/webitel/protos/logger"
-	"github.com/webitel/wlog"
 )
 
 const (
-	WatcherInterval = 5 * 1000
+	DefaultCacheTimeout = 120 * time.Second
 )
 
 type GrpcClient interface {
@@ -23,16 +24,12 @@ type GrpcClient interface {
 }
 
 type grpcClient struct {
-	//stop             chan struct{}
-	//stopped          chan struct{}
-	serviceDiscovery discovery.ServiceDiscovery
-	poolConnections  discovery.Pool
-	//watcher          *discovery.Watcher
-	//startOnce        sync.Once
-	isOpened    bool
-	memoryCache cache.CacheStore
-
-	config ConfigApi
+	consulAddress string
+	connection    *grpc.ClientConn
+	configClient  proto.ConfigServiceClient
+	isOpened      bool
+	memoryCache   *cache.LRU[string, bool]
+	config        ConfigApi
 }
 
 func (c *grpcClient) IsOpened() bool {
@@ -40,87 +37,34 @@ func (c *grpcClient) IsOpened() bool {
 }
 
 func (c *grpcClient) Start() error {
-	if services, err := c.serviceDiscovery.GetByName("logger"); err != nil {
+	conn, err := grpc.Dial(fmt.Sprintf("consul://%s/logger?wait=14s", c.consulAddress),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
 		return err
-	} else {
-		for _, v := range services {
-			c.registerConnection(v)
-		}
 	}
+	client := proto.NewConfigServiceClient(c.connection)
+	c.configClient = client
 	c.isOpened = true
+	c.connection = conn
 	return nil
 }
 
 func (c *grpcClient) Stop() {
-
-	if c.poolConnections != nil {
-		c.poolConnections.CloseAllConnections()
-	}
-	c.isOpened = false
-	//close(c.stop)
-	//<-c.stopped
+	c.connection.Close()
+	c.configClient = nil
 }
-
-func (c *grpcClient) registerConnection(v *discovery.ServiceConnection) {
-	addr := fmt.Sprintf("%s:%d", v.Host, v.Port)
-	client, err := NewConnection(v.Id, addr)
-	if err != nil {
-		wlog.Error(fmt.Sprintf("connection %s [%s] error: %s", v.Id, addr, err.Error()))
-		return
-	}
-	c.poolConnections.Append(client)
-	wlog.Debug(fmt.Sprintf("register connection %s [%s]", client.Name(), addr))
-}
-
-func (c *grpcClient) wakeUp() {
-	list, err := c.serviceDiscovery.GetByName("logger")
-	if err != nil {
-		wlog.Error(err.Error())
-		return
-	}
-
-	for _, v := range list {
-		if _, err := c.poolConnections.GetById(v.Id); err == discovery.ErrNotFoundConnection {
-			c.registerConnection(v)
-		}
-	}
-	c.poolConnections.RecheckConnections(list.Ids())
-}
-
-func (c *grpcClient) getRandomClient() (*Connection, error) {
-	cli, err := c.poolConnections.Get(discovery.StrategyRoundRobin)
-	if err != nil {
-		return nil, err
-	}
-
-	return cli.(*Connection), nil
-}
-
-// func (c *grpcClient) getClient(appId string) (*Connection, error) {
-// 	cli, err := c.poolConnections.GetById(appId)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return cli.(*Connection), nil
-// }
 
 func (c *grpcClient) Config() ConfigApi {
 	return c.config
 }
 
-func NewGrpcClient(serviceDiscovery discovery.ServiceDiscovery) GrpcClient {
+func NewGrpcClient(consulAddr string) GrpcClient {
 	client := &grpcClient{
-		//stop:             make(chan struct{}),
-		//stopped:          make(chan struct{}),
-		poolConnections:  discovery.NewPoolConnections(),
-		serviceDiscovery: serviceDiscovery,
+		consulAddress: consulAddr,
 	}
 	client.config = NewConfigApi(client)
-	client.memoryCache = cache.NewMemoryCache(&cache.MemoryCacheConfig{
-		Size:          1024,
-		DefaultExpiry: 60,
-	})
+	client.memoryCache = cache.NewLRU[string, bool](200, nil, DefaultCacheTimeout)
 	return client
 }
 
@@ -142,25 +86,18 @@ type configApi struct {
 
 func (c *configApi) CheckIsActive(ctx context.Context, domainId int64, objectName string) (bool, error) {
 	cacheKey := FormatKey(domainId, objectName)
-	enabled, err := c.client.memoryCache.Get(ctx, cacheKey)
-	if err != nil {
+	enabled, ok := c.client.memoryCache.Get(cacheKey)
+	if !ok {
 		in := &proto.CheckConfigStatusRequest{
 			ObjectName: objectName,
 			DomainId:   domainId,
 		}
-		conn, err := c.client.getRandomClient()
+		res, err := c.client.configClient.CheckConfigStatus(ctx, in)
 		if err != nil {
 			return false, err
 		}
-		res, err := conn.config.CheckConfigStatus(ctx, in)
-		if err != nil {
-			return false, err
-		}
-		c.client.memoryCache.Set(ctx, cacheKey, res.GetIsEnabled(), 120)
-		if err != nil {
-			return false, err
-		}
+		c.client.memoryCache.Add(cacheKey, res.GetIsEnabled())
 		return res.GetIsEnabled(), nil
 	}
-	return enabled.Raw().(bool), nil
+	return enabled, nil
 }

@@ -2,8 +2,6 @@ module github.com/webitel/logger
 
 go 1.20
 
-//
-//replace github.com/webitel/protos/logger v0.0.0-20230913134138-dce81f9a3916 => /home/dtsnko/my_files/projects/protos/logger
 
 require (
 	github.com/BoRuDar/configuration/v4 v4.2.2

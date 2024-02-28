@@ -1,9 +1,5 @@
 package client
 
-import (
-	"github.com/webitel/logger/pkg/discovery"
-)
-
 type Client struct {
 	rabbit RabbitClient
 	grpc   GrpcClient
@@ -15,16 +11,9 @@ func (c *Client) IsOpened() bool {
 
 // ! NewClient creates new client for logger.
 // * rabbitUrl - connection string to rabbit1 server
-// * clientId - name that will be recognized by consul
-// * address - address to connect to consul server
-func NewClient(rabbitUrl string, clientId string, consulAddress string) (*Client, error) {
-	disc, err := discovery.NewServiceDiscovery(clientId, consulAddress, func() (bool, error) {
-		return true, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	cli := &Client{grpc: NewGrpcClient(disc)}
+// * consulAddress - address to connect to consul server
+func NewClient(rabbitUrl string, consulAddress string) (*Client, error) {
+	cli := &Client{grpc: NewGrpcClient(consulAddress)}
 	rab := NewRabbitClient(rabbitUrl, cli)
 	cli.rabbit = rab
 	return cli, nil

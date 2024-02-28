@@ -46,6 +46,7 @@ type App struct {
 	exitChan         chan errors.AppError
 	rabbit           *RabbitListener
 	server           *AppServer
+	grpcConn         *grpc.ClientConn
 }
 
 func New(config *model.AppConfig) (*App, errors.AppError) {
@@ -90,7 +91,7 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 	}
 	app.server = s
 
-	conn, err := grpc.Dial(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
+	app.grpcConn, err = grpc.Dial(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -98,7 +99,7 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 		return nil, errors.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
 	}
 
-	app.file = strg.NewFileServiceClient(conn)
+	app.file = strg.NewFileServiceClient(app.grpcConn)
 	return app, nil
 }
 
@@ -216,6 +217,7 @@ func (a *App) Stop() errors.AppError {
 	}
 	a.storage.Close()
 	a.rabbit.Stop()
+	a.grpcConn.Close()
 
 	return nil
 }

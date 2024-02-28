@@ -1,4 +1,4 @@
-module github.com/logger/pkg/client
+module github.com/webitel/logger/pkg/client
 
 go 1.20
 

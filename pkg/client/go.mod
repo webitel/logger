@@ -1,4 +1,4 @@
-module client
+module github.com/logger/pkg/client
 
 go 1.20
 

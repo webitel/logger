@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+option go_package = "github.com/webitel/protos/storage";
+
+package storage;
+
+import "google/api/annotations.proto";
+
+service FileService {
+    rpc UploadFile (stream UploadFileRequest) returns (UploadFileResponse) {}
+    rpc DownloadFile (DownloadFileRequest) returns (stream StreamFile) {}
+    rpc UploadFileUrl (UploadFileUrlRequest) returns (UploadFileUrlResponse) {}
+    rpc GenerateFileLink (GenerateFileLinkRequest) returns (GenerateFileLinkResponse) {}
+
+    rpc DeleteFiles (DeleteFilesRequest) returns (DeleteFilesResponse) {
+        option (google.api.http) = {
+            delete: "/storage/file"
+            body: "*"
+        };
+    }
+}
+
+enum UploadStatusCode {
+    Unknown = 0;
+    Ok = 1;
+    Failed = 2;
+}
+
+message GenerateFileLinkRequest {
+    int64 domain_id = 1;
+    int64 file_id = 2;
+    string source = 3;
+    string action = 4;
+    map<string, string> query = 5;
+}
+
+message GenerateFileLinkResponse {
+    string url = 1;
+}
+
+message DownloadFileRequest {
+    int64 id = 1;
+    int64 domain_id = 2;
+    bool metadata = 3;
+}
+
+message StreamFile {
+
+    message Metadata {
+        int64 id = 1;
+        string name = 2;
+        string mime_type = 3;
+        string uuid = 4;
+        int64 size = 5;
+    }
+
+    oneof data {
+        Metadata metadata = 1;
+        bytes chunk = 2;
+    };
+
+}
+
+message DeleteFilesRequest {
+    repeated int64 id = 1;
+}
+
+message DeleteFilesResponse {
+
+}
+
+message UploadFileUrlRequest {
+    int64 domain_id = 1;
+    string uuid = 2;
+    string name = 3;
+    string url = 4;
+    string mime = 5;
+}
+
+message UploadFileUrlResponse {
+    int64 id = 1;
+    string url = 2;
+    string mime = 4;
+    int64 size = 5;
+    UploadStatusCode code = 6;
+}
+
+message UploadFileRequest {
+
+    message Metadata {
+        int64 domain_id = 1;
+        string name = 2;
+        string mime_type = 3;
+        string uuid = 4;
+        bool stream_response = 5;
+        int64 profile_id = 6;
+    }
+
+    oneof data {
+        Metadata metadata = 1;
+        bytes chunk = 2;
+    };
+
+}
+
+message UploadFileResponse {
+    int64 file_id = 1;
+    string file_url = 2;
+    int64 size = 3;
+    UploadStatusCode code = 4;
+    string server = 5;
+}

@@ -1,0 +1,10 @@
+proto_outdir = "./proto"
+
+[[dependencies]]
+  target = "github.com/webitel/protos/logger"
+  subgroup = ""
+  revision = "1975fbcb321f1d19a5d7b13877310919bf4712e8"
+  branch = "main"
+  path = ""
+  includes = ["config_service.proto", "import.proto"]
+  protocol = "https"

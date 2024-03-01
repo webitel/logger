@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package logger;
+
+option go_package = "webitel_logger/proto";
+import "google/api/annotations.proto";
+import "import.proto";
+
+
+
+service SchemaVersionsService {
+  rpc Search(SearchSchemaVersionRequest) returns (SchemaVersions) {
+    option (google.api.http) = {
+      get: "/logger/schema/record/{schema_id}/versions"
+    };
+  }
+}
+
+
+message SearchSchemaVersionRequest {
+  int32 page = 1;
+  int32 size = 2;
+  string q = 3;
+
+  string sort = 5;
+  repeated string fields = 6;
+
+  // REQUIRED filter
+  int32 schema_id = 7;
+}
+
+message SchemaVersions {
+  int32 page = 1;
+  bool next = 2;
+  repeated SchemaVersion items = 3;
+}
+
+message SchemaVersion {
+  int32 id =1;
+  int32 schema_id = 2;
+  int64 created_on =3;
+  Lookup created_by = 4;
+  string state = 5;
+  int32 version =6;
+  string note = 7;
+}

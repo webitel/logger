@@ -14,10 +14,10 @@ import (
 
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
+	strg "github.com/webitel/logger/api/storage"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/logger/watcher"
-	strg "github.com/webitel/protos/storage"
 	"google.golang.org/grpc/metadata"
 
 	errors "github.com/webitel/engine/model"

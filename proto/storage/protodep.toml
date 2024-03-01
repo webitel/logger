@@ -1,0 +1,10 @@
+proto_outdir = "./contracts"
+
+[[dependencies]]
+target = "github.com/webitel/protos/storage"
+branch = "main"
+includes = [
+    "file.proto"
+]
+
+protocol = "https"

@@ -1,0 +1,9 @@
+proto_outdir = "./contracts"
+
+[[dependencies]]
+  target = "github.com/webitel/protos/logger"
+  subgroup = ""
+  revision = "4b713629fa17c865e6a405bc466163e0fb51f139"
+  branch = "main"
+  path = ""
+  protocol = "https"

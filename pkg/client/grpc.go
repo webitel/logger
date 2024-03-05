@@ -43,7 +43,7 @@ func (c *grpcClient) Start() error {
 	if err != nil {
 		return err
 	}
-	client := proto.NewConfigServiceClient(c.connection)
+	client := proto.NewConfigServiceClient(conn)
 	c.configClient = client
 	c.isOpened = true
 	c.connection = conn

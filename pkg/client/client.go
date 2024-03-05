@@ -1,5 +1,7 @@
 package client
 
+import "time"
+
 type Client struct {
 	rabbit RabbitClient
 	grpc   GrpcClient
@@ -42,4 +44,40 @@ func (c *Client) Rabbit() RabbitClient {
 
 func (c *Client) Grpc() GrpcClient {
 	return c.grpc
+}
+
+func (c *Client) CreateAction(domainId int64, objectName string, userId int, userIp string) *Message {
+	mess := &Message{RequiredFields: RequiredFields{
+		UserId:     userId,
+		UserIp:     userIp,
+		Action:     string(CREATE_ACTION),
+		Date:       time.Now().Unix(),
+		DomainId:   domainId,
+		ObjectName: objectName,
+	}, client: c.Rabbit()}
+	return mess
+}
+
+func (c *Client) UpdateAction(domainId int64, objectName string, userId int, userIp string) *Message {
+	mess := &Message{RequiredFields: RequiredFields{
+		UserId:     userId,
+		UserIp:     userIp,
+		Action:     string(UPDATE_ACTION),
+		Date:       time.Now().Unix(),
+		DomainId:   domainId,
+		ObjectName: objectName,
+	}, client: c.Rabbit()}
+	return mess
+}
+
+func (c *Client) DeleteAction(domainId int64, objectName string, userId int, userIp string) *Message {
+	mess := &Message{RequiredFields: RequiredFields{
+		UserId:     userId,
+		UserIp:     userIp,
+		Action:     string(DELETE_ACTION),
+		Date:       time.Now().Unix(),
+		DomainId:   domainId,
+		ObjectName: objectName,
+	}, client: c.Rabbit()}
+	return mess
 }

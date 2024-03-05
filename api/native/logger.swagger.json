@@ -106,9 +106,7 @@
                 "cc_agent",
                 "cc_resource",
                 "cc_resource_group",
-                "chat_bots",
-                "skills",
-                "buckets"
+                "chat_bots"
               ]
             }
           }
@@ -581,9 +579,7 @@
               "cc_agent",
               "cc_resource",
               "cc_resource_group",
-              "chat_bots",
-              "skills",
-              "buckets"
+              "chat_bots"
             ]
           },
           {
@@ -708,9 +704,7 @@
         "cc_agent",
         "cc_resource",
         "cc_resource_group",
-        "chat_bots",
-        "skills",
-        "buckets"
+        "chat_bots"
       ],
       "default": "cc_queue"
     },

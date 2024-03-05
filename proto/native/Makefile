@@ -3,4 +3,4 @@
 all: pull
 
 pull:
-	protodep up --use-https
+	protodep up -f --use-https

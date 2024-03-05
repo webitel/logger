@@ -2,7 +2,6 @@ module github.com/webitel/logger
 
 go 1.20
 
-
 require (
 	github.com/BoRuDar/configuration/v4 v4.2.2
 	github.com/Masterminds/squirrel v1.5.4
@@ -14,9 +13,10 @@ require (
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/webitel/engine v0.0.0-20230929132314-e8f08f52c140
 	github.com/webitel/protos/logger v0.0.0-20231012100410-2e28f14ab59e
-	github.com/webitel/protos/storage v0.0.0-20231101132502-15455cfe862e
 	github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28
+	google.golang.org/genproto/googleapis/api v0.0.0-20231009173412-8bfb1ae86b6c
 	google.golang.org/grpc v1.58.3
+	google.golang.org/protobuf v1.31.0
 )
 
 require (
@@ -88,7 +88,6 @@ require (
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
 	github.com/gostaticanalysis/forcetypeassert v0.1.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.2 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
@@ -97,6 +96,7 @@ require (
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/serf v0.10.1 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
@@ -111,6 +111,7 @@ require (
 	github.com/kisielk/errcheck v1.6.3 // indirect
 	github.com/kisielk/gotool v1.0.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.4 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kulti/thelper v0.6.3 // indirect
 	github.com/kunwardeep/paralleltest v1.0.6 // indirect
 	github.com/kyoh86/exportloopref v0.1.11 // indirect
@@ -191,7 +192,6 @@ require (
 	github.com/ultraware/funlen v0.0.3 // indirect
 	github.com/ultraware/whitespace v0.0.5 // indirect
 	github.com/uudashr/gocognit v1.0.6 // indirect
-	github.com/webitel/protos/engine v0.0.0-20230929083624-34e29d2feb6a // indirect
 	github.com/yagipy/maintidx v1.0.0 // indirect
 	github.com/yeya24/promlinter v0.2.0 // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
@@ -209,9 +209,8 @@ require (
 	golang.org/x/tools v0.7.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20231002182017-d307bd883b97 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20231009173412-8bfb1ae86b6c // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

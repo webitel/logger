@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 
-	strg "github.com/webitel/protos/storage"
+	strg "github.com/webitel/logger/api/storage"
 
 	"github.com/webitel/logger/model"
 
 	"time"
 
-	proto "github.com/webitel/protos/logger"
+	proto "github.com/webitel/logger/api/native"
 
 	errors "github.com/webitel/engine/model"
 )

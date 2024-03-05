@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/webitel/engine/auth_manager"
+	proto "github.com/webitel/logger/api/native"
 	"github.com/webitel/logger/model"
-	proto "github.com/webitel/protos/logger"
 
 	errors "github.com/webitel/engine/model"
 )

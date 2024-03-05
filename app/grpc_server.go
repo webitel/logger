@@ -13,7 +13,7 @@ import (
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 
-	proto "github.com/webitel/protos/logger"
+	proto "github.com/webitel/logger/api/native"
 	"github.com/webitel/wlog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

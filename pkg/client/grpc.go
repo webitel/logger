@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	cache "github.com/hashicorp/golang-lru/v2/expirable"
-	proto "github.com/webitel/logger/pkg/client/api"
+	proto "github.com/webitel/logger/api/native"
 )
 
 const (

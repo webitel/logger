@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	proto "github.com/webitel/protos/logger"
+	proto "github.com/webitel/logger/api/native"
 
 	"github.com/webitel/wlog"
 

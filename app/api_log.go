@@ -6,7 +6,7 @@ import (
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/logger/model"
 
-	proto "github.com/webitel/protos/logger"
+	proto "github.com/webitel/logger/api/native"
 
 	errors "github.com/webitel/engine/model"
 )

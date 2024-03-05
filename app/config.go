@@ -12,8 +12,8 @@ import (
 
 	"github.com/webitel/engine/auth_manager"
 	errors "github.com/webitel/engine/model"
+	proto "github.com/webitel/logger/api/native"
 	"github.com/webitel/logger/model"
-	proto "github.com/webitel/protos/logger"
 )
 
 func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {

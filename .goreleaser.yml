@@ -120,7 +120,7 @@ nfpms:
     bindir: /usr/local/bin
 
     # Version Release.
-    release: 23.12
+    release: 24.02
 
     # Section.
     section: default

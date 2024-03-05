@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"net"
 	"time"
 
 	"google.golang.org/grpc"
@@ -38,14 +37,7 @@ func (c *grpcClient) IsOpened() bool {
 }
 
 func (c *grpcClient) Start() error {
-	host, port, err := net.SplitHostPort(c.consulAddress)
-	if err != nil {
-		return err
-	}
-	if port == "" {
-		port = "8500"
-	}
-	conn, err := grpc.Dial(fmt.Sprintf("consul://%s:%s/logger?wait=14s", host, port),
+	conn, err := grpc.Dial(fmt.Sprintf("consul://%s/logger?wait=14s", c.consulAddress),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {

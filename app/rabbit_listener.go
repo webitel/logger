@@ -12,8 +12,11 @@ import (
 	"github.com/webitel/wlog"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+
 	errors "github.com/webitel/engine/model"
 )
+
+const MaxReconnectAttempts = 50
 
 type HandleFunc func(context.Context, *amqp.Delivery) errors.AppError
 
@@ -25,6 +28,7 @@ type RabbitListener struct {
 	delivery          <-chan amqp.Delivery
 	amqpCloseNotifier chan *amqp.Error
 	exit              chan errors.AppError
+	reconnectAttempts int
 }
 
 func BuildRabbit(app *App, config *model.RabbitConfig, errChan chan errors.AppError) (*RabbitListener, errors.AppError) {
@@ -40,13 +44,17 @@ func NewListener(config *model.RabbitConfig, f HandleFunc, errChan chan errors.A
 	if config == nil {
 		return nil, errors.NewInternalError("rabbit.listener.new_rabit_listener.arguments_check.config_nil", "rabbit config is nil")
 	}
-	amqpErrorChan := make(chan *amqp.Error)
-	return &RabbitListener{config: config, handleFunc: f, exit: errChan, amqpCloseNotifier: amqpErrorChan}, nil
+
+	return &RabbitListener{config: config, handleFunc: f, exit: errChan}, nil
 }
 
 func (l *RabbitListener) Stop() {
-	l.channel.Close()
-	l.connection.Close()
+	if l.channel != nil {
+		l.channel.Close()
+	}
+	if l.connection != nil {
+		l.connection.Close()
+	}
 }
 
 func (l *RabbitListener) Start() {
@@ -61,12 +69,21 @@ func (l *RabbitListener) Start() {
 
 	go func() {
 		for {
-			<-l.amqpCloseNotifier
-			wlog.Info(fmtBrokerLog("connection closed.. trying to reconnect"))
+			amqpErr, _ := <-l.amqpCloseNotifier
+
+			wlog.Info(fmtBrokerLog("connection closed... "))
+			if amqpErr != nil {
+				wlog.Info(fmtBrokerLog(fmt.Sprintf("reason: %s", amqpErr.Reason)))
+			}
+			if l.reconnectAttempts >= MaxReconnectAttempts {
+				l.exit <- errors.NewInternalError("app.rabbit_listener.start.reconnect_routine.max_reconnect_attempts.error", fmtBrokerLog("connection lost"))
+				return
+			}
 			err := l.reconnect()
 			if err != nil {
 				wlog.Info(fmtBrokerLog(err.Error()))
 			}
+			l.reconnectAttempts++
 			time.Sleep(time.Second * 10)
 		}
 	}()
@@ -121,6 +138,7 @@ func (l *RabbitListener) connect() errors.AppError {
 		return errors.NewInternalError("rabbit.listener.listen.channel_connect.fail", err.Error())
 	}
 	l.channel = channel
+	l.amqpCloseNotifier = make(chan *amqp.Error)
 	l.channel.NotifyClose(l.amqpCloseNotifier)
 	wlog.Info(fmtBrokerLog("connecting to the exchange"))
 	err = channel.ExchangeDeclare(

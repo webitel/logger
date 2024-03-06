@@ -26,12 +26,12 @@ import (
 const (
 	DeleteWatcherPrefix = "config.delete.watcher"
 	UploadWatcherPrefix = "config.upload.watcher"
-	SESSION_CACHE_SIZE  = 35000
-	SESSION_CACHE_TIME  = 60 * 5
+	SessionCacheSize    = 35000
+	SessionCacheTime    = 60 * 5
 
-	DEFAULT_PAGE_SIZE = 40
-	DEFAULT_PAGE      = 1
-	MAX_PAGE_SIZE     = 40000
+	DefaultPageSize = 40
+	DefaultPage     = 1
+	MaxPageSize     = 40000
 )
 
 type App struct {
@@ -62,7 +62,7 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 	}
 	app.serviceDiscovery = disc
 	// init of auth manager
-	app.sessionManager = auth_manager.NewAuthManager(SESSION_CACHE_SIZE, SESSION_CACHE_TIME, disc)
+	app.sessionManager = auth_manager.NewAuthManager(SessionCacheSize, SessionCacheTime, disc)
 	if err := app.sessionManager.Start(); err != nil {
 		return nil, errors.NewInternalError("app.app.new.auth_manager_start.fail", err.Error())
 	}
@@ -143,13 +143,13 @@ func ExtractSearchOptions(t Search) *model.SearchOptions {
 	if t.GetSort() != "" {
 		res.Sort = ConvertSort(t.GetSort())
 	}
-	if t.GetSize() <= 0 || t.GetSize() > MAX_PAGE_SIZE {
-		res.Size = DEFAULT_PAGE_SIZE
+	if t.GetSize() <= 0 || t.GetSize() > MaxPageSize {
+		res.Size = DefaultPageSize
 	} else {
 		res.Size = int(t.GetSize())
 	}
 	if t.GetPage() <= 0 {
-		res.Page = DEFAULT_PAGE
+		res.Page = DefaultPage
 	} else {
 		res.Page = int(t.GetPage())
 	}

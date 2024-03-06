@@ -659,10 +659,6 @@ github.com/uudashr/gocognit v1.0.6 h1:2Cgi6MweCsdB6kpcVQp7EW4U23iBFQWfTXiWlyp842
 github.com/uudashr/gocognit v1.0.6/go.mod h1:nAIUuVBnYU7pcninia3BHOvQkpQCeO76Uscky5BOwcY=
 github.com/webitel/engine v0.0.0-20230929132314-e8f08f52c140 h1:3lSm63Vo6hOADNCtg8cC/OHQTjatJuje9OAKi0RwPOU=
 github.com/webitel/engine v0.0.0-20230929132314-e8f08f52c140/go.mod h1:hEYpfgh7CREolnKy1Hhaesyn2re/Oa7XXAeRiRWQLdw=
-github.com/webitel/logger/pkg/client v0.0.0-20240305153104-41ed8bdc4799 h1:vfMwiYQ9VlI8JL/ZZph6BuCxCeXaBaGlvHAZX8TcPxo=
-github.com/webitel/logger/pkg/client v0.0.0-20240305153104-41ed8bdc4799/go.mod h1:IzpgRxv+D9ci6U/dZQ6x5nJl2Rcw/fyYCHoLt4+RWhQ=
-github.com/webitel/protos/logger v0.0.0-20231012100410-2e28f14ab59e h1:sx3uZ4YQB/HsC8o7nfyUtNXEf0BGI/184HyrzFHEGok=
-github.com/webitel/protos/logger v0.0.0-20231012100410-2e28f14ab59e/go.mod h1:GHdxjZvyVJtl6gdI86Z3rOyq7Mjid7uP0n0umEDbC3M=
 github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28 h1:24KMgyr2jjLgfBJWDSVKDdLo27Z9uXU+WVHJJ4J58t8=
 github.com/webitel/wlog v0.0.0-20220608103744-93b33e61bd28/go.mod h1:TZS9UCbaIaCiUCWAIZTlX4hDbtZOZ51JohoJM/GbtR0=
 github.com/yagipy/maintidx v1.0.0 h1:h5NvIsCz+nRDapQ0exNv4aJ0yXSI0420omVANTv3GJM=

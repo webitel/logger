@@ -304,8 +304,14 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		if len(splitted) == 2 {
 			order := splitted[0]
 			column := splitted[1]
-			if column == "user" {
+			// Lookup columns -- order by name
+			switch column {
+			case model.LogFields.User:
 				column = "user_name"
+			case model.LogFields.Object:
+				column = "object_name"
+			case model.LogFields.Record:
+				column = "object_name"
 			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}

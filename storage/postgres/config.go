@@ -489,12 +489,15 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		if len(splitted) == 2 {
 			order := splitted[0]
 			column := splitted[1]
-			if column == "object" {
+			// Lookup columns -- order by name
+			switch column {
+			case model.ConfigFields.Object:
 				column = "object_name"
+			case model.ConfigFields.Storage:
+				column = "storage_name"
 			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}
-
 	}
 	offset := (opt.Page - 1) * opt.Size
 	if offset < 0 {

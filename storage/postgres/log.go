@@ -311,7 +311,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 			case model.LogFields.Object:
 				column = "object_name"
 			case model.LogFields.Record:
-				column = "object_name"
+				column = "record_name"
 			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}

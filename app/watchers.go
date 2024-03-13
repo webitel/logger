@@ -23,7 +23,7 @@ func (a *App) initializeWatchers() errors.AppError {
 		context.Background(),
 		nil,
 		nil,
-		model.Filter{
+		&model.Filter{
 			Column:         "object_config.enabled",
 			Value:          true,
 			ComparisonType: model.Equal,
@@ -156,8 +156,8 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 	}
 	return func() {
 		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {
-			filters := []*model.Filter{
-				{
+			filters := []any{
+				&model.Filter{
 					Column:         "config_id",
 					Value:          configId,
 					ComparisonType: model.Equal,
@@ -171,9 +171,9 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 			}
 			logs, appErr := a.storage.Log().Get(context.Background(), &model.SearchOptions{
 				Sort: "-id",
-			}, model.FilterBunch{
-				Bunch:          filters,
-				ConnectionType: model.AND,
+			}, &model.FilterNode{
+				Nodes:      filters,
+				Connection: model.AND,
 			})
 			if appErr != nil {
 				if !IsErrNoRows(appErr) {

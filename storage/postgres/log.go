@@ -15,35 +15,88 @@ import (
 )
 
 var (
-	logFieldsMap = map[string]string{
-		"id":          "log.id",
-		"user_id":     "log.user_id",
-		"user_name":   "coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
-		"user_ip":     "log.user_ip",
-		"record_id":   "log.record_id",
-		"action":      "log.action",
-		"config_id":   "log.config_id",
-		"object_id":   "object_config.object_id",
-		"object_name": "log.object_name",
-		"date":        "log.date",
-		"new_state":   "log.new_state",
+	logFieldsSelectMap = map[string]string{
+		model.LogFields.Id:       "log.id",
+		model.LogFields.UserIp:   "log.user_ip",
+		model.LogFields.Action:   "log.action",
+		model.LogFields.ConfigId: "log.config_id",
+		model.LogFields.Date:     "log.date",
+		model.LogFields.NewState: "log.new_state",
 
 		// [combined alias]
-		"object": "log.object_name, object_config.object_id",
-		"user":   "log.user_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
-		"record": "log.record_id",
+		model.LogFields.Object: "log.object_name, object_config.object_id",
+		model.LogFields.User:   "log.user_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+		model.LogFields.Record: "log.record_id",
 	}
+	logFieldsFilterMap = map[string]string{
+		model.LogFields.Id:       "log.id",
+		model.LogFields.User:     "log.user_id",
+		model.LogFields.UserIp:   "log.user_ip",
+		model.LogFields.Action:   "log.action",
+		model.LogFields.ConfigId: "log.config_id",
+		model.LogFields.Date:     "log.date",
+		model.LogFields.NewState: "log.new_state",
+		model.LogFields.Object:   "object_config.object_id",
+		model.LogFields.User:     "log.user_id",
+		model.LogFields.Record:   "log.record_id",
+	}
+
 	recordTableMap = map[string]*storage.Table{
 		"cc_queue": {
 			Path:       "call_center.cc_queue",
 			NameColumn: "name",
 		},
-		"scheme": {
+		"schema": {
 			Path:       "flow.acr_routing_scheme",
+			NameColumn: "name",
+		},
+		"users": {
+			Path:       "directory.wbt_user",
+			NameColumn: "name",
+		},
+		"calendars": {
+			Path:       "flow.calendar",
+			NameColumn: "name",
+		},
+		"cc_list": {
+			Path:       "call_center.cc_list",
+			NameColumn: "name",
+		},
+		"cc_team": {
+			Path:       "call_center.cc_team",
+			NameColumn: "name",
+		},
+		// no name field??
+		//"cc_agent": {
+		//	Path:       "call_center.cc_agent",
+		//	NameColumn: "name",
+		//},
+		"cc_resource": {
+			Path:       "call_center.cc_outbound_resource",
+			NameColumn: "name",
+		},
+		"cc_resource_group": {
+			Path:       "call_center.cc_outbound_resource_group",
+			NameColumn: "name",
+		},
+		"chat_bots": {
+			Path:       "chat.bot",
 			NameColumn: "name",
 		},
 	}
 )
+
+func init() {
+	v, ok := logFieldsSelectMap[model.LogFields.Record]
+	if ok {
+		v += ", (case "
+		for objectName, table := range recordTableMap {
+			v += fmt.Sprintf("when log.object_name = '%s' then (select %s.%s from %[2]s where id = record_id) ", objectName, table.Path, table.NameColumn)
+		}
+		v += " end) record_name"
+	}
+	logFieldsSelectMap[model.LogFields.Record] = v
+}
 
 type Log struct {
 	storage storage.Storage
@@ -57,14 +110,23 @@ func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
 }
 
 func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError) {
+	var (
+		query string
+		args  []any
+	)
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt), logFieldsMap, filters)
-	query, _, _ := base.ToSql()
+	base, appErr := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt), logFieldsFilterMap, filters)
+	switch req := base.(type) {
+	case sq.SelectBuilder:
+		query, args, _ = req.ToSql()
+	default:
+		return nil, errors.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
+	}
 	wlog.Debug(query)
-	rows, err := base.RunWith(db).QueryContext(ctx)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
 	}
@@ -183,6 +245,8 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, errors.AppError) {
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.NewState })
 			case "record_id":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Record.Id })
+			case "record_name":
+				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Record.Name })
 			case "action":
 				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Action })
 			case "config_id":
@@ -221,7 +285,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 		return c.GetQueryBase(c.getFields())
 	}
 	for _, v := range opt.Fields {
-		if columnName, ok := logFieldsMap[v]; ok {
+		if columnName, ok := logFieldsSelectMap[v]; ok {
 			fields = append(fields, columnName)
 		} else {
 			fields = append(fields, v)
@@ -269,7 +333,7 @@ func (c *Log) GetQueryBase(fields []string) sq.SelectBuilder {
 
 func (c *Log) getFields() []string {
 	var fields []string
-	for _, value := range logFieldsMap {
+	for _, value := range logFieldsSelectMap {
 		fields = append(fields, value)
 	}
 	return fields

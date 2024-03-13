@@ -21,27 +21,39 @@ type Config struct {
 }
 
 var (
-	configFieldsMap = map[string]string{
-		"id":                   "object_config.id",
-		"enabled":              "object_config.enabled",
-		"days_to_store":        "object_config.days_to_store",
-		"period":               "object_config.period",
-		"next_upload_on":       "object_config.next_upload_on",
-		"object_name":          "wbt_class.name as object_name",
-		"object_id":            "object_config.object_id",
-		"storage_id":           "object_config.storage_id",
-		"storage_name":         "file_backend_profiles.name as storage_name",
-		"domain_id":            "object_config.domain_id",
-		"created_at":           "object_config.created_at",
-		"created_by":           "object_config.created_by",
-		"updated_at":           "object_config.updated_at",
-		"updated_by":           "object_config.updated_by",
-		"description":          "object_config.description",
-		"last_uploaded_log_id": "object_config.last_uploaded_log_id",
+	configFieldsSelectMap = map[string]string{
+		model.ConfigFields.Id:              "object_config.id",
+		model.ConfigFields.Enabled:         "object_config.enabled",
+		model.ConfigFields.DaysToStore:     "object_config.days_to_store",
+		model.ConfigFields.Period:          "object_config.period",
+		model.ConfigFields.NextUploadOn:    "object_config.next_upload_on",
+		model.ConfigFields.DomainId:        "object_config.domain_id",
+		model.ConfigFields.CreatedAt:       "object_config.created_at",
+		model.ConfigFields.CreatedBy:       "object_config.created_by",
+		model.ConfigFields.UpdatedAt:       "object_config.updated_at",
+		model.ConfigFields.UpdatedBy:       "object_config.updated_by",
+		model.ConfigFields.Description:     "object_config.description",
+		model.ConfigFields.LastUploadedLog: "object_config.last_uploaded_log_id",
 
 		// [alias]
-		"storage": "object_config.storage_id, file_backend_profiles.name as storage_name",
-		"object":  "object_config.object_id, wbt_class.name as object_name",
+		model.ConfigFields.Storage: "object_config.storage_id, file_backend_profiles.name as storage_name",
+		model.ConfigFields.Object:  "object_config.object_id, wbt_class.name as object_name",
+	}
+	configFieldsFilterMap = map[string]string{
+		model.ConfigFields.Id:              "object_config.id",
+		model.ConfigFields.Enabled:         "object_config.enabled",
+		model.ConfigFields.DaysToStore:     "object_config.days_to_store",
+		model.ConfigFields.Period:          "object_config.period",
+		model.ConfigFields.NextUploadOn:    "object_config.next_upload_on",
+		model.ConfigFields.Object:          "object_config.object_id",
+		model.ConfigFields.Storage:         "object_config.storage_id",
+		model.ConfigFields.DomainId:        "object_config.domain_id",
+		model.ConfigFields.CreatedAt:       "object_config.created_at",
+		model.ConfigFields.CreatedBy:       "object_config.created_by",
+		model.ConfigFields.UpdatedAt:       "object_config.updated_at",
+		model.ConfigFields.UpdatedBy:       "object_config.updated_by",
+		model.ConfigFields.Description:     "object_config.description",
+		model.ConfigFields.LastUploadedLog: "object_config.last_uploaded_log_id",
 	}
 )
 
@@ -70,23 +82,31 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		Set("updated_at", time.Now()).
 		PlaceholderFormat(sq.Dollar)
 	if len(fields) == 0 {
-		fields = []string{"enabled", "days_to_store", "period", "next_upload_on", "storage", "description"}
+		// Default all
+		fields = []string{
+			model.ConfigFields.Enabled,
+			model.ConfigFields.DaysToStore,
+			model.ConfigFields.Period,
+			model.ConfigFields.NextUploadOn,
+			model.ConfigFields.Storage,
+			model.ConfigFields.Description,
+		}
 	}
 	for _, v := range fields {
 		switch v {
-		case "enabled":
+		case model.ConfigFields.Enabled:
 			base = base.Set("enabled", conf.Enabled)
-		case "days_to_store":
+		case model.ConfigFields.DaysToStore:
 			base = base.Set("days_to_store", conf.DaysToStore)
-		case "period":
+		case model.ConfigFields.Period:
 			base = base.Set("period", conf.Period)
-		case "next_upload_on":
+		case model.ConfigFields.NextUploadOn:
 			base = base.Set("next_upload_on", conf.NextUploadOn)
-		case "storage":
+		case model.ConfigFields.Storage:
 			base = base.Set("storage_id", conf.Storage.Id)
-		case "description":
+		case model.ConfigFields.Description:
 			base = base.Set("description", conf.Description)
-		case "last_uploaded_log_id":
+		case model.ConfigFields.LastUploadedLog:
 			base = base.Set("last_uploaded_log_id", conf.LastUploadedLog)
 		}
 	}
@@ -112,6 +132,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		from p
 				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
+	wlog.Debug(query)
 	res, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.update.query.fail", err.Error())
@@ -187,7 +208,7 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 	if !includeExisting {
 		base = base.Where(sq.Expr(
 			"id NOT IN (?)",
-			sq.Select("object_id").From("logger.object_config").Where(sq.Eq{"domain_id": domainId}),
+			sq.Select("object_id").From("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}),
 		))
 	}
 	// endregion
@@ -245,7 +266,7 @@ func (c *Config) Delete(ctx context.Context, id int32) errors.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Delete("logger.object_config").Where(sq.Eq{"id": id}).PlaceholderFormat(sq.Dollar)
+	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).PlaceholderFormat(sq.Dollar)
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
@@ -263,11 +284,11 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Delete("logger.object_config").Where(sq.Expr("object_config.id = any(?::int[])", pq.Array(ids))).PlaceholderFormat(sq.Dollar)
+	base := sq.Delete("logger.object_config").Where(sq.Expr(configFieldsFilterMap[model.ConfigFields.Id]+" = any(?::int[])", pq.Array(ids))).PlaceholderFormat(sq.Dollar)
 	if rbac != nil {
 		subquery := sq.Select("1").From("logger.object_config_acl acl").
-			Where("acl.dc = object_config.domain_id").
-			Where("acl.object = object_config.id").
+			Where("acl.dc = "+configFieldsFilterMap[model.ConfigFields.DomainId]).
+			Where("acl.object = "+configFieldsFilterMap[model.ConfigFields.DomainId]).
 			Where("acl.subject = any( ?::int[])", pq.Array(rbac.Groups)).
 			Where("acl.access & ? = ?", rbac.Access, rbac.Access).
 			Limit(1)
@@ -290,7 +311,10 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBase(c.getFields(), nil).Where(sq.Eq{"object_config.object_id": objId}, sq.Eq{"object_config.domain_id": domainId})
+	base := c.GetQueryBase(c.getFields(), nil).Where(
+		sq.Eq{configFieldsFilterMap[model.ConfigFields.Object]: objId},
+		sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId},
+	)
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
@@ -310,7 +334,7 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{"object_config.id": id})
+	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id})
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
@@ -326,15 +350,24 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 }
 
 func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, errors.AppError) {
+	var (
+		sql  string
+		args []any
+	)
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := ApplyFiltersToBuilder(c.GetQueryBaseFromSearchOptions(opt, rbac), configFieldsMap, filters)
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
-	rows, err := base.RunWith(db).QueryContext(ctx)
+	base, appErr := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt, rbac), configFieldsFilterMap, filters)
+	switch req := base.(type) {
+	case sq.SelectBuilder:
+		sql, args, _ = req.ToSql()
+	default:
+		return nil, errors.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
+	}
 
+	wlog.Debug(sql)
+	rows, err := db.QueryContext(ctx, sql, args...)
 	if err != nil {
 		return nil, errors.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
 	}
@@ -437,8 +470,7 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 		return c.GetQueryBase(c.getFields(), rbac)
 	}
 	for _, v := range opt.Fields {
-		fields = append(fields, configFieldsMap[v])
-		if columnName, ok := logFieldsMap[v]; ok {
+		if columnName, ok := configFieldsSelectMap[v]; ok {
 			fields = append(fields, columnName)
 		} else {
 			fields = append(fields, v)
@@ -491,7 +523,7 @@ func (c *Config) insertRbacCondition(base sq.SelectBuilder, rbac *model.RbacOpti
 
 func (c *Config) getFields() []string {
 	var fields []string
-	for _, value := range configFieldsMap {
+	for _, value := range configFieldsSelectMap {
 		fields = append(fields, value)
 	}
 	return fields

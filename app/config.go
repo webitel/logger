@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/webitel/logger/watcher"
@@ -16,64 +15,46 @@ import (
 	"github.com/webitel/logger/model"
 )
 
-func (a *App) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
+func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int) (*model.Config, errors.AppError) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldConfig, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id)
 	if err != nil {
 		return nil, err
 	}
-
-	model, err := a.convertUpdateConfigMessageToModel(in, domainId)
-
-	if err != nil {
-		return nil, err
-	}
-	newConfig, err = a.storage.Config().Update(ctx, model, []string{}, userId)
+	newConfig, err = a.storage.Config().Update(ctx, in, []string{}, userId)
 	if err != nil {
 		return nil, err
 	}
 
 	a.UpdateConfigWatchers(oldConfig, newConfig)
 
-	res, err := a.convertConfigModelToMessage(newConfig)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return newConfig, nil
 
 }
 
-func (a *App) PatchUpdateConfig(ctx context.Context, in *proto.PatchConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
+func (a *App) PatchUpdateConfig(ctx context.Context, in *model.Config, fields []string, userId int) (*model.Config, errors.AppError) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldConfig, err := a.storage.Config().GetById(ctx, nil, int(in.GetConfigId()))
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, int(in.Id))
 	if err != nil {
 		return nil, err
 	}
-
-	updatedConfigModel, err := a.convertPatchConfigMessageToModel(in, domainId)
-	if err != nil {
-		return nil, err
-	}
-	newConfig, err = a.storage.Config().Update(ctx, updatedConfigModel, in.GetFields(), userId)
+	newConfig, err = a.storage.Config().Update(ctx, in, fields, userId)
 	if err != nil {
 		return nil, err
 	}
 	a.UpdateConfigWatchers(oldConfig, newConfig)
-	res, err := a.convertConfigModelToMessage(newConfig)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+
+	return newConfig, nil
 
 }
 
@@ -169,18 +150,15 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 	// else status still disabled
 }
 
-func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, domainId int, userId int) (*proto.Config, errors.AppError) {
+func (a *App) InsertConfig(ctx context.Context, in *model.Config, userId int) (*model.Config, errors.AppError) {
 	var (
 		newModel *model.Config
 	)
 	if in == nil {
 		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	model, err := a.convertCreateConfigMessageToModel(in, domainId)
-	if err != nil {
-		return nil, err
-	}
-	newModel, err = a.storage.Config().Insert(ctx, model, userId)
+
+	newModel, err := a.storage.Config().Insert(ctx, in, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -191,93 +169,55 @@ func (a *App) InsertConfig(ctx context.Context, in *proto.CreateConfigRequest, d
 			Period:       newModel.Period,
 			NextUploadOn: newModel.NextUploadOn.Time(),
 			LastLogId:    0,
-			DomainId:     domainId,
+			DomainId:     in.DomainId,
 		})
 	}
 
-	res, err := a.convertConfigModelToMessage(newModel)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return newModel, nil
 }
 
-func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions,*/, domainId int, objectId int) (*proto.Config, errors.AppError) {
+func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions,*/, domainId int, objectId int) (*model.Config, errors.AppError) {
 
-	var res *proto.Config
-
-	//cacheKey := FormatKey("config.objectId", domainId, objectId)
-
-	//value, err := a.cache.Get(ctx, cacheKey)
-	//if err != nil {
-	newModel, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
+	res, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if appErr != nil {
 		return nil, appErr
 	}
-	res, appErr = a.convertConfigModelToMessage(newModel)
-	if appErr != nil {
-		return nil, appErr
-	}
-	//err := a.cache.Set(ctx, cacheKey, res, MEMORY_CACHE_DEFAULT_EXPIRES)
-	//if err != nil {
-	//	wlog.Debug(fmt.Sprintf("can't set cache value. error: %s", err.Error()))
-	//}
-	//} else {
-	//	res = value.Raw().(*proto.Config)
-	//}
 
 	return res, nil
 
 }
 
-func (a *App) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatusRequest) (*proto.ConfigStatus, errors.AppError) {
+func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int64) (bool, errors.AppError) {
 
-	var (
-		response proto.ConfigStatus
-	)
-
-	//cacheKey := FormatKey("config.objectId", in.GetDomainId(), in.GetObjectName())
-	objectName := strings.ToLower(in.GetObjectName())
-	domainId := in.GetDomainId()
-
-	//value, err := a.cache.Get(ctx, cacheKey)
-	//if err != nil {
-	searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
-		Bunch: []*model.Filter{
-			{
+	searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, model.FilterNode{
+		Nodes: []any{
+			&model.Filter{
 				Column:         "wbt_class.name",
 				Value:          objectName,
 				ComparisonType: model.ILike,
 			},
-			{
+			&model.Filter{
 				Column:         "object_config.domain_id",
 				Value:          domainId,
 				ComparisonType: model.Equal,
 			}},
-		ConnectionType: model.AND,
+		Connection: model.AND,
 	})
 	if appErr != nil {
 		if IsErrNoRows(appErr) {
-			response.IsEnabled = false
-			return &response, nil
+			return false, nil
 		}
 
-		return nil, appErr
+		return false, appErr
 	}
 	enabled := searchResult[0].Enabled
-	response.IsEnabled = enabled
 
-	return &response, nil
+	return enabled, nil
 
 }
 
-func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*proto.Config, errors.AppError) {
-	var res *proto.Config
-	newModel, appErr := a.storage.Config().GetById(ctx, rbac, id)
-	if appErr != nil {
-		return nil, appErr
-	}
-	res, appErr = a.convertConfigModelToMessage(newModel)
+func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, errors.AppError) {
+	res, appErr := a.storage.Config().GetById(ctx, rbac, id)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -312,14 +252,7 @@ func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups 
 
 }
 
-func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, domainId int, in *proto.SearchConfigRequest) (*proto.Configs, errors.AppError) {
-	var (
-		rows      []*proto.Config
-		res       proto.Configs
-		searchOpt *model.SearchOptions
-	)
-
-	searchOpt = ExtractSearchOptions(in)
+func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions, domainId int64) ([]*model.Config, errors.AppError) {
 	modelConfigs, err := a.storage.Config().Get(
 		ctx,
 		searchOpt,
@@ -330,33 +263,15 @@ func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, domain
 			ComparisonType: model.Equal,
 		},
 	)
-	res.Page = int32(searchOpt.Page)
 	if err != nil {
-		if IsErrNoRows(err) {
-			return &res, nil
-		} else {
-			return nil, err
-		}
-	}
-	for _, v := range modelConfigs {
-		proto, err := a.convertConfigModelToMessage(v)
-		if err != nil {
-			return nil, err
-		}
-		rows = append(rows, proto)
-	}
-	if len(rows)-1 == searchOpt.Size {
-		res.Next = true
-		res.Items = rows[0 : len(rows)-1]
-	} else {
-		res.Items = rows
+		return nil, err
 	}
 
-	return &res, nil
+	return modelConfigs, nil
 
 }
 
-func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId int) (*model.Config, errors.AppError) {
+func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId int64) (*model.Config, errors.AppError) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
@@ -379,7 +294,7 @@ func (a *App) convertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, d
 	return config, nil
 }
 
-func (a *App) convertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int) (*model.Config, errors.AppError) {
+func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int64) (*model.Config, errors.AppError) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
@@ -401,7 +316,7 @@ func (a *App) convertPatchConfigMessageToModel(in *proto.PatchConfigRequest, dom
 	return config, nil
 }
 
-func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId int) (*model.Config, errors.AppError) {
+func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId int64) (*model.Config, errors.AppError) {
 
 	if in.GetDaysToStore() <= 0 {
 		return nil, errors.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
@@ -433,7 +348,7 @@ func (a *App) convertCreateConfigMessageToModel(in *proto.CreateConfigRequest, d
 	return config, nil
 }
 
-func (a *App) convertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
+func ConvertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
 
 	conf := &proto.Config{
 		Id:          int32(in.Id),

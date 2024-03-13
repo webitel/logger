@@ -10,8 +10,6 @@ import (
 	errors "github.com/webitel/engine/model"
 )
 
-//var _ proto.ConfigServiceServer = ConfigService{}
-
 type ConfigService struct {
 	proto.UnimplementedConfigServiceServer
 	app *App
@@ -42,12 +40,15 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
 		}
 	}
-	return s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
+	resModel, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
+	if err != nil {
+		return nil, err
+	}
+	return ConvertConfigModelToMessage(resModel)
 }
 
 func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
 
-	// region AUTHORIZATION
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -61,17 +62,29 @@ func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Re
 
 // ReadConfigByObjectId used for internal purpose
 func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.ReadConfigByObjectIdRequest) (*proto.Config, error) {
-	return s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
+	resModel, err := s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
+	if err != nil {
+		return nil, err
+	}
+	return ConvertConfigModelToMessage(resModel)
 }
 
 // ReadConfigByObjectId used for internal purpose with client, checks if config enabled
 func (s *ConfigService) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatusRequest) (*proto.ConfigStatus, error) {
-	return s.app.CheckConfigStatus(ctx, in)
+	isEnabled, err := s.app.CheckConfigStatus(ctx, in.GetObjectName(), in.GetDomainId())
+	if err != nil {
+		return nil, err
+	}
+	return &proto.ConfigStatus{IsEnabled: isEnabled}, nil
+
 }
 
 // SearchConfig selects all configs by domainId
 func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfigRequest) (*proto.Configs, error) {
-	var rbac *model.RbacOptions
+	var (
+		rbac *model.RbacOptions
+		res  proto.Configs
+	)
 	session, err := s.app.GetSessionFromCtx(ctx)
 	if err != nil {
 		return nil, err
@@ -87,7 +100,21 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
 		}
 	}
-	return s.app.GetAllConfigs(ctx, rbac, int(session.DomainId), in)
+	resModels, err := s.app.GetAllConfigs(ctx, rbac, ExtractSearchOptions(in), session.DomainId)
+	if err != nil {
+		if IsErrNoRows(err) {
+			return &res, nil
+		} else {
+			return nil, err
+		}
+	}
+	res.Next, res.Items, err = CalculateListResultMetadata[*model.Config, *proto.Config](in, resModels, ConvertConfigModelToMessage)
+	if err != nil {
+		return nil, err
+	}
+	res.Page = in.GetPage()
+
+	return &res, nil
 }
 
 // UpdateConfig updates existing config
@@ -113,7 +140,16 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
 		}
 	}
-	return s.app.UpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
+	mod, err := ConvertUpdateConfigMessageToModel(in, session.DomainId)
+	if err != nil {
+		return nil, err
+	}
+	resModel, err := s.app.UpdateConfig(ctx, mod, int(session.UserId))
+	if err != nil {
+		return nil, err
+	}
+	return ConvertConfigModelToMessage(resModel)
+
 }
 
 // PatchConfig updates existing config
@@ -139,7 +175,15 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
 		}
 	}
-	return s.app.PatchUpdateConfig(ctx, in, int(session.DomainId), int(session.UserId))
+	updatedConfigModel, err := ConvertPatchConfigMessageToModel(in, session.DomainId)
+	if err != nil {
+		return nil, err
+	}
+	resModel, err := s.app.PatchUpdateConfig(ctx, updatedConfigModel, in.GetFields(), int(session.UserId))
+	if err != nil {
+		return nil, err
+	}
+	return ConvertConfigModelToMessage(resModel)
 }
 
 // CreateConfig inserts new config
@@ -155,7 +199,15 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 	if !permission.CanCreate() {
 		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_CREATE)
 	}
-	return s.app.InsertConfig(ctx, in, int(session.DomainId), int(session.UserId))
+	model, err := ConvertCreateConfigMessageToModel(in, session.GetDomainId())
+	if err != nil {
+		return nil, err
+	}
+	resModel, err := s.app.InsertConfig(ctx, model, int(session.UserId))
+	if err != nil {
+		return nil, err
+	}
+	return ConvertConfigModelToMessage(resModel)
 }
 
 // DeleteConfig deletes config by id

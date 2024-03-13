@@ -1,5 +1,9 @@
 package model
 
+import (
+	"time"
+)
+
 type Log struct {
 	Id       int      `json:"id,omitempty"`
 	Action   string   `json:"action,omitempty"`
@@ -10,4 +14,107 @@ type Log struct {
 	Record   Lookup   `json:"record,omitempty"`
 	NewState []byte   `json:"new_state,omitempty"`
 	ConfigId int      `json:"config_id,omitempty"`
+}
+
+// Front-end fields
+var LogFields = struct {
+	Id       string
+	Action   string
+	Date     string
+	User     string
+	Object   string
+	UserIp   string
+	Record   string
+	NewState string
+	ConfigId string
+}{
+	Id:       "id",
+	Action:   "action",
+	Date:     "date",
+	User:     "user",
+	Object:   "object",
+	UserIp:   "user_ip",
+	Record:   "record",
+	NewState: "new_state",
+	ConfigId: "config_id",
+}
+
+type LogFilters struct {
+	Id       []int64
+	Action   []string
+	DateFrom *time.Time
+	DateTo   *time.Time
+	User     []int64
+	Object   []int64
+	UserIp   []string
+	Record   []int64
+	ConfigId []int64
+}
+
+func (l *LogFilters) ExtractFilters() *FilterNode {
+	main := &FilterNode{
+		Nodes:      make([]any, 0),
+		Connection: AND,
+	}
+	res := GetOrFiltersFromArray[int64](l.Id, LogFields.Id)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	res = GetOrFiltersFromArray[string](l.Action, LogFields.Action)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	res = GetOrFiltersFromArray[string](l.UserIp, LogFields.UserIp)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	res = GetOrFiltersFromArray[int64](l.User, LogFields.User)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	res = GetOrFiltersFromArray[int64](l.Record, LogFields.Record)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	res = GetOrFiltersFromArray[int64](l.ConfigId, LogFields.ConfigId)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	if l.DateFrom != nil {
+		main.Nodes = append(main.Nodes, &Filter{
+			Column:         LogFields.Date,
+			Value:          l.DateFrom,
+			ComparisonType: GreaterThanOrEqual,
+		})
+	}
+	if l.DateTo != nil {
+		main.Nodes = append(main.Nodes, &Filter{
+			Column:         LogFields.Date,
+			Value:          l.DateTo,
+			ComparisonType: LessThanOrEqual,
+		})
+	}
+	return main
+}
+
+func GetOrFiltersFromArray[C any](in []C, fieldName string) any {
+	if in != nil && len(in) > 0 {
+		sub := &FilterNode{Nodes: make([]any, 0), Connection: OR}
+		if len(in) == 1 {
+			return &Filter{
+				Column:         fieldName,
+				Value:          in[0],
+				ComparisonType: Equal,
+			}
+		}
+		for _, action := range in {
+			sub.Nodes = append(sub.Nodes, &Filter{
+				Column:         fieldName,
+				Value:          action,
+				ComparisonType: Equal,
+			})
+		}
+		return sub
+	}
+	return nil
 }

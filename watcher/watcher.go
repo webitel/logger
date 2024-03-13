@@ -29,7 +29,7 @@ type UploadWatcherParams struct {
 	Period       int
 	NextUploadOn time.Time
 	LastLogId    int
-	DomainId     int
+	DomainId     int64
 	UserId       int
 }
 

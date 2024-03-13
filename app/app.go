@@ -130,7 +130,7 @@ func (a *App) Start() errors.AppError {
 	return <-a.exitChan
 }
 
-type Search interface {
+type Searcher interface {
 	GetPage() int32
 	GetSize() int32
 	GetQ() string
@@ -138,7 +138,7 @@ type Search interface {
 	GetFields() []string
 }
 
-func ExtractSearchOptions(t Search) *model.SearchOptions {
+func ExtractSearchOptions(t Searcher) *model.SearchOptions {
 	var res model.SearchOptions
 	if t.GetSort() != "" {
 		res.Sort = ConvertSort(t.GetSort())
@@ -249,4 +249,43 @@ func indexOf(element string, data []string) int {
 		}
 	}
 	return -1 //not found.
+}
+
+type Lister interface {
+	GetSize() int32
+}
+
+// C type of items to filter
+func GetListResult[C any](s Lister, items []C) (bool, []C) {
+	if int32(len(items)-1) == s.GetSize() {
+		return true, items[0 : len(items)-1]
+	}
+	return false, items
+}
+
+// C type of input, K type of output
+func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, errors.AppError)) ([]K, errors.AppError) {
+	var result []K
+	for _, item := range items {
+		out, err := convertFunc(item)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, out)
+	}
+	return result, nil
+}
+
+// C type of input, K type of output
+func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc func(C) (K, errors.AppError)) (bool, []K, errors.AppError) {
+	var (
+		result []K
+		err    errors.AppError
+	)
+	next, filteredInput := GetListResult[C](s, items)
+	result, err = ConvertToOutputBulk[C, K](filteredInput, convertFunc)
+	if err != nil {
+		return false, nil, err
+	}
+	return next, result, nil
 }

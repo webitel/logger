@@ -71,83 +71,83 @@ func (s *PostgresStore) Close() errors.AppError {
 
 // ApplyFiltersToBuilder determines type of {filters} parameter and applies {filters} to the {base} according to the determined type.
 // columnAlias is additional parameter applied to every model.Filter existing in {filters} and checks if {model.Filter.Column} has alias in the {columnAlias}
-func ApplyFiltersToBuilder(base squirrel.SelectBuilder, columnAlias map[string]string, filters any) squirrel.SelectBuilder {
-	switch data := filters.(type) {
-	case model.FilterArray:
-		switch data.Connection {
-		case model.AND:
-			result := squirrel.And{}
-			for _, bunch := range data.Filters {
-				switch bunch.ConnectionType {
-				case model.AND:
-					lowerResult := squirrel.And{}
-					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
-					}
-					result = append(result, lowerResult)
-
-				case model.OR:
-					lowerResult := squirrel.Or{}
-					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
-					}
-					result = append(result, lowerResult)
-
-				}
-
-			}
-			base = base.Where(result)
-			return base
-		case model.OR:
-			result := squirrel.Or{}
-			for _, bunch := range data.Filters {
-				switch bunch.ConnectionType {
-				case model.AND:
-					lowerResult := squirrel.And{}
-					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
-					}
-					result = append(result, lowerResult)
-					base = base.Where(result)
-					return base
-				case model.OR:
-					lowerResult := squirrel.Or{}
-					for _, filter := range bunch.Bunch {
-						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
-					}
-					result = append(result, lowerResult)
-					base = base.Where(result)
-					return base
-				}
-
-			}
-			base = base.Where(result)
-			return base
-		}
-	case model.FilterBunch:
-		switch data.ConnectionType {
-		case model.AND:
-			result := squirrel.And{}
-			for _, filter := range data.Bunch {
-				result = append(result, applyFilter(filter, columnAlias))
-			}
-
-			base = base.Where(result)
-			return base
-		case model.OR:
-			result := squirrel.Or{}
-			for _, filter := range data.Bunch {
-				result = append(result, applyFilter(filter, columnAlias))
-			}
-			base = base.Where(result)
-			return base
-		}
-	case model.Filter:
-		base = base.Where(applyFilter(&data, columnAlias))
-	}
-
-	return base
-}
+//func ApplyFiltersToBuilder(base squirrel.SelectBuilder, columnAlias map[string]string, filters any) squirrel.SelectBuilder {
+//	switch data := filters.(type) {
+//	case model.FilterArray:
+//		switch data.Connection {
+//		case model.AND:
+//			result := squirrel.And{}
+//			for _, bunch := range data.Filters {
+//				switch bunch.ConnectionType {
+//				case model.AND:
+//					lowerResult := squirrel.And{}
+//					for _, filter := range bunch.Bunch {
+//						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
+//					}
+//					result = append(result, lowerResult)
+//
+//				case model.OR:
+//					lowerResult := squirrel.Or{}
+//					for _, filter := range bunch.Bunch {
+//						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
+//					}
+//					result = append(result, lowerResult)
+//
+//				}
+//
+//			}
+//			base = base.Where(result)
+//			return base
+//		case model.OR:
+//			result := squirrel.Or{}
+//			for _, bunch := range data.Filters {
+//				switch bunch.ConnectionType {
+//				case model.AND:
+//					lowerResult := squirrel.And{}
+//					for _, filter := range bunch.Bunch {
+//						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
+//					}
+//					result = append(result, lowerResult)
+//					base = base.Where(result)
+//					return base
+//				case model.OR:
+//					lowerResult := squirrel.Or{}
+//					for _, filter := range bunch.Bunch {
+//						lowerResult = append(lowerResult, applyFilter(filter, columnAlias))
+//					}
+//					result = append(result, lowerResult)
+//					base = base.Where(result)
+//					return base
+//				}
+//
+//			}
+//			base = base.Where(result)
+//			return base
+//		}
+//	case model.FilterBunch:
+//		switch data.ConnectionType {
+//		case model.AND:
+//			result := squirrel.And{}
+//			for _, filter := range data.Bunch {
+//				result = append(result, applyFilter(filter, columnAlias))
+//			}
+//
+//			base = base.Where(result)
+//			return base
+//		case model.OR:
+//			result := squirrel.Or{}
+//			for _, filter := range data.Bunch {
+//				result = append(result, applyFilter(filter, columnAlias))
+//			}
+//			base = base.Where(result)
+//			return base
+//		}
+//	case model.Filter:
+//		base = base.Where(applyFilter(&data, columnAlias))
+//	}
+//
+//	return base
+//}
 
 // Apply filter performs convertation between model.Filter and squirrel.Sqlizer.
 // columnAlias is additional parameter to determine if model.Filter in the Column property has alias of the column and NOT the real DB column name.

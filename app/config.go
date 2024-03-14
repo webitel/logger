@@ -188,8 +188,7 @@ func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions
 }
 
 func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int64) (bool, errors.AppError) {
-
-	searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, model.FilterNode{
+	searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, &model.FilterNode{
 		Nodes: []any{
 			&model.Filter{
 				Column:         "wbt_class.name",
@@ -197,7 +196,7 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 				ComparisonType: model.ILike,
 			},
 			&model.Filter{
-				Column:         "object_config.domain_id",
+				Column:         model.ConfigFields.DomainId,
 				Value:          domainId,
 				ComparisonType: model.Equal,
 			}},

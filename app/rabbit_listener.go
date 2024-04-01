@@ -69,21 +69,26 @@ func (l *RabbitListener) Start() {
 
 	go func() {
 		for {
+			// check and wait for closed channel
 			amqpErr, _ := <-l.amqpCloseNotifier
 
 			wlog.Info(fmtBrokerLog("connection closed... "))
+			// if close has a reason -- log
 			if amqpErr != nil {
 				wlog.Info(fmtBrokerLog(fmt.Sprintf("reason: %s", amqpErr.Reason)))
 			}
-			if l.reconnectAttempts >= MaxReconnectAttempts {
+			if l.reconnectAttempts >= MaxReconnectAttempts { // if max reconnect attempts reached -- stop execution
 				l.exit <- errors.NewInternalError("app.rabbit_listener.start.reconnect_routine.max_reconnect_attempts.error", fmtBrokerLog("connection lost"))
 				return
 			}
+			// try to reconnect
 			err := l.reconnect()
 			if err != nil {
 				wlog.Info(fmtBrokerLog(err.Error()))
+				l.reconnectAttempts++
+			} else {
+				l.reconnectAttempts = 0
 			}
-			l.reconnectAttempts++
 			time.Sleep(time.Second * 10)
 		}
 	}()

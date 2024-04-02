@@ -7,13 +7,11 @@ import (
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/logger/model"
 
-	proto "github.com/webitel/logger/api/native"
-
+	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	errors "github.com/webitel/engine/model"
 )
 
 type LoggerService struct {
-	proto.UnimplementedLoggerServiceServer
 	app *App
 }
 

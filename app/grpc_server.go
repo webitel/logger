@@ -13,7 +13,7 @@ import (
 	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 
-	proto "github.com/webitel/logger/api/native"
+	proto_grpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
 	"github.com/webitel/wlog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -22,9 +22,9 @@ import (
 )
 
 var (
-	RequestContextName          = "grpc_ctx"
-	APP_SERVICE_TTL             = time.Second * 30
-	APP_DEREGESTER_CRITICAL_TTL = time.Minute * 2
+	RequestContextName       = "grpc_ctx"
+	AppServiceTtl            = time.Second * 30
+	AppDeregesterCriticalTtl = time.Minute * 2
 )
 
 //func ServeRequests(app *App, config *model.ConsulConfig, errChan chan errors.AppError) {
@@ -106,9 +106,9 @@ func buildGrpc(app *App) (*grpc.Server, errors.AppError) {
 	}
 
 	// * register logger service
-	proto.RegisterLoggerServiceServer(grpcServer, l)
+	proto_grpc.RegisterLoggerServiceServer(grpcServer, l)
 	// * register config service
-	proto.RegisterConfigServiceServer(grpcServer, c)
+	proto_grpc.RegisterConfigServiceServer(grpcServer, c)
 
 	return grpcServer, nil
 }
@@ -187,7 +187,7 @@ func connectConsul(config *model.ConsulConfig) errors.AppError {
 	if err != nil {
 		return errors.NewBadRequestError("api.grpc_server.build_consul.parse_address.error", "unable to parse grpc port")
 	}
-	err = consul.RegisterService(model.SERVICE_NAME, ip, parsedPort, APP_SERVICE_TTL, APP_DEREGESTER_CRITICAL_TTL)
+	err = consul.RegisterService(model.SERVICE_NAME, ip, parsedPort, AppServiceTtl, AppDeregesterCriticalTtl)
 	if err != nil {
 		return errors.NewInternalError("api.grpc_server.build_consul.register_in_consul.error", err.Error())
 	}

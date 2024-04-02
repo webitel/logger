@@ -4,13 +4,13 @@ import (
 	"context"
 	"io"
 
-	strg "github.com/webitel/logger/api/storage"
+	storage_proto "buf.build/gen/go/webitel/storage/protocolbuffers/go"
 
 	"github.com/webitel/logger/model"
 
 	"time"
 
-	proto "github.com/webitel/logger/api/native"
+	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 
 	errors "github.com/webitel/engine/model"
 )
@@ -41,9 +41,9 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 		return nil, errors.NewInternalError("app.log.upload_file.request_stream.error", err.Error())
 	}
 
-	err = stream.Send(&strg.UploadFileRequest{
-		Data: &strg.UploadFileRequest_Metadata_{
-			Metadata: &strg.UploadFileRequest_Metadata{
+	err = stream.Send(&storage_proto.UploadFileRequest{
+		Data: &storage_proto.UploadFileRequest_Metadata_{
+			Metadata: &storage_proto.UploadFileRequest_Metadata{
 				DomainId:  domainId,
 				Name:      metadata.Name,
 				MimeType:  metadata.MimeType,
@@ -67,8 +67,8 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 		if err != nil {
 			break
 		}
-		err = stream.Send(&strg.UploadFileRequest{
-			Data: &strg.UploadFileRequest_Chunk{
+		err = stream.Send(&storage_proto.UploadFileRequest{
+			Data: &storage_proto.UploadFileRequest_Chunk{
 				Chunk: buf,
 			},
 		})
@@ -85,7 +85,7 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 		return nil, errors.NewInternalError("app.log.upload_file.send_stream.error", err.Error())
 	}
 
-	var res *strg.UploadFileResponse
+	var res *storage_proto.UploadFileResponse
 	res, err = stream.CloseAndRecv()
 	if err != nil {
 		return nil, errors.NewInternalError("app.log.upload_file.close_stream.error", err.Error())

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	proto "github.com/webitel/logger/api/native"
+	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 
 	"github.com/webitel/wlog"
 

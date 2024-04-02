@@ -12,9 +12,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	storage_grpc "buf.build/gen/go/webitel/storage/grpc/go/_gogrpc"
 	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/engine/discovery"
-	strg "github.com/webitel/logger/api/storage"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/logger/watcher"
@@ -37,7 +37,7 @@ const (
 type App struct {
 	config           *model.AppConfig
 	storage          storage.Storage
-	file             strg.FileServiceClient
+	file             storage_grpc.FileServiceClient
 	uploadWatchers   map[string]*watcher.UploadWatcher
 	deleteWatchers   map[string]*watcher.Watcher
 	serviceDiscovery discovery.ServiceDiscovery
@@ -99,7 +99,7 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 		return nil, errors.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
 	}
 
-	app.file = strg.NewFileServiceClient(app.grpcConn)
+	app.file = storage_grpc.NewFileServiceClient(app.grpcConn)
 	return app, nil
 }
 

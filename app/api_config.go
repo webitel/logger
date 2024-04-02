@@ -3,15 +3,13 @@ package app
 import (
 	"context"
 
+	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"github.com/webitel/engine/auth_manager"
-	proto "github.com/webitel/logger/api/native"
-	"github.com/webitel/logger/model"
-
 	errors "github.com/webitel/engine/model"
+	"github.com/webitel/logger/model"
 )
 
 type ConfigService struct {
-	proto.UnimplementedConfigServiceServer
 	app *App
 }
 

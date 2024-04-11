@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/webitel/logger/model"
-	"github.com/webitel/logger/pkg/client"
 	"github.com/webitel/wlog"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -18,17 +17,46 @@ import (
 type Handler struct {
 	app *App
 }
+type Message struct {
+	Records        []*Record `json:"records,omitempty"`
+	RequiredFields `json:"requiredFields"`
+}
+
+type RequiredFields struct {
+	UserId int    `json:"userId,omitempty"`
+	UserIp string `json:"userIp,omitempty"`
+	Action string `json:"action,omitempty"`
+	Date   int64  `json:"date,omitempty"`
+}
+
+type Record struct {
+	Id       int64     `json:"id,omitempty"`
+	NewState BytesJSON `json:"newState,omitempty"`
+}
+
+type BytesJSON struct {
+	Body []byte
+}
+
+func (b *BytesJSON) GetBody() []byte {
+	return b.Body
+}
+
+func (b *BytesJSON) UnmarshalJSON(input []byte) error {
+	b.Body = input
+	return nil
+}
 
 func NewHandler(app *App) (*Handler, errors.AppError) {
 	if app == nil {
-		return nil, errors.NewInternalError("rabbit1.handler.new_handler.arguments_check.app_nil", "can't configure handler, app is nil")
+		return nil, errors.NewInternalError("rabbit.handler.new_handler.arguments_check.app_nil", "can't configure handler, app is nil")
 	}
 	return &Handler{app: app}, nil
 }
 
 func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.AppError {
 	var (
-		m      client.Message
+		m      Message
 		domain int64
 		object string
 	)
@@ -49,7 +77,7 @@ func (h *Handler) Handle(ctx context.Context, message *amqp.Delivery) errors.App
 		for _, v := range m.Records {
 			rabbitMessage := &model.RabbitMessage{
 				//ObjectId: object,
-				NewState: v.NewState,
+				NewState: v.NewState.GetBody(),
 				UserId:   m.UserId,
 				UserIp:   m.UserIp,
 				Action:   m.Action,

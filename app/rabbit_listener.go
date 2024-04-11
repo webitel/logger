@@ -159,6 +159,11 @@ func (l *RabbitListener) connect() errors.AppError {
 		return errors.NewInternalError("rabbit.listener.listen.exchange_declare.fail", err.Error())
 	}
 	// queue, err := channel.QueueDeclarePassive(
+	wlog.Info(fmtBrokerLog("binding webitel exchange to logger"))
+	err = channel.ExchangeBind("logger", "logger.#", "webitel", true, nil)
+	if err != nil {
+		return errors.NewInternalError("rabbit.listener.listen.webitel_exchange_bind.fail", err.Error())
+	}
 	wlog.Info(fmtBrokerLog("connecting or creating a queue 'logger.service'"))
 	queue, err := channel.QueueDeclare(
 		"logger.service",

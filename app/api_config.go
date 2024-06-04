@@ -2,10 +2,9 @@ package app
 
 import (
 	"context"
+	authmodel "github.com/webitel/logger/auth/model"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
-	"github.com/webitel/engine/auth_manager"
-	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 )
 
@@ -13,9 +12,9 @@ type ConfigService struct {
 	app *App
 }
 
-func NewConfigService(app *App) (*ConfigService, errors.AppError) {
+func NewConfigService(app *App) (*ConfigService, model.AppError) {
 	if app == nil {
-		return nil, errors.NewInternalError("api.config.new_config_service.args_check.app_nill", "app is nil")
+		return nil, model.NewInternalError("api.config.new_config_service.args_check.app_nil", "app is nil")
 	}
 	return &ConfigService{app: app}, nil
 }
@@ -23,19 +22,20 @@ func NewConfigService(app *App) (*ConfigService, errors.AppError) {
 // ReadConfig selects config by id
 func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequest) (*proto.Config, error) {
 	var rbac *model.RbacOptions
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	// OBAC check
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, authmodel.Read) {
+		return nil, s.app.MakeScopeError(session, scope, authmodel.Read)
 	}
-	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_READ, permission) {
+	// RBAC check
+	if scope.IsRbacUsed() {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
+			Access: authmodel.Read.Value(),
 		}
 	}
 	resModel, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
@@ -46,16 +46,16 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 }
 
 func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
-
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	// OBAC check
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, authmodel.Read) {
+		return nil, s.app.MakeScopeError(session, scope, authmodel.Read)
 	}
-	return s.app.GetSystemObjects(ctx, request, int(session.DomainId))
+	return s.app.GetSystemObjects(ctx, request, int(session.GetDomainId()))
 }
 
 // ReadConfigByObjectId used for internal purpose
@@ -83,22 +83,25 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 		rbac *model.RbacOptions
 		res  proto.Configs
 	)
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	//
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+
+	// OBAC check
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, authmodel.Read) {
+		return nil, s.app.MakeScopeError(session, scope, authmodel.Read)
 	}
-	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_READ, permission) {
+	// RBAC check
+	if scope.IsRbacUsed() {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: auth_manager.PERMISSION_ACCESS_READ.Value(),
+			Access: authmodel.Read.Value(),
 		}
 	}
-	resModels, err := s.app.GetAllConfigs(ctx, rbac, ExtractSearchOptions(in), session.DomainId)
+
+	resModels, err := s.app.GetAllConfigs(ctx, rbac, ExtractSearchOptions(in), session.GetDomainId())
 	if err != nil {
 		if IsErrNoRows(err) {
 			return &res, nil
@@ -117,32 +120,32 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 
 // UpdateConfig updates existing config
 func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest) (*proto.Config, error) {
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	// OBAC check
+	scope := session.GetScope(model.ScopeLog)
+	accessMode := authmodel.Edit
+	if !session.HasAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
-	if !permission.CanUpdate() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
-	}
-	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_UPDATE, permission) {
-		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetConfigId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_UPDATE)
+	// RBAC check
+	if scope.IsRbacUsed() {
+		access, err := s.app.ConfigCheckAccess(ctx, session.GetDomainId(), int64(in.GetConfigId()), session.GetAclRoles(), accessMode)
 		if err != nil {
 			return nil, err
 		}
 		if !access {
-			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
+			return nil, s.app.MakeScopeError(session, scope, accessMode)
 		}
 	}
-	mod, err := ConvertUpdateConfigMessageToModel(in, session.DomainId)
+	mod, err := ConvertUpdateConfigMessageToModel(in, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.UpdateConfig(ctx, mod, int(session.UserId))
+	resModel, err := s.app.UpdateConfig(ctx, mod, session.GetUserId())
 	if err != nil {
 		return nil, err
 	}
@@ -152,32 +155,33 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 
 // PatchConfig updates existing config
 func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRequest) (*proto.Config, error) {
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	// OBAC check
+	accessMode := authmodel.Edit
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, authmodel.Edit) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
-	if !permission.CanUpdate() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
-	}
-	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_UPDATE, permission) {
-		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetConfigId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_UPDATE)
+
+	// RBAC check
+	if scope.IsRbacUsed() {
+		access, err := s.app.ConfigCheckAccess(ctx, session.GetDomainId(), int64(in.GetConfigId()), session.GetAclRoles(), accessMode)
 		if err != nil {
 			return nil, err
 		}
 		if !access {
-			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_UPDATE)
+			return nil, s.app.MakeScopeError(session, scope, accessMode)
 		}
 	}
-	updatedConfigModel, err := ConvertPatchConfigMessageToModel(in, session.DomainId)
+	updatedConfigModel, err := ConvertPatchConfigMessageToModel(in, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.PatchUpdateConfig(ctx, updatedConfigModel, in.GetFields(), int(session.UserId))
+	resModel, err := s.app.PatchUpdateConfig(ctx, updatedConfigModel, in.GetFields(), session.GetUserId())
 	if err != nil {
 		return nil, err
 	}
@@ -186,22 +190,21 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 
 // CreateConfig inserts new config
 func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfigRequest) (*proto.Config, error) {
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
-	}
-	if !permission.CanCreate() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_CREATE)
+	// OBAC check
+	accessMode := authmodel.Add
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	model, err := ConvertCreateConfigMessageToModel(in, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.InsertConfig(ctx, model, int(session.UserId))
+	resModel, err := s.app.InsertConfig(ctx, model, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
@@ -210,21 +213,22 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 
 // DeleteConfig deletes config by id
 func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanDelete() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
+	accessMode := authmodel.Delete
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, authmodel.Add) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
-	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_DELETE, permission) {
-		access, err := s.app.ConfigCheckAccess(ctx, session.DomainId, int64(in.GetConfigId()), session.GetAclRoles(), auth_manager.PERMISSION_ACCESS_DELETE)
+	if scope.IsRbacUsed() {
+		access, err := s.app.ConfigCheckAccess(ctx, session.GetDomainId(), int64(in.GetConfigId()), session.GetAclRoles(), accessMode)
 		if err != nil {
 			return nil, err
 		}
 		if !access {
-			return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
+			return nil, s.app.MakeScopeError(session, scope, accessMode)
 		}
 	}
 	appErr := s.app.DeleteConfig(ctx, in.GetConfigId())
@@ -236,22 +240,20 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 
 // DeleteConfigBulk deletes configs by array of ids
 func (s *ConfigService) DeleteConfigBulk(ctx context.Context, in *proto.DeleteConfigBulkRequest) (*proto.Empty, error) {
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
-	}
-	if !permission.CanDelete() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_DELETE)
+	accessMode := authmodel.Edit
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, authmodel.Add) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	var rbac *model.RbacOptions
-	if session.UseRBAC(auth_manager.PERMISSION_ACCESS_DELETE, permission) {
+	if scope.IsRbacUsed() {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: auth_manager.PERMISSION_ACCESS_DELETE.Value(),
+			Access: authmodel.Delete.Value(),
 		}
 	}
 	appErr := s.app.DeleteConfigs(ctx, rbac, in.GetIds())

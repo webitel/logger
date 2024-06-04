@@ -1,13 +1,14 @@
 package postgres
 
 import (
+	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
+	"github.com/webitel/wlog"
 
 	_ "github.com/jackc/pgx/stdlib"
-	errors "github.com/webitel/engine/model"
 )
 
 type PostgresStore struct {
@@ -42,29 +43,31 @@ func (s *PostgresStore) Config() storage.ConfigStore {
 	}
 	return s.configStore
 }
-func (s *PostgresStore) Database() (*sqlx.DB, errors.AppError) {
+func (s *PostgresStore) Database() (*sqlx.DB, model.AppError) {
 	if s.conn == nil {
-		errors.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")
+		model.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")
 	}
 	return s.conn, nil
 }
 
-func (s *PostgresStore) Open() errors.AppError {
+func (s *PostgresStore) Open() model.AppError {
 	db, err := sqlx.Connect("pgx", s.config.Url)
 	//db, err := sql.Open("pgx", s.config.Url)
 	if err != nil {
-		return errors.NewInternalError("postgres.storage.open.connect.fail", err.Error())
+		return model.NewInternalError("postgres.storage.open.connect.fail", err.Error())
 	}
 	s.conn = db
+	wlog.Debug(fmt.Sprintf("postgres: connection opened"))
 	return nil
 }
 
-func (s *PostgresStore) Close() errors.AppError {
+func (s *PostgresStore) Close() model.AppError {
 	err := s.conn.Close()
 	if err != nil {
-		return errors.NewInternalError("postgres.storage.close.disconnect.fail", err.Error())
+		return model.NewInternalError("postgres.storage.close.disconnect.fail", err.Error())
 	}
 	s.conn = nil
+	wlog.Debug(fmt.Sprintf("postgres: connection closed"))
 	return nil
 
 }

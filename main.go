@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	errors "github.com/webitel/engine/model"
 )
 
 var (
@@ -32,13 +30,6 @@ func main() {
 		wlog.Critical(appErr.Error())
 		return
 	}
-	//store, appErr := BuildDatabase(config.Database)
-	//if appErr != nil {
-	//	wlog.Critical(appErr.Error())
-	//	return
-	//}
-	//defer store.Close()
-	//initSignals(store)
 	// * Create an application layer
 	app, appErr := app.New(config)
 	if appErr != nil {
@@ -68,17 +59,15 @@ func initSignals(app *app.App) {
 
 func handleSignals(signal os.Signal, app *app.App) {
 	if signal == syscall.SIGTERM || signal == syscall.SIGINT || signal == syscall.SIGKILL {
-		wlog.Info(fmt.Sprintf("got kill signal, service gracefully stopped!"))
 		app.Stop()
+		wlog.Info(fmt.Sprintf("got kill signal, service gracefully stopped!"))
+
 		os.Exit(0)
 	}
 }
 
-func loadConfig() (*model.AppConfig, errors.AppError) {
+func loadConfig() (*model.AppConfig, model.AppError) {
 	var appConfig model.AppConfig
-	//if configPath == nil {
-	//	return nil, errors.NewBadRequestError("main.main.unmarshal_config.bad_arguments.config_path_is_nil", "config path is nil")
-	//}
 
 	configurator := configuration.New(
 		&appConfig,
@@ -89,16 +78,7 @@ func loadConfig() (*model.AppConfig, errors.AppError) {
 	)
 
 	if err := configurator.InitValues(); err != nil {
-		return nil, errors.NewInternalError("main.main.unmarshal_config.bad_arguments.parse_fail", err.Error())
+		return nil, model.NewInternalError("main.main.unmarshal_config.bad_arguments.parse_fail", err.Error())
 	}
-
-	//file, err := ioutil.ReadFile(*configPath)
-	//if err != nil {
-	//	return nil, errors.NewBadRequestError("main.main.unmarshal_config.bad_arguments.wrong_path", err.Error())
-	//}
-	//err = json.Unmarshal(file, &appConfig)
-	//if err != nil {
-	//	return nil, errors.NewBadRequestError("main.main.unmarshal_config.json_unmarshal.fail", err.Error())
-	//}
 	return &appConfig, nil
 }

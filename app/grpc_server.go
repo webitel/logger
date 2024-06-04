@@ -3,14 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/webitel/logger/registry"
+	"github.com/webitel/logger/registry/consul"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/webitel/engine/discovery"
-	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 
 	proto_grpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
@@ -27,39 +26,15 @@ var (
 	AppDeregesterCriticalTtl = time.Minute * 2
 )
 
-//func ServeRequests(app *App, config *model.ConsulConfig, errChan chan errors.AppError) {
-//	// * Build grpc server
-//	server, appErr := buildGrpc(app)
-//	if appErr != nil {
-//		errChan <- appErr
-//		return
-//	}
-//	//  * Open tcp connection
-//	listener, err := net.Listen("tcp", config.PublicAddress)
-//	if err != nil {
-//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
-//		return
-//	}
-//	appErr = connectConsul(config)
-//	if appErr != nil {
-//		errChan <- appErr
-//		return
-//	}
-//	err = server.Serve(listener)
-//	if err != nil {
-//		errChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
-//		return
-//	}
-//}
-
 type AppServer struct {
 	server   *grpc.Server
 	listener net.Listener
 	config   *model.ConsulConfig
-	exitChan chan errors.AppError
+	exitChan chan model.AppError
+	registry registry.ServiceRegistrator
 }
 
-func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppError) (*AppServer, errors.AppError) {
+func BuildServer(app *App, config *model.ConsulConfig, exitChan chan model.AppError) (*AppServer, model.AppError) {
 	// * Build grpc server
 	server, appErr := buildGrpc(app)
 	if appErr != nil {
@@ -68,7 +43,11 @@ func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppE
 	//  * Open tcp connection
 	listener, err := net.Listen("tcp", config.PublicAddress)
 	if err != nil {
-		return nil, errors.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
+		return nil, model.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
+	}
+	reg, appErr := consul.NewConsulRegistry(config)
+	if appErr != nil {
+		return nil, appErr
 	}
 
 	return &AppServer{
@@ -76,23 +55,33 @@ func BuildServer(app *App, config *model.ConsulConfig, exitChan chan errors.AppE
 		listener: listener,
 		exitChan: exitChan,
 		config:   config,
+		registry: reg,
 	}, nil
 }
 
 func (a *AppServer) Start() {
-	appErr := connectConsul(a.config)
+	appErr := a.registry.Register()
 	if appErr != nil {
 		a.exitChan <- appErr
 		return
 	}
 	err := a.server.Serve(a.listener)
 	if err != nil {
-		a.exitChan <- errors.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
+		a.exitChan <- model.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
 		return
 	}
 }
 
-func buildGrpc(app *App) (*grpc.Server, errors.AppError) {
+func (a *AppServer) Stop() {
+	appErr := a.registry.Deregister()
+	if appErr != nil {
+		a.exitChan <- appErr
+		return
+	}
+	a.server.Stop()
+}
+
+func buildGrpc(app *App) (*grpc.Server, model.AppError) {
 
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor))
 	// * Creating services
@@ -135,8 +124,8 @@ func unaryInterceptor(ctx context.Context,
 		wlog.Error(fmt.Sprintf("[%s] method %s duration %s, error: %v", ip, info.FullMethod, time.Since(start), err.Error()))
 
 		switch err.(type) {
-		case errors.AppError:
-			e := err.(errors.AppError)
+		case model.AppError:
+			e := err.(model.AppError)
 			return h, status.Error(httpCodeToGrpc(e.GetStatusCode()), e.ToJson())
 		default:
 			return h, err
@@ -170,26 +159,4 @@ func getClientIp(info metadata.MD) string {
 	}
 
 	return ip
-}
-
-func connectConsul(config *model.ConsulConfig) errors.AppError {
-	if config.Id == "" {
-		errors.NewBadRequestError("api.grpc_server.build_consul.service_id.error", "service id is empty! (set it by '-id' flag)")
-	}
-	consul, err := discovery.NewConsul(config.Id, config.Address, func() (bool, error) {
-		return true, nil
-	})
-	ip, port, err := net.SplitHostPort(config.PublicAddress)
-	if err != nil {
-		return errors.NewBadRequestError("api.grpc_server.build_consul.parse_address.error", "unable to parse address")
-	}
-	parsedPort, err := strconv.Atoi(port)
-	if err != nil {
-		return errors.NewBadRequestError("api.grpc_server.build_consul.parse_address.error", "unable to parse grpc port")
-	}
-	err = consul.RegisterService(model.SERVICE_NAME, ip, parsedPort, AppServiceTtl, AppDeregesterCriticalTtl)
-	if err != nil {
-		return errors.NewInternalError("api.grpc_server.build_consul.register_in_consul.error", err.Error())
-	}
-	return nil
 }

@@ -8,8 +8,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/webitel/logger/model"
-
-	errors "github.com/webitel/engine/model"
 )
 
 type Storage interface {
@@ -18,13 +16,13 @@ type Storage interface {
 	// Interface to the config table
 	Config() ConfigStore
 	// Database connection
-	Database() (*sqlx.DB, errors.AppError)
+	Database() (*sqlx.DB, model.AppError)
 	// Initializes logger schema
-	//SchemaInit() errors.AppError
+	//SchemaInit() model.AppError
 	// Opens connection to the storage
-	Open() errors.AppError
+	Open() model.AppError
 	// Closes connection to the storage
-	Close() errors.AppError
+	Close() model.AppError
 }
 
 //var RecordTablesMapping = map[string]TableProperties{
@@ -44,32 +42,32 @@ type Storage interface {
 //}
 
 type LogStore interface {
-	Insert(ctx context.Context, log *model.Log, domainId int) errors.AppError
-	//GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, errors.AppError)
-	//GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
-	//GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, errors.AppError)
-	//GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, errors.AppError)
-	//GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, errors.AppError)
-	Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError)
-	InsertMany(ctx context.Context, log []*model.Log, domainId int) errors.AppError
-	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError)
-	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError)
+	Insert(ctx context.Context, log *model.Log, domainId int) model.AppError
+	//GetByObjectId(ctx context.Context, opt *model.SearchOptions, domainId int, objectId int) (*[]model.Log, model.AppError)
+	//GetByObjectIdWithDates(ctx context.Context, domainId int, objectId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, model.AppError)
+	//GetByConfigId(ctx context.Context, opt *model.SearchOptions, configId int) (*[]model.Log, model.AppError)
+	//GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, model.AppError)
+	//GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, model.AppError)
+	Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, model.AppError)
+	InsertMany(ctx context.Context, log []*model.Log, domainId int) model.AppError
+	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, model.AppError)
+	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, model.AppError)
 }
 
 type ConfigStore interface {
-	CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint32) (bool, errors.AppError)
+	CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint8) (bool, model.AppError)
 	// GetAvailableSystemObjects - get all available objects from domain which are named as [filters]
-	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, errors.AppError)
-	//CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError)
-	Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, errors.AppError)
-	Insert(ctx context.Context, conf *model.Config, userId int) (*model.Config, errors.AppError)
-	Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, errors.AppError)
-	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, errors.AppError)
-	//GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, errors.AppError)
-	//GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, errors.AppError)
-	GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, errors.AppError)
-	Delete(ctx context.Context, id int32) errors.AppError
-	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) errors.AppError
+	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, model.AppError)
+	//CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, model.AppError)
+	Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, model.AppError)
+	Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, model.AppError)
+	Get(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, model.AppError)
+	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, model.AppError)
+	//GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, model.AppError)
+	//GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, model.AppError)
+	GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError)
+	Delete(ctx context.Context, id int32) model.AppError
+	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) model.AppError
 }
 type Table struct {
 	Path       string
@@ -78,7 +76,7 @@ type Table struct {
 
 // ApplyFiltersToBuilder determines type of filters parameter and applies filters to the base according to the determined type.
 // columnAlias is additional parameter applied to every model.Filter existing in filters and checks if model.Filter.Column has alias in the {columnAlias}
-func ApplyFiltersToBuilderBulk(base any, columnAlias map[string]string, filters any) (any, errors.AppError) {
+func ApplyFiltersToBuilderBulk(base any, columnAlias map[string]string, filters any) (any, model.AppError) {
 	if filters == nil {
 		return base, nil
 	}

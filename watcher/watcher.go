@@ -7,99 +7,109 @@ import (
 	"github.com/webitel/wlog"
 )
 
-type WatcherNotify func()
+type WatcherRoutine func()
 
+// Watcher is the representative type for CRON jobs
 type Watcher struct {
-	name                  string
-	stop                  chan struct{}
-	stopped               chan struct{}
-	startParams           *StartParams
+	// name represents the identifier of the Watcher
+	name string
+	// stop represents stop-channel for the Watcher, used when Watcher.Stop() called
+	// cancels the execution of the routine
+	stop chan any
+	// startParams represents Watcher starter parameters
+	startParams *StarterParams
+	// startParams represents Watcher custom parameters
 	customExecutionParams *CustomExecutionParams
-	PollAndNotify         WatcherNotify
-	interval              time.Duration
+	// routine represents the function called every interval
+	routine WatcherRoutine
+	// interval represents time between routine calls
+	interval time.Duration
 }
 
+// UploadWatcher is the representative type for logs upload CRON job
 type UploadWatcher struct {
 	Watcher
 	Params *UploadWatcherParams
 }
 
+// UploadWatcherParams represents attributes required by UploadWatcher
 type UploadWatcherParams struct {
 	StorageId    int
 	Period       int
 	NextUploadOn time.Time
 	LastLogId    int
 	DomainId     int64
-	UserId       int
+	UserId       int64
 }
 
-type StartParams struct {
+// StarterParams represents attributes to customize Watcher start
+type StarterParams struct {
+	// StartPollingAfter represents the time for watcher to wait given amount of time before start the countdown for the execution
 	StartPollingAfter time.Duration
 }
 
+// CustomExecutionParams represents attributes to customize Watcher.routine execution
 type CustomExecutionParams struct {
+	// ExecuteImmediately represents ability to execute routine after watcher started countdown (if StarterParams.StartPollingAfter was set it will wait the duration of StarterParams.StartPollingAfter)
 	ExecuteImmediately bool
 }
 
-func MakeWatcher(name string, startParams *StartParams, customExecutionParams *CustomExecutionParams, interval time.Duration, pollAndNotify WatcherNotify) *Watcher {
+// NewWatcher constructs new watcher
+func NewWatcher(name string, startParams *StarterParams, customExecutionParams *CustomExecutionParams, interval time.Duration, routine WatcherRoutine) *Watcher {
 	return &Watcher{
 		name:                  name,
-		stop:                  make(chan struct{}),
-		stopped:               make(chan struct{}),
+		stop:                  make(chan any),
 		interval:              interval,
 		startParams:           startParams,
 		customExecutionParams: customExecutionParams,
-		PollAndNotify:         pollAndNotify,
+		routine:               routine,
 	}
 }
 
-func MakeUploadWatcher(name string, startParams *StartParams, customExecutionParams *CustomExecutionParams, pollingInterval time.Duration, params *UploadWatcherParams, pollAndNotify WatcherNotify) *UploadWatcher {
+// NewWatcher constructs new logs upload watcher
+func NewUploadWatcher(name string, startParams *StarterParams, customExecutionParams *CustomExecutionParams, params *UploadWatcherParams, pollingInterval time.Duration, pollAndNotify WatcherRoutine) *UploadWatcher {
 	return &UploadWatcher{
 		Watcher: Watcher{
 			name:                  name,
-			stop:                  make(chan struct{}),
-			stopped:               make(chan struct{}),
+			stop:                  make(chan any),
 			interval:              pollingInterval,
 			startParams:           startParams,
 			customExecutionParams: customExecutionParams,
-			PollAndNotify:         pollAndNotify,
+			routine:               pollAndNotify,
 		},
 		Params: params,
 	}
 }
 
-func (watcher *Watcher) Start() {
-	wlog.Debug(fmt.Sprintf("watcher [%s] started", watcher.name))
+func (w *Watcher) Start() {
+	wlog.Debug(fmt.Sprintf("watcher [%s] started", w.name))
 	defer func() {
-		wlog.Debug(fmt.Sprintf("watcher [%s] finished", watcher.name))
-		close(watcher.stopped)
+		wlog.Debug(fmt.Sprintf("watcher [%s] finished", w.name))
+		close(w.stop)
 	}()
-	if watcher.startParams != nil {
-		time.Sleep(watcher.startParams.StartPollingAfter)
+	if w.startParams != nil {
+		time.Sleep(w.startParams.StartPollingAfter)
 	}
-	if watcher.customExecutionParams != nil && watcher.customExecutionParams.ExecuteImmediately {
-		watcher.PollAndNotify()
+	if w.customExecutionParams != nil && w.customExecutionParams.ExecuteImmediately {
+		w.routine()
 	}
 
 	for {
-		wlog.Info(fmt.Sprintf("watcher [%s] will run every %d hours", watcher.name, watcher.interval/time.Hour))
+		wlog.Info(fmt.Sprintf("watcher [%s] will run every %d hours", w.name, w.interval/time.Hour))
 		select {
-		case <-watcher.stop:
-			wlog.Info(fmt.Sprintf("watcher [%s] received stop signal", watcher.name))
+		case <-w.stop:
 			return
-		case <-time.After(watcher.interval):
-			watcher.PollAndNotify()
+		case <-time.After(w.interval):
+			w.routine()
 		}
 	}
 
 }
 
-func (watcher *Watcher) GetName() string {
-	return watcher.name
+func (w *Watcher) GetName() string {
+	return w.name
 }
 
-func (watcher *Watcher) Stop() {
-	wlog.Debug(fmt.Sprintf("watcher [%s] stopping", watcher.name))
-	close(watcher.stop)
-	<-watcher.stopped
+func (w *Watcher) Stop() {
+	w.stop <- "close"
 }

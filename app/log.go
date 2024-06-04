@@ -4,20 +4,18 @@ import (
 	"context"
 	"io"
 
-	storage_proto "buf.build/gen/go/webitel/storage/protocolbuffers/go"
+	storageModel "buf.build/gen/go/webitel/storage/protocolbuffers/go"
 
 	"github.com/webitel/logger/model"
 
 	"time"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
-
-	errors "github.com/webitel/engine/model"
 )
 
 // region PERFORM ACTIONS
 
-func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, errors.AppError) {
+func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, model.AppError) {
 	// region PERFORM
 	modelLogs, appErr := a.storage.Log().Get(
 		ctx,
@@ -35,15 +33,15 @@ func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, fi
 	return modelLogs, nil
 }
 
-func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, storageId int, sFile io.Reader, metadata model.File) (*model.File, errors.AppError) {
+func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, storageId int, sFile io.Reader, metadata model.File) (*model.File, model.AppError) {
 	stream, err := a.file.UploadFile(ctx)
 	if err != nil {
-		return nil, errors.NewInternalError("app.log.upload_file.request_stream.error", err.Error())
+		return nil, model.NewInternalError("app.log.upload_file.request_stream.error", err.Error())
 	}
 
-	err = stream.Send(&storage_proto.UploadFileRequest{
-		Data: &storage_proto.UploadFileRequest_Metadata_{
-			Metadata: &storage_proto.UploadFileRequest_Metadata{
+	err = stream.Send(&storageModel.UploadFileRequest{
+		Data: &storageModel.UploadFileRequest_Metadata_{
+			Metadata: &storageModel.UploadFileRequest_Metadata{
 				DomainId:  domainId,
 				Name:      metadata.Name,
 				MimeType:  metadata.MimeType,
@@ -54,7 +52,7 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	})
 
 	if err != nil {
-		return nil, errors.NewInternalError("app.log.upload_file.send_metadata.error", err.Error())
+		return nil, model.NewInternalError("app.log.upload_file.send_metadata.error", err.Error())
 	}
 
 	defer stream.CloseSend()
@@ -67,8 +65,8 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 		if err != nil {
 			break
 		}
-		err = stream.Send(&storage_proto.UploadFileRequest{
-			Data: &storage_proto.UploadFileRequest_Chunk{
+		err = stream.Send(&storageModel.UploadFileRequest{
+			Data: &storageModel.UploadFileRequest_Chunk{
 				Chunk: buf,
 			},
 		})
@@ -82,13 +80,13 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	}
 
 	if err != nil {
-		return nil, errors.NewInternalError("app.log.upload_file.send_stream.error", err.Error())
+		return nil, model.NewInternalError("app.log.upload_file.send_stream.error", err.Error())
 	}
 
-	var res *storage_proto.UploadFileResponse
+	var res *storageModel.UploadFileResponse
 	res, err = stream.CloseAndRecv()
 	if err != nil {
-		return nil, errors.NewInternalError("app.log.upload_file.close_stream.error", err.Error())
+		return nil, model.NewInternalError("app.log.upload_file.close_stream.error", err.Error())
 	}
 
 	metadata.Id = int(res.FileId)
@@ -99,7 +97,7 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	return &metadata, nil
 }
 
-func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) errors.AppError {
+func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) model.AppError {
 
 	config, err := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if err != nil {
@@ -118,7 +116,7 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 
 }
 
-func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64, objectName string) errors.AppError {
+func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64, objectName string) model.AppError {
 	//searchResult, err := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
 	//	Bunch: []*model.Filter{
 	//		{
@@ -154,7 +152,7 @@ func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages [
 // endregion
 
 // region UTIL FUNCTIONS
-func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
+func convertLogModelToMessage(m *model.Log) (*proto.Log, model.AppError) {
 	log := &proto.Log{
 		Id:     int32(m.Id),
 		Action: m.Action,
@@ -184,8 +182,8 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 			Name: m.Record.Name.String(),
 		}
 	}
-	//if s := m.Record.Name.String(); s != 0 {
-	//	log.Record = &proto.Lookup{
+	//if s := m.LogEntity.Name.String(); s != 0 {
+	//	log.LogEntity = &proto.Lookup{
 	//		Id:  s,
 	//
 	//	}
@@ -193,7 +191,7 @@ func convertLogModelToMessage(m *model.Log) (*proto.Log, errors.AppError) {
 	return log, nil
 }
 
-func convertLogModelToMessageBulk(m []*model.Log) ([]*proto.Log, errors.AppError) {
+func convertLogModelToMessageBulk(m []*model.Log) ([]*proto.Log, model.AppError) {
 	var rows []*proto.Log
 	for _, v := range m {
 		protoLog, err := convertLogModelToMessage(v)
@@ -205,7 +203,7 @@ func convertLogModelToMessageBulk(m []*model.Log) ([]*proto.Log, errors.AppError
 	return rows, nil
 }
 
-func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.Log, errors.AppError) {
+func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.Log, model.AppError) {
 	log := &model.Log{
 		Action:   m.Action,
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
@@ -216,19 +214,19 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 	}
 	userId, err := model.NewNullInt(m.UserId)
 	if err != nil {
-		return nil, errors.NewInternalError("app.log.convert_rabbit_message.convert_to_null_user.error", err.Error())
+		return nil, model.NewInternalError("app.log.convert_rabbit_message.convert_to_null_user.error", err.Error())
 	}
 	log.User = model.Lookup{Id: userId}
 	recordId, err := model.NewNullInt(m.RecordId)
 	if err != nil {
-		return nil, errors.NewInternalError("app.log.convert_rabbit_message.convert_to_null_record.error", err.Error())
+		return nil, model.NewInternalError("app.log.convert_rabbit_message.convert_to_null_record.error", err.Error())
 	}
 	log.Record = model.Lookup{Id: recordId}
 
 	return log, nil
 }
 
-func convertRabbitMessageToModelBulk(m []*model.RabbitMessage, configId int) (*[]*model.Log, errors.AppError) {
+func convertRabbitMessageToModelBulk(m []*model.RabbitMessage, configId int) (*[]*model.Log, model.AppError) {
 	var logs []*model.Log
 	for _, v := range m {
 		log, err := convertRabbitMessageToModel(v, configId)

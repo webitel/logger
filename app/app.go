@@ -4,23 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/webitel/logger/auth"
+	authmodel "github.com/webitel/logger/auth/model"
+	"github.com/webitel/logger/auth/webitel_manager"
 	"strings"
 
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/webitel/logger/model"
-	"github.com/webitel/logger/pkg/cache"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	storage_grpc "buf.build/gen/go/webitel/storage/grpc/go/_gogrpc"
-	"github.com/webitel/engine/auth_manager"
-	"github.com/webitel/engine/discovery"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/logger/storage/postgres"
 	"github.com/webitel/logger/watcher"
-	"google.golang.org/grpc/metadata"
-
-	errors "github.com/webitel/engine/model"
 )
 
 const (
@@ -35,46 +32,26 @@ const (
 )
 
 type App struct {
-	config           *model.AppConfig
-	storage          storage.Storage
-	file             storage_grpc.FileServiceClient
-	uploadWatchers   map[string]*watcher.UploadWatcher
-	deleteWatchers   map[string]*watcher.Watcher
-	serviceDiscovery discovery.ServiceDiscovery
-	sessionManager   auth_manager.AuthManager
-	cache            cache.CacheStore
-	exitChan         chan errors.AppError
-	rabbit           *RabbitListener
-	server           *AppServer
-	grpcConn         *grpc.ClientConn
+	config         *model.AppConfig
+	storage        storage.Storage
+	file           storage_grpc.FileServiceClient
+	logUploaders   map[string]*watcher.UploadWatcher
+	logCleaners    map[string]*watcher.Watcher
+	exitChan       chan model.AppError
+	rabbit         *RabbitListener
+	server         *AppServer
+	storageConn    *grpc.ClientConn
+	sessionManager auth.AuthManager
+	webitelAppConn *grpc.ClientConn
 }
 
-func New(config *model.AppConfig) (*App, errors.AppError) {
-	app := &App{config: config, exitChan: make(chan errors.AppError)}
-
-	// service registration
-	disc, err := discovery.NewServiceDiscovery(config.Consul.Id, config.Consul.Address, func() (bool, error) {
-		return true, nil
-	})
-
-	if err != nil {
-		return nil, errors.NewInternalError("app.app.new.discovery_connection.fail", err.Error())
-	}
-	app.serviceDiscovery = disc
-	// init of auth manager
-	app.sessionManager = auth_manager.NewAuthManager(SessionCacheSize, SessionCacheTime, disc)
-	if err := app.sessionManager.Start(); err != nil {
-		return nil, errors.NewInternalError("app.app.new.auth_manager_start.fail", err.Error())
-	}
-	// init of cache storage
-	app.cache = cache.NewMemoryCache(&cache.MemoryCacheConfig{
-		Size:          200000,
-		DefaultExpiry: 120,
-	})
+func New(config *model.AppConfig) (*App, model.AppError) {
+	app := &App{config: config, exitChan: make(chan model.AppError)}
+	var err error
 
 	// init of database
 	if config.Database == nil {
-		errors.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
+		model.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
 	}
 	app.storage = BuildDatabase(config.Database)
 
@@ -91,15 +68,28 @@ func New(config *model.AppConfig) (*App, errors.AppError) {
 	}
 	app.server = s
 
-	app.grpcConn, err = grpc.Dial(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
+	app.storageConn, err = grpc.Dial(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, errors.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
+		return nil, model.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
 	}
 
-	app.file = storage_grpc.NewFileServiceClient(app.grpcConn)
+	app.file = storage_grpc.NewFileServiceClient(app.storageConn)
+
+	app.webitelAppConn, err = grpc.Dial(fmt.Sprintf("consul://%s/go.webitel.app?wait=14s", config.Consul.Address),
+		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		return nil, model.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
+	}
+
+	app.sessionManager, appErr = webitel_manager.NewWebitelAppAuthManager(app.webitelAppConn)
+	if appErr != nil {
+		return nil, appErr
+	}
 	return app, nil
 }
 
@@ -107,11 +97,11 @@ func (a *App) GetConfig() *model.AppConfig {
 	return a.config
 }
 
-func IsErrNoRows(err errors.AppError) bool {
+func IsErrNoRows(err model.AppError) bool {
 	return strings.Contains(err.Error(), sql.ErrNoRows.Error())
 }
 
-func (a *App) Start() errors.AppError {
+func (a *App) Start() model.AppError {
 
 	err := a.storage.Open()
 	if err != nil {
@@ -122,9 +112,9 @@ func (a *App) Start() errors.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	// * Build and run rabbit1 listener
-	go a.rabbit.Start()
-	// * Build and run grpc server
+	// * run rabbit listener
+	a.rabbit.Start()
+	// * run grpc server
 	go a.server.Start()
 	//go ServeRequests(a, a.config.Consul, a.exitChan)
 	return <-a.exitChan
@@ -169,57 +159,54 @@ func BuildDatabase(config *model.DatabaseConfig) storage.Storage {
 	return postgres.New(config)
 }
 
-func (a *App) GetSessionFromCtx(ctx context.Context) (*auth_manager.Session, errors.AppError) {
-	var session *auth_manager.Session
-	var err errors.AppError
-	var token []string
-	var info metadata.MD
-	var ok bool
-
-	v := ctx.Value(RequestContextName)
-	info, ok = v.(metadata.MD)
-
-	// todo
-	if !ok {
-		info, ok = metadata.FromIncomingContext(ctx)
-	}
-
-	if !ok {
-		return nil, errors.NewForbiddenError("app.grpc.get_context", "Not found")
-	} else {
-		token = info.Get("X-Webitel-Access")
-	}
-
-	if len(token) < 1 {
-		return nil, errors.NewInternalError("context.session_expired.app_error", "token not found")
-	}
-
-	session, err = a.GetSession(token[0])
+func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, model.AppError) {
+	session, err := a.sessionManager.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	if session.IsExpired() {
-		return nil, errors.NewForbiddenError("context.session_expired.app_error", "token="+token[0])
+		return nil, model.NewUnauthorizedError("app.app.authorize_from_context.validate_session.expired", "session expired")
 	}
-
 	return session, nil
 }
 
-func (a *App) MakePermissionError(session *auth_manager.Session, permission auth_manager.SessionPermission, access auth_manager.PermissionAccess) errors.AppError {
-
-	return errors.NewForbiddenError("context.permissions.app_error", fmt.Sprintf("userId=%d, permission=%s access=%s", session.UserId, permission.Name, access.Name()))
+func (a *App) MakePermissionError(session *authmodel.Session) model.AppError {
+	if session == nil {
+		return model.NewForbiddenError("app.permissions.check_access.denied", "access denied")
+	}
+	return model.NewForbiddenError("app.permissions.check_access.denied", fmt.Sprintf("userId=%d, access denied", session.GetUserId()))
 }
 
-func (a *App) Stop() errors.AppError {
-	if a.serviceDiscovery != nil {
-		a.serviceDiscovery.Shutdown()
+func (a *App) MakeScopeError(session *authmodel.Session, scope *authmodel.Scope, access authmodel.AccessMode) model.AppError {
+	if session == nil || session.GetUser() == nil || scope == nil {
+		return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied"))
 	}
-	a.storage.Close()
+	return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied scope=%s access=%d for user %d", scope.Name, access, session.GetUserId()))
+}
+
+func (a *App) Stop() model.AppError {
+	// close massive modules
+	a.StopAllWatchers()
 	a.rabbit.Stop()
-	a.grpcConn.Close()
+	a.server.Stop()
+
+	// close db connection
+	a.storage.Close()
+
+	// close grpc connections
+	a.storageConn.Close()
+	a.webitelAppConn.Close()
 
 	return nil
+}
+
+func (a *App) StopAllWatchers() {
+	for _, cleaner := range a.logCleaners {
+		cleaner.Stop()
+	}
+	for _, uploader := range a.logUploaders {
+		uploader.Stop()
+	}
 }
 
 func ConvertSort(in string) string {
@@ -264,7 +251,7 @@ func GetListResult[C any](s Lister, items []C) (bool, []C) {
 }
 
 // C type of input, K type of output
-func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, errors.AppError)) ([]K, errors.AppError) {
+func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, model.AppError)) ([]K, model.AppError) {
 	var result []K
 	for _, item := range items {
 		out, err := convertFunc(item)
@@ -277,10 +264,10 @@ func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, errors
 }
 
 // C type of input, K type of output
-func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc func(C) (K, errors.AppError)) (bool, []K, errors.AppError) {
+func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc func(C) (K, model.AppError)) (bool, []K, model.AppError) {
 	var (
 		result []K
-		err    errors.AppError
+		err    model.AppError
 	)
 	next, filteredInput := GetListResult[C](s, items)
 	result, err = ConvertToOutputBulk[C, K](filteredInput, convertFunc)

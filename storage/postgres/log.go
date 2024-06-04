@@ -8,7 +8,6 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
 	"github.com/webitel/wlog"
@@ -102,14 +101,14 @@ type Log struct {
 	storage storage.Storage
 }
 
-func newLogStore(store storage.Storage) (storage.LogStore, errors.AppError) {
+func newLogStore(store storage.Storage) (storage.LogStore, model.AppError) {
 	if store == nil {
-		return nil, errors.NewInternalError("postgres.log.new_log.check.bad_arguments", "error creating log interface to the log table, main store is nil")
+		return nil, model.NewInternalError("postgres.log.new_log.check.bad_arguments", "error creating log interface to the log table, main store is nil")
 	}
 	return &Log{storage: store}, nil
 }
 
-func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, errors.AppError) {
+func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, model.AppError) {
 	var (
 		query string
 		args  []any
@@ -123,12 +122,12 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 	case sq.SelectBuilder:
 		query, args, _ = req.ToSql()
 	default:
-		return nil, errors.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
+		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
 	}
 	wlog.Debug(query)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+		return nil, model.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
 	}
 	defer rows.Close()
 	res, appErr := c.ScanRows(rows)
@@ -138,33 +137,33 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 	return res, nil
 }
 
-func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) errors.AppError {
+func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) model.AppError {
 	err := c.InsertMany(ctx, []*model.Log{log}, domainId)
 	if err != nil {
-		return errors.NewInternalError("postgres.log.insert.scan.error", err.Error())
+		return model.NewInternalError("postgres.log.insert.scan.error", err.Error())
 	}
 	return nil
 }
 
-func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, errors.AppError) {
+func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, model.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return false, appErr
 	}
 	table, ok := recordTableMap[objectName]
 	if !ok {
-		return false, errors.NewBadRequestError("postgres.log.check_record.invalid_args.error", "object does not exist")
+		return false, model.NewBadRequestError("postgres.log.check_record.invalid_args.error", "object does not exist")
 	}
 	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
 	sql, _, _ := base.ToSql()
 	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
-		return false, errors.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
+		return false, model.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
 	}
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, errors.NewBadRequestError("postgres.log.check_record.get_res.fail", err.Error())
+		return false, model.NewBadRequestError("postgres.log.check_record.get_res.fail", err.Error())
 	}
 	if rowsAffected <= 0 {
 		return false, nil
@@ -172,7 +171,7 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 	return true, nil
 }
 
-func (c *Log) InsertMany(ctx context.Context, logs []*model.Log, domainId int) errors.AppError {
+func (c *Log) InsertMany(ctx context.Context, logs []*model.Log, domainId int) model.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
@@ -186,12 +185,12 @@ func (c *Log) InsertMany(ctx context.Context, logs []*model.Log, domainId int) e
 
 	_, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
-		return errors.NewInternalError("postgres.log.insert.query.error", err.Error())
+		return model.NewInternalError("postgres.log.insert.query.error", err.Error())
 	}
 	return nil
 }
 
-func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, errors.AppError) {
+func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, model.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return 0, appErr
@@ -206,22 +205,22 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 		configId,
 	)
 	if err != nil {
-		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
+		return 0, model.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
 	}
 	affected, err := rows.RowsAffected()
 	if err != nil {
-		return 0, errors.NewInternalError("postgres.log.delete_by_lowe_that_date.result.error", err.Error())
+		return 0, model.NewInternalError("postgres.log.delete_by_lowe_that_date.result.error", err.Error())
 	}
 	return int(affected), nil
 }
 
-func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, errors.AppError) {
+func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, model.AppError) {
 	if rows == nil {
-		return nil, errors.NewInternalError("postgres.log.scan.check_args.rows_nil", "rows are nil")
+		return nil, model.NewInternalError("postgres.log.scan.check_args.rows_nil", "rows are nil")
 	}
 	cols, err := rows.Columns()
 	if err != nil {
-		return nil, errors.NewInternalError("postgres.log.scan.get_columns.error", err.Error())
+		return nil, model.NewInternalError("postgres.log.scan.get_columns.error", err.Error())
 	}
 	var logs []*model.Log
 
@@ -269,12 +268,12 @@ func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, errors.AppError) {
 		}
 		err = rows.Scan(bindFunc(binds)...)
 		if err != nil {
-			return nil, errors.NewInternalError("postgres.log.scan.scan.error", err.Error())
+			return nil, model.NewInternalError("postgres.log.scan.scan.error", err.Error())
 		}
 		logs = append(logs, &log)
 	}
 	if len(logs) == 0 {
-		return nil, errors.NewBadRequestError("postgres.log.scan.check_no_rows.error", sql.ErrNoRows.Error())
+		return nil, model.NewBadRequestError("postgres.log.scan.check_no_rows.error", sql.ErrNoRows.Error())
 	}
 	return logs, nil
 }

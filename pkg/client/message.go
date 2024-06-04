@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"model"
 )
 
 type Message struct {
@@ -22,7 +22,7 @@ type InputRecord struct {
 func (r *InputRecord) TransformToOutput() (*Record, error) {
 	bytes, err := json.Marshal(r.Object)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("error marshalling record: %s", err.Error()))
+		return nil, model.New(fmt.Sprintf("error marshalling record: %s", err.Error()))
 	}
 	return &Record{
 		Id:       r.Id,

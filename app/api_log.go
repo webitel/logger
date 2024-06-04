@@ -2,22 +2,21 @@ package app
 
 import (
 	"context"
+	authmodel "github.com/webitel/logger/auth/model"
 	"time"
 
-	"github.com/webitel/engine/auth_manager"
 	"github.com/webitel/logger/model"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
-	errors "github.com/webitel/engine/model"
 )
 
 type LoggerService struct {
 	app *App
 }
 
-func NewLoggerService(app *App) (*LoggerService, errors.AppError) {
+func NewLoggerService(app *App) (*LoggerService, model.AppError) {
 	if app == nil {
-		return nil, errors.NewInternalError("api.config.new_logger_service.args_check.app_nil", "app is nil")
+		return nil, model.NewInternalError("api.config.new_logger_service.args_check.app_nil", "app is nil")
 	}
 	return &LoggerService{app: app}, nil
 }
@@ -26,14 +25,16 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	var (
 		res proto.Logs
 	)
-	session, err := s.app.GetSessionFromCtx(ctx)
+
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	//
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	// OBAC check
+	accessMode := authmodel.Read
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// common log filters
 	filters := extractDefaultFiltersFromLogSearch(in)
@@ -41,7 +42,7 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	if param := in.GetRecordId(); param != 0 {
 		filters.User = []int64{int64(param)}
 	} else {
-		return nil, errors.NewBadRequestError("app.api_log.search_log_by_record.checks_args.error", "record id required")
+		return nil, model.NewBadRequestError("app.api_log.search_log_by_record.checks_args.error", "record id required")
 	}
 	// specific filters
 	if param := in.GetUserId(); len(param) != 0 {
@@ -67,14 +68,15 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	var (
 		res proto.Logs
 	)
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	//
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+	// OBAC check
+	accessMode := authmodel.Read
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 
 	// common log filters
@@ -83,7 +85,7 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	if param := in.GetUserId(); param != 0 {
 		filters.User = []int64{int64(param)}
 	} else {
-		return nil, errors.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
+		return nil, model.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
 	}
 	// specific filters
 	if param := in.GetObjectId(); len(param) != 0 {
@@ -110,14 +112,16 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	var (
 		res proto.Logs
 	)
-	session, err := s.app.GetSessionFromCtx(ctx)
+	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-	//
-	permission := session.GetPermission(model.PERMISSION_SCOPE_LOG)
-	if !permission.CanRead() {
-		return nil, s.app.MakePermissionError(session, permission, auth_manager.PERMISSION_ACCESS_READ)
+
+	// OBAC check
+	accessMode := authmodel.Read
+	scope := session.GetScope(model.ScopeLog)
+	if !session.HasAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 
 	// common log filters
@@ -126,7 +130,7 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	if param := in.GetConfigId(); param != 0 {
 		filters.ConfigId = []int64{int64(param)}
 	} else {
-		return nil, errors.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
+		return nil, model.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
 	}
 	// specific filters
 	if param := in.GetUserId(); len(param) != 0 {

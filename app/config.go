@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	authmodel "github.com/webitel/logger/auth/model"
 	"time"
 
 	"github.com/webitel/logger/watcher"
@@ -10,17 +11,15 @@ import (
 	"github.com/webitel/wlog"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
-	"github.com/webitel/engine/auth_manager"
-	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 )
 
-func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int) (*model.Config, errors.AppError) {
+func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int64) (*model.Config, model.AppError) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
-		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
 	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id)
 	if err != nil {
@@ -37,18 +36,18 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int) (*
 
 }
 
-func (a *App) PatchUpdateConfig(ctx context.Context, in *model.Config, fields []string, userId int) (*model.Config, errors.AppError) {
+func (a *App) PatchUpdateConfig(ctx context.Context, in *model.Config, fields []string, userId int64) (*model.Config, model.AppError) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
-		return nil, errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldConfig, err := a.storage.Config().GetById(ctx, nil, int(in.Id))
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id)
 	if err != nil {
 		return nil, err
 	}
-	newConfig, err = a.storage.Config().Update(ctx, in, fields, userId)
+	newConfig, err = a.storage.Config().Update(ctx, in, fields, int64(userId))
 	if err != nil {
 		return nil, err
 	}
@@ -99,40 +98,8 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 				wlog.Info(fmt.Sprintf("config with id %d changed it's log capacity... new watcher have been created !", configId))
 			}
 		}
-
-		//if newConfig.Period != oldConfig.Period { // if period changed
-		//	if params := a.GetLogUploaderParams(configId); params != nil {
-		//		params.Period = newConfig.Period
-		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... watcher have been notified and updated !", configId))
-		//	} else {
-		//		a.InsertLogUploader(configId, &watcher.UploadWatcherParams{
-		//			StorageId:    newConfig.Storage.Id.Int(),
-		//			Period:       newConfig.Period,
-		//			NextUploadOn: newConfig.NextUploadOn.Time(),
-		//			LastLogId:    newConfig.LastUploadedLog.Int(),
-		//			DomainId:     domainId,
-		//		})
-		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... new watcher have been created !", configId))
-		//	}
-		//}
-		//
-		//if newConfig.Storage.Id.Int() != oldConfig.Storage.Id.Int() { // if storage changed
-		//	if params := a.GetLogUploaderParams(configId); params != nil {
-		//		params.StorageId = newConfig.Storage.Id.Int()
-		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... watcher have been notified and updated !", configId))
-		//	} else {
-		//		a.InsertLogUploader(configId, &watcher.UploadWatcherParams{
-		//			StorageId:    newConfig.Storage.Id.Int(),
-		//			Period:       newConfig.Period,
-		//			NextUploadOn: newConfig.NextUploadOn.Time(),
-		//			LastLogId:    newConfig.LastUploadedLog.Int(),
-		//			DomainId:     domainId,
-		//		})
-		//		wlog.Info(fmt.Sprintf("config with id %d changed it's upload period... new watcher have been created !", configId))
-		//	}
-		//}
 		if params := a.GetLogUploaderParams(configId); params != nil {
-			params.UserId = newConfig.UpdatedBy.Int()
+			params.UserId = newConfig.UpdatedBy.Int64()
 			params.StorageId = newConfig.Storage.Id.Int()
 			params.Period = newConfig.Period
 			params.NextUploadOn = newConfig.NextUploadOn.Time()
@@ -150,12 +117,12 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 	// else status still disabled
 }
 
-func (a *App) InsertConfig(ctx context.Context, in *model.Config, userId int) (*model.Config, errors.AppError) {
+func (a *App) InsertConfig(ctx context.Context, in *model.Config, userId int64) (*model.Config, model.AppError) {
 	var (
 		newModel *model.Config
 	)
 	if in == nil {
-		errors.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
 
 	newModel, err := a.storage.Config().Insert(ctx, in, userId)
@@ -176,7 +143,7 @@ func (a *App) InsertConfig(ctx context.Context, in *model.Config, userId int) (*
 	return newModel, nil
 }
 
-func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions,*/, domainId int, objectId int) (*model.Config, errors.AppError) {
+func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions,*/, domainId int, objectId int) (*model.Config, model.AppError) {
 
 	res, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if appErr != nil {
@@ -187,7 +154,7 @@ func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions
 
 }
 
-func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int64) (bool, errors.AppError) {
+func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int64) (bool, model.AppError) {
 	searchResult, appErr := a.storage.Config().Get(ctx, nil, nil, &model.FilterNode{
 		Nodes: []any{
 			&model.Filter{
@@ -215,7 +182,7 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 
 }
 
-func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, errors.AppError) {
+func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError) {
 	res, appErr := a.storage.Config().GetById(ctx, rbac, id)
 	if appErr != nil {
 		return nil, appErr
@@ -223,7 +190,7 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 	return res, nil
 }
 
-func (a *App) DeleteConfig(ctx context.Context, id int32) errors.AppError {
+func (a *App) DeleteConfig(ctx context.Context, id int32) model.AppError {
 	appErr := a.storage.Config().Delete(ctx, id)
 	if appErr != nil {
 		return appErr
@@ -231,7 +198,7 @@ func (a *App) DeleteConfig(ctx context.Context, id int32) errors.AppError {
 	return nil
 }
 
-func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []int32) errors.AppError {
+func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []int32) model.AppError {
 	appErr := a.storage.Config().DeleteMany(ctx, rbac, ids)
 	if appErr != nil {
 		return appErr
@@ -239,7 +206,7 @@ func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []
 	return nil
 }
 
-func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups []int, access auth_manager.PermissionAccess) (bool, errors.AppError) {
+func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups []int, access authmodel.AccessMode) (bool, model.AppError) {
 	available, err := a.storage.Config().CheckAccess(ctx, domainId, id, groups, access.Value())
 	if err != nil {
 		if IsErrNoRows(err) {
@@ -251,7 +218,7 @@ func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups 
 
 }
 
-func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions, domainId int64) ([]*model.Config, errors.AppError) {
+func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions, domainId int64) ([]*model.Config, model.AppError) {
 	modelConfigs, err := a.storage.Config().Get(
 		ctx,
 		searchOpt,
@@ -270,7 +237,7 @@ func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, search
 
 }
 
-func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId int64) (*model.Config, errors.AppError) {
+func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId int64) (*model.Config, model.AppError) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
@@ -285,7 +252,7 @@ func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId i
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
-			return nil, errors.NewInternalError("app.config.convert_update_config_message.convert_storage_id.fail", err.Error())
+			return nil, model.NewInternalError("app.config.convert_update_config_message.convert_storage_id.fail", err.Error())
 		}
 		config.Storage.Id = storageId
 	}
@@ -293,7 +260,7 @@ func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest, domainId i
 	return config, nil
 }
 
-func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int64) (*model.Config, errors.AppError) {
+func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int64) (*model.Config, model.AppError) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
@@ -307,7 +274,7 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
-			return nil, errors.NewInternalError("app.config.convert_patch_config_message.convert_storage_id.fail", err.Error())
+			return nil, model.NewInternalError("app.config.convert_patch_config_message.convert_storage_id.fail", err.Error())
 		}
 		config.Storage.Id = storageId
 	}
@@ -315,10 +282,10 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest, domainId int
 	return config, nil
 }
 
-func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId int64) (*model.Config, errors.AppError) {
+func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId int64) (*model.Config, model.AppError) {
 
 	if in.GetDaysToStore() <= 0 {
-		return nil, errors.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
+		return nil, model.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
 	}
 	config := &model.Config{
 
@@ -332,14 +299,14 @@ func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId i
 	}
 	objectId, err := model.NewNullInt(in.GetObject().GetId())
 	if err != nil {
-		return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_object_id.fail", err.Error())
+		return nil, model.NewInternalError("app.config.convert_create_config_message.convert_object_id.fail", err.Error())
 	}
 	config.Object.Id = objectId
 
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
-			return nil, errors.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
+			return nil, model.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
 		}
 		config.Storage.Id = storageId
 	}
@@ -347,7 +314,7 @@ func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest, domainId i
 	return config, nil
 }
 
-func ConvertConfigModelToMessage(in *model.Config) (*proto.Config, errors.AppError) {
+func ConvertConfigModelToMessage(in *model.Config) (*proto.Config, model.AppError) {
 
 	conf := &proto.Config{
 		Id:          int32(in.Id),

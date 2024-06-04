@@ -11,13 +11,12 @@ import (
 
 	"github.com/webitel/wlog"
 
-	errors "github.com/webitel/engine/model"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/watcher"
 )
 
 // region COMMON
-func (a *App) initializeWatchers() errors.AppError {
+func (a *App) initializeWatchers() model.AppError {
 
 	configs, appErr := a.storage.Config().Get(
 		context.Background(),
@@ -34,7 +33,7 @@ func (a *App) initializeWatchers() errors.AppError {
 			return appErr
 		}
 	}
-	a.uploadWatchers, a.deleteWatchers = make(map[string]*watcher.UploadWatcher), make(map[string]*watcher.Watcher)
+	a.logUploaders, a.logCleaners = make(map[string]*watcher.UploadWatcher), make(map[string]*watcher.Watcher)
 	for _, config := range configs {
 		a.InsertLogCleaner(config.Id, nil, config.DaysToStore)
 		params := &watcher.UploadWatcherParams{
@@ -42,7 +41,7 @@ func (a *App) initializeWatchers() errors.AppError {
 			Period:       config.Period,
 			NextUploadOn: config.NextUploadOn.Time(),
 			LastLogId:    config.LastUploadedLog.Int(),
-			UserId:       config.UpdatedBy.Int(),
+			UserId:       config.UpdatedBy.Int64(),
 			DomainId:     config.DomainId,
 		}
 		a.InsertLogUploader(config.Id, nil, params)
@@ -58,15 +57,15 @@ func (a *App) DeleteWatchers(configId ...int) {
 // endregion
 
 // region LOG CLEANER
-func (a *App) InsertLogCleaner(configId int, startParams *watcher.StartParams, dayseToStore int) {
+func (a *App) InsertLogCleaner(configId int, startParams *watcher.StarterParams, dayseToStore int) {
 	name := FormatKey(DeleteWatcherPrefix, configId)
-	a.deleteWatchers[name] = watcher.MakeWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, time.Hour*24, a.BuildLogCleanerFunction(configId, dayseToStore))
-	go a.deleteWatchers[name].Start()
+	a.logCleaners[name] = watcher.NewWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, time.Hour*24, a.BuildLogCleanerFunction(configId, dayseToStore))
+	go a.logCleaners[name].Start()
 }
 
 func (a *App) GetLogCleaner(configId int) *watcher.Watcher {
 	key := FormatKey(DeleteWatcherPrefix, configId)
-	val, ok := a.deleteWatchers[key]
+	val, ok := a.logCleaners[key]
 	if !ok {
 		return nil
 	}
@@ -76,28 +75,28 @@ func (a *App) GetLogCleaner(configId int) *watcher.Watcher {
 func (a *App) DeleteLogCleaner(configId ...int) {
 	for _, s := range configId {
 		key := FormatKey(DeleteWatcherPrefix, s)
-		val, ok := a.deleteWatchers[key]
+		val, ok := a.logCleaners[key]
 		if !ok {
 			return
 		}
 		val.Stop()
-		delete(a.deleteWatchers, key)
+		delete(a.logCleaners, key)
 	}
 
 }
 
 func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 	name := FormatKey(DeleteWatcherPrefix, configId)
-	val, ok := a.deleteWatchers[name]
+	val, ok := a.logCleaners[name]
 	if !ok {
 		return
 	}
 	val.Stop()
-	delete(a.deleteWatchers, name)
+	delete(a.logCleaners, name)
 	a.InsertLogCleaner(configId, nil, dayseToStore)
 }
 
-func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherNotify {
+func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherRoutine {
 	name := FormatKey(DeleteWatcherPrefix, configId)
 	return func() {
 		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
@@ -116,19 +115,19 @@ func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.Watcher
 func (a *App) DeleteLogUploader(configId ...int) {
 	for _, s := range configId {
 		key := FormatKey(UploadWatcherPrefix, s)
-		val, ok := a.uploadWatchers[key]
+		val, ok := a.logUploaders[key]
 		if !ok {
 			return
 		}
 		val.Stop()
-		delete(a.uploadWatchers, key)
+		delete(a.logUploaders, key)
 	}
 
 }
 
 func (a *App) GetLogUploader(configId int) *watcher.UploadWatcher {
 	key := FormatKey(UploadWatcherPrefix, configId)
-	val, ok := a.uploadWatchers[key]
+	val, ok := a.logUploaders[key]
 	if !ok {
 		return nil
 	}
@@ -137,22 +136,22 @@ func (a *App) GetLogUploader(configId int) *watcher.UploadWatcher {
 
 func (a *App) GetLogUploaderParams(configId int) *watcher.UploadWatcherParams {
 	name := FormatKey(UploadWatcherPrefix, configId)
-	val, ok := a.uploadWatchers[name]
+	val, ok := a.logUploaders[name]
 	if !ok {
 		return nil
 	}
 	return val.Params
 }
 
-func (a *App) InsertLogUploader(configId int, startParams *watcher.StartParams, params *watcher.UploadWatcherParams) {
+func (a *App) InsertLogUploader(configId int, startParams *watcher.StarterParams, params *watcher.UploadWatcherParams) {
 	name := FormatKey(UploadWatcherPrefix, configId)
-	a.uploadWatchers[name] = watcher.MakeUploadWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, time.Hour*24, params, a.BuildWatcherUploadFunction(configId, params))
-	go a.uploadWatchers[name].Start()
+	a.logUploaders[name] = watcher.NewUploadWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, params, time.Hour*24, a.BuildWatcherUploadFunction(configId, params))
+	go a.logUploaders[name].Start()
 }
 
-func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.WatcherNotify {
+func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.WatcherRoutine {
 	format := func(text string) string {
-		return fmt.Sprintf("watcher - %s: %s", FormatKey(UploadWatcherPrefix, configId), text)
+		return fmt.Sprintf("watcher [%s]: %s", FormatKey(UploadWatcherPrefix, configId), text)
 	}
 	return func() {
 		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {

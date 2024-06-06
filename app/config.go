@@ -92,10 +92,8 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 		if newConfig.DaysToStore != oldConfig.DaysToStore { // if days to store changed
 			if a.GetLogCleaner(configId) != nil { // if upload watcher exists then update it's new days to store
 				a.UpdateLogCleanerWithNewInterval(configId, newConfig.DaysToStore)
-				wlog.Info(fmt.Sprintf("config with id %d changed it's log capacity... watcher have been notified and updated !", configId))
 			} else {
 				a.InsertLogCleaner(configId, nil, newConfig.DaysToStore)
-				wlog.Info(fmt.Sprintf("config with id %d changed it's log capacity... new watcher have been created !", configId))
 			}
 		}
 		if params := a.GetLogUploaderParams(configId); params != nil {
@@ -112,7 +110,7 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 				DomainId:     domainId,
 			})
 		}
-		wlog.Info(fmt.Sprintf("config with id %d updated... watchers have been updated too !", configId))
+		wlog.Info(fmt.Sprintf("config [%d]: watchers have been updated!", configId))
 	}
 	// else status still disabled
 }

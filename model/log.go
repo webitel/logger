@@ -56,27 +56,31 @@ func (l *LogFilters) ExtractFilters() *FilterNode {
 		Nodes:      make([]any, 0),
 		Connection: AND,
 	}
-	res := GetOrFiltersFromArray[int64](l.Id, LogFields.Id)
+	res := GetOrFiltersFromArray[int64](l.Id, LogFields.Id, Equal)
 	if res != nil {
 		main.Nodes = append(main.Nodes, res)
 	}
-	res = GetOrFiltersFromArray[string](l.Action, LogFields.Action)
+	res = GetOrFiltersFromArray[string](l.Action, LogFields.Action, Equal)
 	if res != nil {
 		main.Nodes = append(main.Nodes, res)
 	}
-	res = GetOrFiltersFromArray[string](l.UserIp, LogFields.UserIp)
+	res = GetOrFiltersFromArray[string](l.UserIp, LogFields.UserIp, Equal)
 	if res != nil {
 		main.Nodes = append(main.Nodes, res)
 	}
-	res = GetOrFiltersFromArray[int64](l.User, LogFields.User)
+	res = GetOrFiltersFromArray[int64](l.User, LogFields.User, Equal)
 	if res != nil {
 		main.Nodes = append(main.Nodes, res)
 	}
-	res = GetOrFiltersFromArray[int64](l.Record, LogFields.Record)
+	res = GetOrFiltersFromArray[int64](l.Record, LogFields.Record, Equal)
 	if res != nil {
 		main.Nodes = append(main.Nodes, res)
 	}
-	res = GetOrFiltersFromArray[int64](l.ConfigId, LogFields.ConfigId)
+	res = GetOrFiltersFromArray[int64](l.ConfigId, LogFields.ConfigId, Equal)
+	if res != nil {
+		main.Nodes = append(main.Nodes, res)
+	}
+	res = GetOrFiltersFromArray[int64](l.Object, LogFields.Object, Equal)
 	if res != nil {
 		main.Nodes = append(main.Nodes, res)
 	}
@@ -97,21 +101,21 @@ func (l *LogFilters) ExtractFilters() *FilterNode {
 	return main
 }
 
-func GetOrFiltersFromArray[C any](in []C, fieldName string) any {
+func GetOrFiltersFromArray[C any](in []C, fieldName string, comparison Comparison) any {
 	if in != nil && len(in) > 0 {
-		sub := &FilterNode{Nodes: make([]any, 0), Connection: OR}
 		if len(in) == 1 {
 			return &Filter{
 				Column:         fieldName,
 				Value:          in[0],
-				ComparisonType: Equal,
+				ComparisonType: comparison,
 			}
 		}
+		sub := &FilterNode{Nodes: make([]any, 0), Connection: OR}
 		for _, action := range in {
 			sub.Nodes = append(sub.Nodes, &Filter{
 				Column:         fieldName,
 				Value:          action,
-				ComparisonType: Equal,
+				ComparisonType: comparison,
 			})
 		}
 		return sub

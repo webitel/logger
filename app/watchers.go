@@ -57,6 +57,7 @@ func (a *App) DeleteWatchers(configId ...int) {
 // endregion
 
 // region LOG CLEANER
+
 func (a *App) InsertLogCleaner(configId int, startParams *watcher.StarterParams, dayseToStore int) {
 	name := FormatKey(DeleteWatcherPrefix, configId)
 	a.logCleaners[name] = watcher.NewWatcher(name, startParams, &watcher.CustomExecutionParams{ExecuteImmediately: true}, time.Hour*24, a.BuildLogCleanerFunction(configId, dayseToStore))
@@ -94,6 +95,7 @@ func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 	val.Stop()
 	delete(a.logCleaners, name)
 	a.InsertLogCleaner(configId, nil, dayseToStore)
+	wlog.Info(fmt.Sprintf("watcher [%s]: recreated with new parameters", name))
 }
 
 func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherRoutine {

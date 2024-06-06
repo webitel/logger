@@ -99,11 +99,7 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 
 func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) model.AppError {
 
-	config, err := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
-	if err != nil {
-		return err
-	}
-	model, err := convertRabbitMessageToModel(rabbitMessage, config.Id)
+	model, err := convertRabbitMessageToModel(rabbitMessage)
 	if err != nil {
 		return err
 	}
@@ -116,32 +112,12 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 
 }
 
-func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64, objectName string) model.AppError {
-	//searchResult, err := a.storage.Config().Get(ctx, nil, nil, model.FilterBunch{
-	//	Bunch: []*model.Filter{
-	//		{
-	//			Column:         "wbt_class.name",
-	//			Value:          objectName,
-	//			ComparisonType: model.Like,
-	//		},
-	//		{
-	//			Column:         "object_config.domain_id",
-	//			Value:          domainId,
-	//			ComparisonType: model.Equal,
-	//		},
-	//	},
-	//	ConnectionType: model.AND,
-	//})
-	//if err != nil {
-	//	return err
-	//}
-	//config := searchResult[0]
-
-	logs, err := convertRabbitMessageToModelBulk(rabbitMessages, 0)
+func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64) model.AppError {
+	logs, err := convertRabbitMessageToModelBulk(rabbitMessages)
 	if err != nil {
 		return err
 	}
-	err = a.storage.Log().InsertMany(ctx, *logs, int(domainId))
+	err = a.storage.Log().InsertMany(ctx, logs, int(domainId))
 	if err != nil {
 		return err
 	}
@@ -203,13 +179,12 @@ func convertLogModelToMessageBulk(m []*model.Log) ([]*proto.Log, model.AppError)
 	return rows, nil
 }
 
-func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.Log, model.AppError) {
+func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, model.AppError) {
 	log := &model.Log{
 		Action:   m.Action,
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
 		UserIp:   m.UserIp,
 		NewState: m.NewState,
-		ConfigId: configId,
 		Object:   model.Lookup{Name: model.NewNullString(m.Schema)},
 	}
 	userId, err := model.NewNullInt(m.UserId)
@@ -226,16 +201,16 @@ func convertRabbitMessageToModel(m *model.RabbitMessage, configId int) (*model.L
 	return log, nil
 }
 
-func convertRabbitMessageToModelBulk(m []*model.RabbitMessage, configId int) (*[]*model.Log, model.AppError) {
+func convertRabbitMessageToModelBulk(m []*model.RabbitMessage) ([]*model.Log, model.AppError) {
 	var logs []*model.Log
 	for _, v := range m {
-		log, err := convertRabbitMessageToModel(v, configId)
+		log, err := convertRabbitMessageToModel(v)
 		if err != nil {
 			return nil, err
 		}
 		logs = append(logs, log)
 	}
-	return &logs, nil
+	return logs, nil
 }
 
 type LogSearcher interface {

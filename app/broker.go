@@ -17,7 +17,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const MaxReconnectAttempts = 50
+const MaxReconnectAttempts = 10
 
 type RabbitListener struct {
 	config            *model.RabbitConfig
@@ -59,18 +59,8 @@ func (l *RabbitListener) Stop() {
 	defer wlog.Info(fmtBrokerLog("connection closed"))
 }
 
-func (l *RabbitListener) Start() {
-	var (
-		err    error
-		appErr model.AppError
-	)
-	appErr = l.connect()
-	if appErr != nil {
-		l.emergencyStopper <- appErr
-	}
-
-	// stop handler
-	go func() {
+var (
+	stopHandler = func(l *RabbitListener) {
 		for {
 			select {
 			case amqpErr, _ := <-l.amqpCloseNotifier:
@@ -97,19 +87,18 @@ func (l *RabbitListener) Start() {
 			}
 
 		}
-	}()
+	}
 
-	// listener
-	go func() {
+	messageHandler = func(l *RabbitListener) {
 		var (
 			message amqp.Delivery
 			appErr  model.AppError
+			err     error
 		)
 		wlog.Info(fmtBrokerLog("waiting for the messages.."))
 		for message = range l.delivery {
 			wlog.Info(fmtBrokerLog("message received"))
-			ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancelFunc()
+			ctx, cancelContext := context.WithTimeout(context.Background(), 5*time.Second)
 			appErr = l.handleFunc(ctx, &message)
 			if appErr != nil {
 				if checkNoRows(appErr) { // TODO: real foreign key check by postgres model
@@ -131,12 +120,95 @@ func (l *RabbitListener) Start() {
 					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
 				}
 			}
+			cancelContext()
 			if appErr != nil {
 				l.emergencyStopper <- appErr
 				break
 			}
+
 		}
-	}()
+		wlog.Info(fmtBrokerLog("stopped waiting for the messages"))
+	}
+)
+
+func (l *RabbitListener) Start() {
+	var (
+		appErr model.AppError
+	)
+	appErr = l.connect()
+	if appErr != nil {
+		l.emergencyStopper <- appErr
+	}
+	go stopHandler(l)
+	go messageHandler(l)
+	// stop handler
+	//go func() {
+	//	for {
+	//		select {
+	//		case amqpErr, _ := <-l.amqpCloseNotifier:
+	//
+	//			// if close has a reason -- log
+	//			if amqpErr != nil {
+	//				wlog.Info(fmtBrokerLog(fmt.Sprintf("reason: %s", amqpErr.Reason)))
+	//			}
+	//			if l.reconnectAttempts >= MaxReconnectAttempts { // if max reconnect attempts reached -- stop execution
+	//				l.emergencyStopper <- model.NewInternalError("app.rabbit_listener.start.reconnect_routine.max_reconnect_attempts.error", fmtBrokerLog("connection lost"))
+	//				return
+	//			}
+	//			// try to reconnect
+	//			err := l.reconnect()
+	//			if err != nil {
+	//				wlog.Info(fmtBrokerLog(err.Error()))
+	//				l.reconnectAttempts++
+	//			} else {
+	//				l.reconnectAttempts = 0
+	//			}
+	//			time.Sleep(time.Second * 10)
+	//		case <-l.gracefullStopper:
+	//			return
+	//		}
+	//
+	//	}
+	//}()
+	//
+	//// listener
+	//go func() {
+	//	var (
+	//		message amqp.Delivery
+	//		appErr  model.AppError
+	//	)
+	//	wlog.Info(fmtBrokerLog("waiting for the messages.."))
+	//	for message = range l.delivery {
+	//		wlog.Info(fmtBrokerLog("message received"))
+	//		ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	//		defer cancelFunc()
+	//		appErr = l.handleFunc(ctx, &message)
+	//		if appErr != nil {
+	//			if checkNoRows(appErr) { // TODO: real foreign key check by postgres model
+	//				wlog.Debug(fmtBrokerLog(fmt.Sprintf("error processing message, foreign key error, skipping message.. error: %s", appErr.Error())))
+	//				appErr = nil
+	//				err = message.Ack(false)
+	//				if err != nil {
+	//					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
+	//				}
+	//			} else {
+	//				wlog.Debug(fmtBrokerLog(fmt.Sprintf("error while processing the messasge! nacking.. error: %s", appErr.Error())))
+	//				message.Nack(false, true)
+	//			}
+	//			wlog.Info(fmtBrokerLog("message processed with model!"))
+	//		} else {
+	//			wlog.Info(fmtBrokerLog("message processed! acknowledging.. "))
+	//			err = message.Ack(false)
+	//			if err != nil {
+	//				appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
+	//			}
+	//		}
+	//		if appErr != nil {
+	//			l.emergencyStopper <- appErr
+	//			break
+	//		}
+	//	}
+	//}()
 	wlog.Info(fmtBrokerLog("connection opened"))
 }
 
@@ -227,6 +299,7 @@ func (l *RabbitListener) reconnect() model.AppError {
 	if err != nil {
 		return err
 	}
+	go messageHandler(l)
 	return nil
 }
 
@@ -268,13 +341,12 @@ func (h *BrokerHandler) Handle(ctx context.Context, message *amqp.Delivery) mode
 				UserIp:   m.UserIp,
 				Action:   m.Action,
 				Date:     m.Date,
-				//DomainId: domain,
 				RecordId: v.Id,
 				Schema:   object,
 			}
 			rabbitMessages = append(rabbitMessages, rabbitMessage)
 		}
-		appErr := h.app.InsertLogByRabbitMessageBulk(ctx, rabbitMessages, domain, object)
+		appErr := h.app.InsertLogByRabbitMessageBulk(ctx, rabbitMessages, domain)
 		if appErr != nil {
 			return appErr
 		}

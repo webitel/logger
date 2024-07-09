@@ -65,7 +65,7 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, AppError) 
 			}
 			databaseModel.UserId = id
 		}
-		databaseModel.UserName = NewNullString(user.Username)
+		databaseModel.UserName = user.Username
 
 	}
 	if domain := m.Login.Domain; domain != nil {
@@ -76,7 +76,7 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, AppError) 
 			}
 			databaseModel.DomainId = id
 		}
-		databaseModel.DomainName = NewNullString(domain.Name)
+		databaseModel.DomainName = domain.Name
 
 	}
 	authType = m.AuthType

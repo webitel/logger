@@ -63,7 +63,7 @@ func newLoginAttemptStore(store storage.Storage) (storage.LoginAttemptStore, mod
 
 func (l *LoginAttemptStore) Insert(ctx context.Context, attempt *model.LoginAttempt) (*model.LoginAttempt, model.AppError) {
 	base := squirrel.Insert(loginAttemptTable).Columns("date", "domain_id", "domain_name", "success", "auth_type", "user_id", "user_name", "user_ip", "user_agent", "details").
-		Values(attempt.Date, squirrel.Expr("coalesce(?, (select dc from directory.wbt_domain where name = ? limit 1))", attempt.DomainId, attempt.DomainName), attempt.DomainName, attempt.Success, attempt.AuthType, squirrel.Expr("coalesce(?, (select id from directory.wbt_auth where name = ? limit 1))", attempt.UserId, attempt.UserName), attempt.UserName, attempt.UserIp, attempt.UserAgent, attempt.Details).Suffix("returning *").PlaceholderFormat(squirrel.Dollar)
+		Values(attempt.Date, squirrel.Expr("coalesce(?, (select dc from directory.wbt_domain where name = ? limit 1))", attempt.DomainId, attempt.DomainName), attempt.DomainName, attempt.Success, attempt.AuthType, squirrel.Expr("coalesce(?, (select id from directory.wbt_user where username = ? limit 1))", attempt.UserId, attempt.UserName), attempt.UserName, attempt.UserIp, attempt.UserAgent, attempt.Details).Suffix("returning *").PlaceholderFormat(squirrel.Dollar)
 
 	db, appErr := l.storage.Database()
 	if appErr != nil {

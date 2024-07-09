@@ -9,10 +9,10 @@ type LoginAttempt struct {
 	UserIp     string
 	Date       time.Time
 	UserId     *NullInt
-	UserName   string
+	UserName   *NullString
 	UserAgent  string
 	DomainId   *NullInt
-	DomainName string
+	DomainName *NullString
 	Details    *NullString
 }
 

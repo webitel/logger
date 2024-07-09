@@ -361,12 +361,16 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 var (
 	DefaultAcknowledger = func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any, handleFunc broker.HandleFunc) {
 		var (
-			message amqp.Delivery
-			appErr  model.AppError
+			//message amqp.Delivery
+			appErr model.AppError
 		)
 		for {
 			select {
-			case message = <-del:
+			case message, closed := <-del:
+				if !closed {
+					wlog.Debug(fmt.Sprintf("[broker.handler]: channel closed"))
+					return
+				}
 				// adding timeout on each handle
 				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
 
@@ -374,8 +378,9 @@ var (
 				appErr = handleFunc(ctx, &message)
 				cancelContext()
 				if appErr != nil {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: %s", appErr.Error()))
+					wlog.Debug(fmt.Sprintf("[broker.handler]: (%s) %s", message.RoutingKey, appErr.Error()))
 				}
+				wlog.Debug(fmt.Sprintf("[broker.handler]: (%s) processed", message.RoutingKey))
 			case <-stopper:
 				return
 			}

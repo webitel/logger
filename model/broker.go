@@ -79,7 +79,8 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, AppError) 
 		databaseModel.DomainName = domain.Name
 
 	}
-	if m.AuthType == "" {
+	authType = m.AuthType
+	if authType == "" {
 		authType = "password"
 	}
 	databaseModel.AuthType = authType

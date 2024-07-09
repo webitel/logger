@@ -1,10 +1,9 @@
 package app
 
 import (
+	storageModel "buf.build/gen/go/webitel/storage/protocolbuffers/go"
 	"context"
 	"io"
-
-	storageModel "buf.build/gen/go/webitel/storage/protocolbuffers/go"
 
 	"github.com/webitel/logger/model"
 
@@ -117,7 +116,7 @@ func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages [
 	if err != nil {
 		return err
 	}
-	err = a.storage.Log().InsertMany(ctx, logs, int(domainId))
+	err = a.storage.Log().InsertBulk(ctx, logs, int(domainId))
 	if err != nil {
 		return err
 	}

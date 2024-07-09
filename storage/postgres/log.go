@@ -138,7 +138,7 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 }
 
 func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) model.AppError {
-	err := c.InsertMany(ctx, []*model.Log{log}, domainId)
+	err := c.InsertBulk(ctx, []*model.Log{log}, domainId)
 	if err != nil {
 		return model.NewInternalError("postgres.log.insert.scan.error", err.Error())
 	}
@@ -171,7 +171,7 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 	return true, nil
 }
 
-func (c *Log) InsertMany(ctx context.Context, logs []*model.Log, domainId int) model.AppError {
+func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) model.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr

@@ -15,6 +15,8 @@ type Storage interface {
 	Log() LogStore
 	// Interface to the config table
 	Config() ConfigStore
+	// Interface to the config table
+	LoginAttempt() LoginAttemptStore
 	// Database connection
 	Database() (*sqlx.DB, model.AppError)
 	// Initializes logger schema
@@ -49,7 +51,7 @@ type LogStore interface {
 	//GetByConfigIdWithDates(ctx context.Context, configId int, dateFrom time.Time, dateTo time.Time) (*[]model.Log, model.AppError)
 	//GetByUserId(ctx context.Context, opt *model.SearchOptions, userId int) (*[]model.Log, model.AppError)
 	Get(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, model.AppError)
-	InsertMany(ctx context.Context, log []*model.Log, domainId int) model.AppError
+	InsertBulk(ctx context.Context, log []*model.Log, domainId int) model.AppError
 	DeleteByLowerThanDate(ctx context.Context, date time.Time, configId int) (int, model.AppError)
 	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, model.AppError)
 }
@@ -69,6 +71,12 @@ type ConfigStore interface {
 	Delete(ctx context.Context, id int32) model.AppError
 	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) model.AppError
 }
+
+type LoginAttemptStore interface {
+	Insert(ctx context.Context, m *model.LoginAttempt) (*model.LoginAttempt, model.AppError)
+	Get(ctx context.Context, searchOpts *model.SearchOptions, filters any) ([]*model.LoginAttempt, model.AppError)
+}
+
 type Table struct {
 	Path       string
 	NameColumn string

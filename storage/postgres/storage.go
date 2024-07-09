@@ -12,10 +12,11 @@ import (
 )
 
 type PostgresStore struct {
-	config      *model.DatabaseConfig
-	conn        *sqlx.DB
-	logStore    storage.LogStore
-	configStore storage.ConfigStore
+	config            *model.DatabaseConfig
+	conn              *sqlx.DB
+	logStore          storage.LogStore
+	configStore       storage.ConfigStore
+	loginAttemptStore storage.LoginAttemptStore
 }
 
 func New(config *model.DatabaseConfig) *PostgresStore {
@@ -43,6 +44,17 @@ func (s *PostgresStore) Config() storage.ConfigStore {
 	}
 	return s.configStore
 }
+func (s *PostgresStore) LoginAttempt() storage.LoginAttemptStore {
+	if s.loginAttemptStore == nil {
+		conf, err := newLoginAttemptStore(s)
+		if err != nil {
+			return nil
+		}
+		s.loginAttemptStore = conf
+	}
+	return s.loginAttemptStore
+}
+
 func (s *PostgresStore) Database() (*sqlx.DB, model.AppError) {
 	if s.conn == nil {
 		model.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")

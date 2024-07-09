@@ -12,6 +12,7 @@ require (
 	github.com/BoRuDar/configuration/v4 v4.2.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/consul/api v1.25.1
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx v3.6.2+incompatible
@@ -209,7 +210,6 @@ require (
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.14.0 // indirect
-	google.golang.org/genproto v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect

@@ -388,13 +388,17 @@ var (
 	}
 	LogRecordAcknowledger = func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any, handleFunc broker.HandleFunc) {
 		var (
-			message amqp.Delivery
-			appErr  model.AppError
-			err     error
+			appErr model.AppError
+			err    error
 		)
 		for {
 			select {
-			case message = <-del:
+			case message, closed := <-del:
+
+				if !closed {
+					wlog.Debug(fmt.Sprintf("[broker.handler]: channel closed"))
+					return
+				}
 				// adding timeout on each handle
 				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
 

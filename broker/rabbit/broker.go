@@ -21,7 +21,6 @@ type RabbitBroker struct {
 	consumers         map[string]*rabbitQueueConsumer
 	emergencyStopper  chan model.AppError
 	gracefulStopper   chan any
-	reconnectAttempts int
 }
 
 func BuildRabbit(config *model.RabbitConfig, errChan chan model.AppError) (*RabbitBroker, model.AppError) {
@@ -69,22 +68,29 @@ var (
 			select {
 			case amqpErr, _ := <-l.amqpCloseNotifier:
 				if amqpErr.Reason != "" {
-					wlog.Info(fmtBrokerLog(fmt.Sprintf("reason: %s", amqpErr.Reason)))
+					wlog.Info(fmtBrokerLog(fmt.Sprintf("connection lost, %s", amqpErr.Reason)))
 				}
 
-				for {
-					if l.reconnectAttempts >= MaxReconnectAttempts { // if max reconnect attempts reached -- stop execution
+				var (
+					continueReconnection = true
+					reconnectAttempts    int
+				)
+
+				for continueReconnection {
+					if reconnectAttempts >= MaxReconnectAttempts { // if max reconnect attempts reached -- stop execution
 						l.Stop()
 						l.emergencyStopper <- model.NewInternalError("app.broker.stop_handler_routine.reconnect_attempts.reached_limit", "max reconnection attempts")
 						return // end goroutine execution
 					}
 					reconnectErr := l.reconnect()
 					if reconnectErr != nil {
+						reconnectAttempts++
 						wlog.Info(fmtBrokerLog(reconnectErr.Error()))
+						//time.Sleep(time.Second * 10)
 					} else {
-						l.reconnectAttempts = 0
+						continueReconnection = false
 					}
-					time.Sleep(time.Second * 10)
+
 				}
 
 			case <-l.emergencyStopper:
@@ -122,7 +128,6 @@ func (l *RabbitBroker) reconnect() model.AppError {
 	// try to create new connection channel
 	err := l.connect()
 	if err != nil {
-		l.reconnectAttempts++
 		return err
 	}
 	for s, consumer := range l.consumers {
@@ -135,7 +140,6 @@ func (l *RabbitBroker) reconnect() model.AppError {
 		// start listen to the new delivery channel
 		consumer.Start()
 	}
-	l.reconnectAttempts = 0
 	return nil
 }
 
@@ -209,14 +213,14 @@ func (l *RabbitBroker) ExchangeBind(destination string, key string, source strin
 	return nil
 }
 
-func (l *RabbitBroker) QueueStartConsume(queueName string, consumerName string, acknowledgeFunc AcknowledgeFunc, handleFunc HandleFunc, handleTimeout time.Duration) model.AppError {
+func (l *RabbitBroker) QueueStartConsume(queueName string, consumerName string, handleFunc HandleFunc, handleTimeout time.Duration) model.AppError {
 	// make a connection
 	ch, err := l.Consume(queueName, consumerName)
 	if err != nil {
 		return err
 	}
 	// initialize handler
-	queue, err := BuildRabbitQueueConsumer(ch, acknowledgeFunc, handleFunc, consumerName, handleTimeout)
+	queue, err := BuildRabbitQueueConsumer(ch, handleFunc, consumerName, handleTimeout)
 	if err != nil {
 		return err
 	}

@@ -321,7 +321,47 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 	if err != nil {
 		return err
 	}
-	err = a.rabbit.QueueStartConsume(queueName, "", LogRecordAcknowledger, a.HandleRabbitRecordLogMessage, 5*time.Second)
+	handler := func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any) {
+		var (
+			appErr model.AppError
+			err    error
+		)
+		for {
+			select {
+			case message, closed := <-del:
+
+				if !closed {
+					wlog.Debug(fmt.Sprintf("[broker.handler]: channel closed"))
+					return
+				}
+				// adding timeout on each handle
+				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
+
+				// try to handle the message
+				appErr = a.HandleRabbitRecordLogMessage(ctx, &message)
+				cancelContext()
+				if appErr != nil {
+					if errors.Is(appErr, sql.ErrNoRows) { // TODO: real foreign key check by postgres model
+						message.Nack(false, false)
+					} else {
+						message.Nack(false, true)
+					}
+					continue
+				}
+				err = message.Ack(false)
+				if err != nil {
+					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
+				}
+				if appErr != nil {
+					wlog.Debug(fmt.Sprintf("[broker.handler]: %s", appErr.Error()))
+				}
+			case <-stopper:
+				return
+			}
+		}
+
+	}
+	err = a.rabbit.QueueStartConsume(queueName, "", handler, 5*time.Second)
 	if err != nil {
 		return err
 	}
@@ -351,15 +391,8 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 	if err != nil {
 		return err
 	}
-	err = a.rabbit.QueueStartConsume(queueName, "", DefaultAcknowledger, a.HandleRabbitLoginMessage, 5*time.Second)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
-var (
-	DefaultAcknowledger = func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any, handleFunc broker.HandleFunc) {
+	handler := func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any) {
 		var (
 			//message amqp.Delivery
 			appErr model.AppError
@@ -368,65 +401,31 @@ var (
 			select {
 			case message, closed := <-del:
 				if !closed {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: channel closed"))
+					wlog.Debug(fmt.Sprintf("[broker.acknowledger]: channel closed"))
 					return
 				}
 				// adding timeout on each handle
 				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
 
 				// try to handle the message
-				appErr = handleFunc(ctx, &message)
+				appErr = a.HandleRabbitLoginMessage(ctx, &message)
 				cancelContext()
 				if appErr != nil {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: (%s) %s", message.RoutingKey, appErr.Error()))
+					wlog.Debug(fmt.Sprintf("[broker.acknowledger]: (%s) %s", message.RoutingKey, appErr.Error()))
 				}
-				wlog.Debug(fmt.Sprintf("[broker.handler]: (%s) processed", message.RoutingKey))
+				wlog.Debug(fmt.Sprintf("[broker.acknowledger]: (%s) processed", message.RoutingKey))
 			case <-stopper:
 				return
 			}
 		}
 	}
-	LogRecordAcknowledger = func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any, handleFunc broker.HandleFunc) {
-		var (
-			appErr model.AppError
-			err    error
-		)
-		for {
-			select {
-			case message, closed := <-del:
 
-				if !closed {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: channel closed"))
-					return
-				}
-				// adding timeout on each handle
-				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
-
-				// try to handle the message
-				appErr = handleFunc(ctx, &message)
-				cancelContext()
-				if appErr != nil {
-					if errors.Is(appErr, sql.ErrNoRows) { // TODO: real foreign key check by postgres model
-						message.Nack(false, false)
-					} else {
-						message.Nack(false, true)
-					}
-					continue
-				}
-				err = message.Ack(false)
-				if err != nil {
-					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
-				}
-				if appErr != nil {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: %s", appErr.Error()))
-				}
-			case <-stopper:
-				return
-			}
-		}
-
+	err = a.rabbit.QueueStartConsume(queueName, "", handler, 5*time.Second)
+	if err != nil {
+		return err
 	}
-)
+	return nil
+}
 
 func (a *App) HandleRabbitLoginMessage(ctx context.Context, message *amqp.Delivery) model.AppError {
 	var (

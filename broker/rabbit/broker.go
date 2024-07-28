@@ -11,7 +11,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const MaxReconnectAttempts = 10
+const MaxReconnectAttempts = 100
 
 type RabbitBroker struct {
 	config            *model.RabbitConfig
@@ -19,11 +19,11 @@ type RabbitBroker struct {
 	channel           *amqp.Channel
 	amqpCloseNotifier chan *amqp.Error
 	consumers         map[string]*rabbitQueueConsumer
-	emergencyStopper  chan model.AppError
+	emergencyStopper  chan<- model.AppError
 	gracefulStopper   chan any
 }
 
-func BuildRabbit(config *model.RabbitConfig, errChan chan model.AppError) (*RabbitBroker, model.AppError) {
+func BuildRabbit(config *model.RabbitConfig, errChan chan<- model.AppError) (*RabbitBroker, model.AppError) {
 	return &RabbitBroker{
 		config:           config,
 		emergencyStopper: errChan,
@@ -34,32 +34,35 @@ func BuildRabbit(config *model.RabbitConfig, errChan chan model.AppError) (*Rabb
 }
 
 // Start starts the channel between rabbitMQ server and this server
-func (l *RabbitBroker) Start() {
+func (l *RabbitBroker) Start() model.AppError {
 	var (
 		appErr model.AppError
 	)
 	appErr = l.connect()
 	if appErr != nil {
-		l.emergencyStopper <- appErr
+		return appErr
+	}
+
+	appErr = l.StartAllConsumers()
+	if appErr != nil {
+		return appErr
 	}
 	go stopHandler(l)
-	wlog.Info(fmtBrokerLog("connection opened"))
+	return nil
 }
 
 // Stop stops all consumers and connections of rabbit
 func (l *RabbitBroker) Stop() {
-	// send to the gracefulStopper message that signalizes graceful stop
+	// send to the gracefulStopper message that signalizes graceful stop (accepted in the stopHandler)
 	l.gracefulStopper <- "graceful"
-	for _, consumer := range l.consumers {
-		consumer.Stop()
-	}
+	l.StopAllConsumers()
 	if l.channel != nil {
 		l.channel.Close()
 	}
 	if l.connection != nil {
 		l.connection.Close()
 	}
-	defer wlog.Info(fmtBrokerLog("connection closed"))
+	defer wlog.Info(fmtBrokerLog("connection gracefully closed"))
 }
 
 var (
@@ -78,9 +81,8 @@ var (
 
 				for continueReconnection {
 					if reconnectAttempts >= MaxReconnectAttempts { // if max reconnect attempts reached -- stop execution
-						l.Stop()
 						l.emergencyStopper <- model.NewInternalError("app.broker.stop_handler_routine.reconnect_attempts.reached_limit", "max reconnection attempts")
-						return // end goroutine execution
+						return
 					}
 					reconnectErr := l.reconnect()
 					if reconnectErr != nil {
@@ -92,10 +94,6 @@ var (
 					}
 
 				}
-
-			case <-l.emergencyStopper:
-				l.Stop()
-				return
 			case <-l.gracefulStopper:
 				return
 			}
@@ -114,31 +112,51 @@ func (l *RabbitBroker) connect() model.AppError {
 		return model.NewInternalError("rabbit.listener.listen.channel_connect.fail", err.Error())
 	}
 	l.channel = channel
-	l.amqpCloseNotifier = make(chan *amqp.Error)
-	l.channel.NotifyClose(l.amqpCloseNotifier)
+	l.amqpCloseNotifier = l.channel.NotifyClose(make(chan *amqp.Error))
 
 	err = channel.Qos(1, 0, false)
 	if err != nil {
 		log.Fatalf("basic.qos: %v", err)
-	}
+	} // log.Fatalf?
+	wlog.Info(fmtBrokerLog("connection and amqp channel are opened"))
 	return nil
 }
 
 func (l *RabbitBroker) reconnect() model.AppError {
 	// try to create new connection channel
+	wlog.Debug(fmtBrokerLog("trying to reconnect"))
 	err := l.connect()
 	if err != nil {
 		return err
 	}
 	for s, consumer := range l.consumers {
 		// make a new delivery channel with new connection
-		ch, err := l.Consume(s, consumer.consumerName)
+		ch, err := l.Consume(s, consumer.name)
 		if err != nil {
 			return err
 		}
 		consumer.delivery = ch
 		// start listen to the new delivery channel
 		consumer.Start()
+	}
+	return nil
+}
+
+// StopAllConsumers stops all consumers if exist
+func (l *RabbitBroker) StopAllConsumers() model.AppError {
+	for _, consumer := range l.consumers {
+		consumer.Stop()
+	}
+	return nil
+}
+
+// StartAllConsumers starts all consumers if exist
+func (l *RabbitBroker) StartAllConsumers() model.AppError {
+	for _, consumer := range l.consumers {
+		err := consumer.Start()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -82,9 +82,9 @@ func NewUploadWatcher(name string, startParams *StarterParams, customExecutionPa
 }
 
 func (w *Watcher) Start() {
-	wlog.Debug(fmt.Sprintf("watcher [%s] started", w.name))
+	wlog.Debug(fmt.Sprintf("[%s] started", w.name))
 	defer func() {
-		wlog.Debug(fmt.Sprintf("watcher [%s] finished", w.name))
+		wlog.Debug(fmt.Sprintf("[%s] finished", w.name))
 		close(w.stop)
 	}()
 	if w.startParams != nil {
@@ -95,7 +95,7 @@ func (w *Watcher) Start() {
 	}
 
 	for {
-		wlog.Info(fmt.Sprintf("watcher [%s] will run every %d hours", w.name, w.interval/time.Hour))
+		wlog.Info(fmt.Sprintf("[%s] will run every %d hours", w.name, w.interval/time.Hour))
 		select {
 		case <-w.stop:
 			return

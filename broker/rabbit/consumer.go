@@ -11,7 +11,7 @@ type rabbitQueueConsumer struct {
 	handleTimeout time.Duration
 	delivery      <-chan amqp.Delivery
 	stopper       chan any
-	consumerName  string
+	name          string
 }
 
 func BuildRabbitQueueConsumer(delivery <-chan amqp.Delivery, handleFunc HandleFunc, consumerName string, handleTimeout time.Duration) (*rabbitQueueConsumer, model.AppError) {
@@ -29,7 +29,7 @@ func BuildRabbitQueueConsumer(delivery <-chan amqp.Delivery, handleFunc HandleFu
 		handleFunc:    handleFunc,
 		delivery:      delivery,
 		stopper:       make(chan any),
-		consumerName:  consumerName,
+		name:          consumerName,
 	}, nil
 }
 

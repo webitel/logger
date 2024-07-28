@@ -1,10 +1,9 @@
 package app
 
 import (
+	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"context"
 	authmodel "github.com/webitel/logger/auth/model"
-
-	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"github.com/webitel/logger/model"
 )
 

@@ -49,7 +49,6 @@ func BuildServer(app *App, config *model.ConsulConfig, exitChan chan model.AppEr
 	if appErr != nil {
 		return nil, appErr
 	}
-
 	return &AppServer{
 		server:   server,
 		listener: listener,
@@ -72,17 +71,22 @@ func (a *AppServer) Start() {
 	}
 }
 
-func (a *AppServer) Stop() {
+func (a *AppServer) Stop() model.AppError {
 	appErr := a.registry.Deregister()
 	if appErr != nil {
-		a.exitChan <- appErr
-		return
+		return appErr
 	}
+	a.stopGrpcServer()
+	return nil
+}
+
+func (a *AppServer) stopGrpcServer() model.AppError {
 	a.server.Stop()
+	wlog.Info("grpc: server stopped")
+	return nil
 }
 
 func buildGrpc(app *App) (*grpc.Server, model.AppError) {
-
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor))
 	// * Creating services
 	l, appErr := NewLoggerService(app)

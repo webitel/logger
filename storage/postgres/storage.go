@@ -76,7 +76,7 @@ func (s *PostgresStore) Open() model.AppError {
 func (s *PostgresStore) Close() model.AppError {
 	err := s.conn.Close()
 	if err != nil {
-		return model.NewInternalError("postgres.storage.close.disconnect.fail", err.Error())
+		return model.NewInternalError("postgres.storage.close.disconnect.fail", fmt.Sprintf("postgres: %s", err.Error()))
 	}
 	s.conn = nil
 	wlog.Debug(fmt.Sprintf("postgres: connection closed"))

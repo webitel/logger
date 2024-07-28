@@ -1,5 +1,10 @@
 package model
 
+const (
+	ServiceVersion = "24.08"
+	ServiceName    = "logger"
+)
+
 type AppConfig struct {
 	Rabbit   *RabbitConfig   `json:"rabbit,omitempty"`
 	Database *DatabaseConfig `json:"database,omitempty"`

@@ -1,9 +1,11 @@
 package consul
 
 import (
+	"fmt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/registry"
+	"github.com/webitel/wlog"
 	"net"
 	"strconv"
 )
@@ -58,7 +60,7 @@ func (c *ConsulRegistry) Register() model.AppError {
 	if err != nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
 	}
-
+	wlog.Info(fmtConsulLog("service was registered"))
 	return nil
 }
 
@@ -67,6 +69,10 @@ func (c *ConsulRegistry) Deregister() model.AppError {
 	if err != nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
 	}
-
+	wlog.Info(fmtConsulLog("service was deregistered"))
 	return nil
+}
+
+func fmtConsulLog(s string) string {
+	return fmt.Sprintf("consul: %s", s)
 }

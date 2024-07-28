@@ -6,6 +6,7 @@ import (
 	"github.com/webitel/logger/app"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/wlog"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -75,7 +76,10 @@ func loadConfig() (*model.AppConfig, model.AppError) {
 		configuration.NewFlagProvider(),
 		configuration.NewEnvProvider(),
 		configuration.NewDefaultProvider(),
-	)
+	).SetOptions(
+		configuration.OnFailFnOpt(func(err error) {
+			log.Printf(err.Error())
+		}))
 
 	if err := configurator.InitValues(); err != nil {
 		return nil, model.NewInternalError("main.main.unmarshal_config.bad_arguments.parse_fail", err.Error())

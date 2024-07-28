@@ -95,7 +95,7 @@ func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 	val.Stop()
 	delete(a.logCleaners, name)
 	a.InsertLogCleaner(configId, nil, dayseToStore)
-	wlog.Info(fmt.Sprintf("watcher [%s]: recreated with new parameters", name))
+	wlog.Info(fmt.Sprintf("[%s]: recreated with new parameters", name))
 }
 
 func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherRoutine {
@@ -103,9 +103,9 @@ func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.Watcher
 	return func() {
 		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
 		if err != nil {
-			wlog.Info(fmt.Sprintf("watcher [%s]: %s", name, err.Error()))
+			wlog.Info(fmt.Sprintf("[%s]: %s", name, err.Error()))
 		} else {
-			wlog.Info(fmt.Sprintf("watcher [%s]: cleaned %d rows", name, res))
+			wlog.Info(fmt.Sprintf("[%s]: cleaned %d rows", name, res))
 		}
 	}
 }
@@ -153,7 +153,7 @@ func (a *App) InsertLogUploader(configId int, startParams *watcher.StarterParams
 
 func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.WatcherRoutine {
 	format := func(text string) string {
-		return fmt.Sprintf("watcher [%s]: %s", FormatKey(UploadWatcherPrefix, configId), text)
+		return fmt.Sprintf("[%s]: %s", FormatKey(UploadWatcherPrefix, configId), text)
 	}
 	return func() {
 		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {

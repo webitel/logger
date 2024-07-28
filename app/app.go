@@ -44,7 +44,8 @@ type App struct {
 	file           storage_grpc.FileServiceClient
 	logUploaders   map[string]*watcher.UploadWatcher
 	logCleaners    map[string]*watcher.Watcher
-	exitChan       chan model.AppError
+	rabbitExitChan chan model.AppError
+	serverExitChan chan model.AppError
 	rabbit         *broker.RabbitBroker
 	server         *AppServer
 	storageConn    *grpc.ClientConn
@@ -53,24 +54,24 @@ type App struct {
 }
 
 func New(config *model.AppConfig) (*App, model.AppError) {
-	app := &App{config: config, exitChan: make(chan model.AppError)}
+	app := &App{config: config, rabbitExitChan: make(chan model.AppError), serverExitChan: make(chan model.AppError)}
 	var err error
 
 	// init of database
-	if config.Database == nil {
-		model.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
+	if &config.Database == nil {
+		return nil, model.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
 	}
 	app.storage = BuildDatabase(config.Database)
 
 	// init of rabbit
-	r, appErr := broker.BuildRabbit(app.config.Rabbit, app.exitChan)
+	r, appErr := broker.BuildRabbit(app.config.Rabbit, app.rabbitExitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
 	app.rabbit = r
 
 	// init of grpc server
-	s, appErr := BuildServer(app, app.config.Consul, app.exitChan)
+	s, appErr := BuildServer(app, app.config.Consul, app.serverExitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -123,7 +124,10 @@ func (a *App) Start() model.AppError {
 		return appErr
 	}
 	// * run rabbit listener
-	a.rabbit.Start()
+	appErr = a.rabbit.Start()
+	if appErr != nil {
+		return appErr
+	}
 	appErr = a.BrokerListenNewRecordLogs()
 	if appErr != nil {
 		return appErr
@@ -135,7 +139,19 @@ func (a *App) Start() model.AppError {
 	// * run grpc server
 	go a.server.Start()
 	//go ServeRequests(a, a.config.Consul, a.exitChan)
-	return <-a.exitChan
+	select {
+	case appErr = <-a.rabbitExitChan:
+		a.server.Stop()
+	case appErr = <-a.serverExitChan:
+		a.rabbit.Stop()
+	}
+	a.StopAllWatchers()
+	appErr = a.storage.Close()
+	if appErr != nil {
+		wlog.Debug(appErr.Error())
+	}
+
+	return appErr
 }
 
 func (a *App) Stop() model.AppError {
@@ -296,6 +312,10 @@ func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc 
 }
 
 func (a *App) BrokerListenNewRecordLogs() model.AppError {
+
+	log := func(s string) {
+		wlog.Debug(fmt.Sprintf("[broker.record_logs.listener]: %s", s))
+	}
 	// create or connect the logger exchange
 	appErr := a.rabbit.ExchangeDeclare("logger", "topic", broker.ExchangeEnableDurable)
 	if appErr != nil {
@@ -331,7 +351,7 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 			case message, closed := <-del:
 
 				if !closed {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: channel closed"))
+					log("channel closed, ending listening")
 					return
 				}
 				// adding timeout on each handle
@@ -353,7 +373,7 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
 				}
 				if appErr != nil {
-					wlog.Debug(fmt.Sprintf("[broker.handler]: %s", appErr.Error()))
+					log(appErr.Error())
 				}
 			case <-stopper:
 				return
@@ -369,6 +389,9 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 }
 
 func (a *App) BrokerListenLoginAttempts() model.AppError {
+	log := func(s string) {
+		wlog.Debug(fmt.Sprintf("[broker.login_attempts.listener]: %s", s))
+	}
 	sourceExchangeName := "webitel"
 	sourceExchangeKind := "topic"
 	// create or connect the logger exchange
@@ -401,7 +424,7 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 			select {
 			case message, closed := <-del:
 				if !closed {
-					wlog.Debug(fmt.Sprintf("[broker.acknowledger]: channel closed"))
+					log("channel closed, ending listening")
 					return
 				}
 				// adding timeout on each handle
@@ -411,9 +434,9 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 				appErr = a.HandleRabbitLoginMessage(ctx, &message)
 				cancelContext()
 				if appErr != nil {
-					wlog.Debug(fmt.Sprintf("[broker.acknowledger]: (%s) %s", message.RoutingKey, appErr.Error()))
+					log(fmt.Sprintf("(%s) %s", message.RoutingKey, appErr.Error()))
 				}
-				wlog.Debug(fmt.Sprintf("[broker.acknowledger]: (%s) processed", message.RoutingKey))
+				log(fmt.Sprintf("(%s) processed", message.RoutingKey))
 			case <-stopper:
 				return
 			}

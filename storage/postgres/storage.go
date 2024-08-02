@@ -3,12 +3,11 @@ package postgres
 import (
 	"fmt"
 	"github.com/Masterminds/squirrel"
+	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
-	"github.com/webitel/wlog"
-
-	_ "github.com/jackc/pgx/stdlib"
+	"github.com/webitel/webitel-go-kit/logs"
 )
 
 type PostgresStore struct {
@@ -63,13 +62,13 @@ func (s *PostgresStore) Database() (*sqlx.DB, model.AppError) {
 }
 
 func (s *PostgresStore) Open() model.AppError {
-	db, err := sqlx.Connect("pgx", s.config.Url)
+	db, err := sqlx.Connect("pgx", *s.config.Url)
 	//db, err := sql.Open("pgx", s.config.Url)
 	if err != nil {
 		return model.NewInternalError("postgres.storage.open.connect.fail", err.Error())
 	}
 	s.conn = db
-	wlog.Debug(fmt.Sprintf("postgres: connection opened"))
+	logs.Debug(fmt.Sprintf("postgres: connection opened"))
 	return nil
 }
 
@@ -79,7 +78,7 @@ func (s *PostgresStore) Close() model.AppError {
 		return model.NewInternalError("postgres.storage.close.disconnect.fail", fmt.Sprintf("postgres: %s", err.Error()))
 	}
 	s.conn = nil
-	wlog.Debug(fmt.Sprintf("postgres: connection closed"))
+	logs.Debug(fmt.Sprintf("postgres: connection closed"))
 	return nil
 
 }

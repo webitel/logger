@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	authmodel "github.com/webitel/logger/auth/model"
+	"github.com/webitel/webitel-go-kit/logs"
 	"time"
 
 	"github.com/webitel/logger/watcher"
-
-	"github.com/webitel/wlog"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"github.com/webitel/logger/model"
@@ -86,7 +85,7 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 	domainId := newConfig.DomainId
 	if !newConfig.Enabled && oldConfig.Enabled { // changed to disabled
 		a.DeleteWatchers(configId)
-		wlog.Info(fmt.Sprintf("config with id %d disabled... watchers have been deleted !", configId))
+		logs.Info(fmt.Sprintf("config with id %d disabled... watchers have been deleted !", configId))
 	} else if newConfig.Enabled && oldConfig.Enabled || (newConfig.Enabled && !oldConfig.Enabled) { // status wasn't changed and it's still enabled OR changed to enabled
 
 		if newConfig.DaysToStore != oldConfig.DaysToStore { // if days to store changed
@@ -110,7 +109,7 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 				DomainId:     domainId,
 			})
 		}
-		wlog.Info(fmt.Sprintf("config [%d]: watchers have been updated!", configId))
+		logs.Info(fmt.Sprintf("config [%d]: watchers have been updated!", configId))
 	}
 	// else status still disabled
 }

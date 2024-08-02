@@ -2,9 +2,8 @@ package watcher
 
 import (
 	"fmt"
+	"github.com/webitel/webitel-go-kit/logs"
 	"time"
-
-	"github.com/webitel/wlog"
 )
 
 type WatcherRoutine func()
@@ -82,9 +81,9 @@ func NewUploadWatcher(name string, startParams *StarterParams, customExecutionPa
 }
 
 func (w *Watcher) Start() {
-	wlog.Debug(fmt.Sprintf("[%s] started", w.name))
+	logs.Debug(fmt.Sprintf("[%s] started", w.name))
 	defer func() {
-		wlog.Debug(fmt.Sprintf("[%s] finished", w.name))
+		logs.Debug(fmt.Sprintf("[%s] finished", w.name))
 		close(w.stop)
 	}()
 	if w.startParams != nil {
@@ -95,7 +94,7 @@ func (w *Watcher) Start() {
 	}
 
 	for {
-		wlog.Info(fmt.Sprintf("[%s] will run every %d hours", w.name, w.interval/time.Hour))
+		logs.Info(fmt.Sprintf("[%s] will run every %d hours", w.name, w.interval/time.Hour))
 		select {
 		case <-w.stop:
 			return

@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/webitel/webitel-go-kit/logs"
 	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
-	"github.com/webitel/wlog"
 )
 
 var (
@@ -124,7 +124,7 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 	default:
 		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
 	}
-	wlog.Debug(query)
+	logs.Debug(query, logs.LogWithContext(ctx))
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -156,7 +156,7 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 	}
 	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
 	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
+	logs.Debug(sql, logs.LogWithContext(ctx))
 	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return false, model.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
@@ -171,17 +171,17 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 	return true, nil
 }
 
-func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) model.AppError {
+func (c *Log) InsertBulk(ctx context.Context, records []*model.Log, domainId int) model.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
 	}
 	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id", "object_name").PlaceholderFormat(sq.Dollar)
-	for _, log := range logs {
+	for _, log := range records {
 		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, sq.Expr("(SELECT object_config.id FROM logger.object_config INNER JOIN directory.wbt_class ON object_config.object_id = wbt_class.id WHERE object_config.domain_id = ? AND wbt_class.name = ?)", domainId, log.Object.Name), log.Object.Name)
 	}
 	query, _, _ := base.ToSql()
-	wlog.Debug(query)
+	logs.Debug(query)
 
 	_, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
@@ -197,7 +197,7 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 	}
 
 	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
-	wlog.Debug(query)
+	logs.Debug(query)
 	rows, err := db.ExecContext(
 		ctx,
 		query,

@@ -11,6 +11,8 @@ import (
 	authmodel "github.com/webitel/logger/auth/model"
 	"github.com/webitel/logger/auth/webitel_manager"
 	broker "github.com/webitel/logger/broker/rabbit"
+	logs "github.com/webitel/webitel-go-kit/logs"
+	tr "github.com/webitel/webitel-go-kit/tracing"
 	"github.com/webitel/wlog"
 	"strconv"
 	"strings"
@@ -36,6 +38,8 @@ const (
 	DefaultPageSize = 40
 	DefaultPage     = 1
 	MaxPageSize     = 40000
+
+	DefaultTraceProvider = "stdout"
 )
 
 type App struct {
@@ -51,34 +55,45 @@ type App struct {
 	storageConn    *grpc.ClientConn
 	sessionManager auth.AuthManager
 	webitelAppConn *grpc.ClientConn
+	tracer         *tr.Tracing
+	logger         *logs.DynamicLogger
 }
 
-func New(config *model.AppConfig) (*App, model.AppError) {
+func New(config *model.AppConfig, logger *logs.DynamicLogger) (*App, model.AppError) {
 	app := &App{config: config, rabbitExitChan: make(chan model.AppError), serverExitChan: make(chan model.AppError)}
 	var err error
 
 	// init of database
-	if &config.Database == nil {
-		return nil, model.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
+	s, appErr := BuildDatabase(&config.Database)
+	if appErr != nil {
+		return nil, appErr
 	}
-	app.storage = BuildDatabase(config.Database)
-
+	app.storage = s
 	// init of rabbit
-	r, appErr := broker.BuildRabbit(app.config.Rabbit, app.rabbitExitChan)
+	r, appErr := broker.BuildRabbit(&app.config.Rabbit, app.rabbitExitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
 	app.rabbit = r
+	// init of tracer
+	trace, err := initTracer(wlog.NewLogger(&wlog.LoggerConfiguration{}), &config.TracerConfig)
+	if err != nil {
+		return nil, model.NewInternalError("app.app.new.tracer_init.error", err.Error())
+	}
+	app.tracer = trace
+
+	// logger init
+	app.logger = logger
 
 	// init of grpc server
-	s, appErr := BuildServer(app, app.config.Consul, app.serverExitChan)
+	serv, appErr := BuildServer(app, &app.config.Consul, app.serverExitChan)
 	if appErr != nil {
 		return nil, appErr
 	}
-	app.server = s
+	app.server = serv
 
 	// init service connections
-	app.storageConn, err = grpc.NewClient(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
+	app.storageConn, err = grpc.NewClient(fmt.Sprintf("consul://%s/storage?wait=14s", *config.Consul.Address),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -88,7 +103,7 @@ func New(config *model.AppConfig) (*App, model.AppError) {
 
 	app.file = storage_grpc.NewFileServiceClient(app.storageConn)
 
-	app.webitelAppConn, err = grpc.NewClient(fmt.Sprintf("consul://%s/go.webitel.app?wait=14s", config.Consul.Address),
+	app.webitelAppConn, err = grpc.NewClient(fmt.Sprintf("consul://%s/go.webitel.app?wait=14s", *config.Consul.Address),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -104,6 +119,36 @@ func New(config *model.AppConfig) (*App, model.AppError) {
 	return app, nil
 }
 
+func initTracer(logger *wlog.Logger, conf *model.TracesConfig) (*tr.Tracing, model.AppError) {
+	var (
+		trace *tr.Tracing
+		err   error
+		opts  []tr.Option
+	)
+
+	if conf == nil {
+		prov := DefaultTraceProvider
+		conf = &model.TracesConfig{Provider: &prov}
+	}
+	appErr := conf.Normalize()
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	opts = append(
+		opts,
+		tr.WithServiceVersion(model.ServiceVersion),
+		tr.WithSamplerParam(1),
+		tr.WithExporter(*conf.Provider),
+		tr.WithAddress(*conf.Address),
+	)
+
+	trace, err = tr.New(logger, model.ServiceName, opts...)
+	if err != nil {
+		return nil, model.NewInternalError("app.app.init_tracer.default.create.error", err.Error())
+	}
+	return trace, nil
+}
 func (a *App) GetConfig() *model.AppConfig {
 	return a.config
 }
@@ -145,12 +190,6 @@ func (a *App) Start() model.AppError {
 	case appErr = <-a.serverExitChan:
 		a.rabbit.Stop()
 	}
-	a.StopAllWatchers()
-	appErr = a.storage.Close()
-	if appErr != nil {
-		wlog.Debug(appErr.Error())
-	}
-
 	return appErr
 }
 
@@ -166,7 +205,7 @@ func (a *App) Stop() model.AppError {
 	// close grpc connections
 	a.storageConn.Close()
 	a.webitelAppConn.Close()
-
+	a.tracer.Shutdown(context.Background())
 	return nil
 }
 
@@ -205,8 +244,12 @@ func ExtractSearchOptions(t Searcher) *model.SearchOptions {
 	return &res
 }
 
-func BuildDatabase(config *model.DatabaseConfig) storage.Storage {
-	return postgres.New(config)
+func BuildDatabase(config *model.DatabaseConfig) (storage.Storage, model.AppError) {
+	err := config.Normalize()
+	if err != nil {
+		return nil, err
+	}
+	return postgres.New(config), nil
 }
 
 func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, model.AppError) {
@@ -313,8 +356,8 @@ func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc 
 
 func (a *App) BrokerListenNewRecordLogs() model.AppError {
 
-	log := func(s string) {
-		wlog.Debug(fmt.Sprintf("[broker.record_logs.listener]: %s", s))
+	format := func(s string) string {
+		return fmt.Sprintf("[broker.record_logs.listener]: %s", s)
 	}
 	// create or connect the logger exchange
 	appErr := a.rabbit.ExchangeDeclare("logger", "topic", broker.ExchangeEnableDurable)
@@ -351,7 +394,7 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 			case message, closed := <-del:
 
 				if !closed {
-					log("channel closed, ending listening")
+					logs.Debug(format("channel closed, ending listening"))
 					return
 				}
 				// adding timeout on each handle
@@ -373,7 +416,7 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
 				}
 				if appErr != nil {
-					log(appErr.Error())
+					logs.Debug(format(appErr.Error()))
 				}
 			case <-stopper:
 				return
@@ -389,8 +432,8 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 }
 
 func (a *App) BrokerListenLoginAttempts() model.AppError {
-	log := func(s string) {
-		wlog.Debug(fmt.Sprintf("[broker.login_attempts.listener]: %s", s))
+	format := func(s string) string {
+		return fmt.Sprintf("[broker.login_attempts.listener]: %s", s)
 	}
 	sourceExchangeName := "webitel"
 	sourceExchangeKind := "topic"
@@ -424,7 +467,7 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 			select {
 			case message, closed := <-del:
 				if !closed {
-					log("channel closed, ending listening")
+					logs.Debug(format("channel closed, ending listening"))
 					return
 				}
 				// adding timeout on each handle
@@ -434,9 +477,9 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 				appErr = a.HandleRabbitLoginMessage(ctx, &message)
 				cancelContext()
 				if appErr != nil {
-					log(fmt.Sprintf("(%s) %s", message.RoutingKey, appErr.Error()))
+					logs.Debug(format(fmt.Sprintf("(%s) %s", message.RoutingKey, appErr.Error())))
 				}
-				log(fmt.Sprintf("(%s) processed", message.RoutingKey))
+				logs.Debug(format(fmt.Sprintf("(%s) processed", message.RoutingKey)))
 			case <-stopper:
 				return
 			}
@@ -489,7 +532,7 @@ func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message *amqp.De
 	)
 	err := json.Unmarshal(message.Body, &m)
 	if err != nil {
-		wlog.Debug(fmt.Sprintf("error unmarshalling message. details: %s", err.Error()))
+		logs.Debug(fmt.Sprintf("error unmarshalling message. details: %s", err.Error()), logs.LogWithContext(ctx))
 		return nil
 	}
 

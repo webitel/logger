@@ -5,11 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/webitel/webitel-go-kit/logs"
 	"time"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
-
-	"github.com/webitel/wlog"
 
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/watcher"
@@ -95,7 +94,7 @@ func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 	val.Stop()
 	delete(a.logCleaners, name)
 	a.InsertLogCleaner(configId, nil, dayseToStore)
-	wlog.Info(fmt.Sprintf("[%s]: recreated with new parameters", name))
+	logs.Info(fmt.Sprintf("[%s]: recreated with new parameters", name))
 }
 
 func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherRoutine {
@@ -103,9 +102,9 @@ func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.Watcher
 	return func() {
 		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
 		if err != nil {
-			wlog.Info(fmt.Sprintf("[%s]: %s", name, err.Error()))
+			logs.Info(fmt.Sprintf("[%s]: %s", name, err.Error()))
 		} else {
-			wlog.Info(fmt.Sprintf("[%s]: cleaned %d rows", name, res))
+			logs.Info(fmt.Sprintf("[%s]: cleaned %d rows", name, res))
 		}
 	}
 }
@@ -170,7 +169,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 					ComparisonType: model.GreaterThan,
 				})
 			}
-			logs, appErr := a.storage.Log().Get(context.Background(), &model.SearchOptions{
+			records, appErr := a.storage.Log().Get(context.Background(), &model.SearchOptions{
 				Sort: "-id",
 			}, &model.FilterNode{
 				Nodes:      filters,
@@ -178,42 +177,42 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 			})
 			if appErr != nil {
 				if !IsErrNoRows(appErr) {
-					wlog.Info(format(appErr.Error()))
+					logs.Info(format(appErr.Error()))
 					return
 				}
-				wlog.Info(format("no new logs..."))
+				logs.Info(format("no new logs..."))
 				return
 			}
-			convertedLogs, appErr := convertLogModelToMessageBulk(logs)
+			convertedLogs, appErr := convertLogModelToMessageBulk(records)
 			if appErr != nil {
-				wlog.Info(format(appErr.Error()))
+				logs.Info(format(appErr.Error()))
 				return
 			}
 			buf := &bytes.Buffer{}
 			s := proto.Logs{Items: convertedLogs}
 			encodeResult, err := json.Marshal(s)
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				logs.Info(format(err.Error()))
 				return
 			}
 			_, err = buf.Write(encodeResult)
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				logs.Info(format(err.Error()))
 				return
 			}
 			year, month, day := time.Now().Date()
 			fileName := fmt.Sprintf("log_%d_%d_%s_%d.json", configId, year, month, day)
-			uuid := fmt.Sprintf("%s-%d", logs[0].Object.Name, configId)
+			uuid := fmt.Sprintf("%s-%d", records[0].Object.Name, configId)
 			_, err = a.UploadFile(context.Background(), int64(params.DomainId), uuid, params.StorageId, buf, model.File{
 				Name:     fileName,
 				MimeType: "application/json",
 				ViewName: &fileName,
 			})
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				logs.Info(format(err.Error()))
 				return
 			}
-			lastLogId := logs[0].Id
+			lastLogId := records[0].Id
 			nextUpload := calculateNextPeriodFromNow(int32(params.Period))
 
 			params.NextUploadOn = calculateNextPeriodFromNow(int32(params.Period))
@@ -221,7 +220,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 
 			nullLogId, err := model.NewNullInt(convertedLogs[0].Id)
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				logs.Info(format(err.Error()))
 				return
 			}
 			_, appErr = a.storage.Config().Update(
@@ -235,10 +234,10 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 				params.UserId,
 			)
 			if appErr != nil {
-				wlog.Info(format(appErr.Error()))
+				logs.Info(format(appErr.Error()))
 				return
 			}
-			wlog.Info(format("logs successfully uploaded to the storage!"))
+			logs.Info(format("logs successfully uploaded to the storage!"))
 		}
 	}
 }

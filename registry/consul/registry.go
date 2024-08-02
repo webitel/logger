@@ -5,7 +5,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/registry"
-	"github.com/webitel/wlog"
+	"github.com/webitel/webitel-go-kit/logs"
 	"net"
 	"strconv"
 )
@@ -20,10 +20,10 @@ func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppEr
 		err error
 	)
 	entity := ConsulRegistry{}
-	if config.Id == "" {
+	if *config.Id == "" {
 		return nil, model.NewBadRequestError("consul.registry.new_consul.check_args.service_id", "service id is empty! (set it by '-id' flag)")
 	}
-	ip, port, err := net.SplitHostPort(config.PublicAddress)
+	ip, port, err := net.SplitHostPort(*config.PublicAddress)
 	if err != nil {
 		return nil, model.NewBadRequestError("consul.registry.new_consul.parse_address.error", "unable to parse address")
 	}
@@ -33,21 +33,21 @@ func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppEr
 	}
 
 	consulConfig := consulapi.DefaultConfig()
-	consulConfig.Address = config.Address
+	consulConfig.Address = *config.Address
 	entity.client, err = consulapi.NewClient(consulConfig)
 	if err != nil {
 		return nil, model.NewBadRequestError("consul.registry.new_consul_registry.consulapi_creation.error", err.Error())
 	}
 
 	entity.registrationConfig = &consulapi.AgentServiceRegistration{
-		ID:      config.Id,
+		ID:      *config.Id,
 		Name:    registry.ServiceName,
 		Port:    parsedPort,
 		Address: ip,
 		Check: &consulapi.AgentServiceCheck{
 			DeregisterCriticalServiceAfter: registry.DeregisterCriticalServiceAfter.String(),
-			CheckID:                        config.Id,
-			TCP:                            config.PublicAddress,
+			CheckID:                        *config.Id,
+			TCP:                            *config.PublicAddress,
 			Interval:                       registry.CheckInterval.String(),
 		},
 	}
@@ -60,7 +60,7 @@ func (c *ConsulRegistry) Register() model.AppError {
 	if err != nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
 	}
-	wlog.Info(fmtConsulLog("service was registered"))
+	logs.Info(fmtConsulLog("service was registered"))
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (c *ConsulRegistry) Deregister() model.AppError {
 	if err != nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
 	}
-	wlog.Info(fmtConsulLog("service was deregistered"))
+	logs.Info(fmtConsulLog("service was deregistered"))
 	return nil
 }
 

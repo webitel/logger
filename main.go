@@ -1,15 +1,16 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"github.com/BoRuDar/configuration/v4"
 	"github.com/webitel/logger/app"
 	"github.com/webitel/logger/model"
+	"github.com/webitel/webitel-go-kit/logs"
 	"github.com/webitel/wlog"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var (
@@ -17,22 +18,25 @@ var (
 )
 
 func main() {
-	//flagDefine()
-	log := wlog.NewLogger(&wlog.LoggerConfiguration{
-		EnableConsole: true,
-		ConsoleLevel:  wlog.LevelDebug,
-	})
-
-	wlog.RedirectStdLog(log)
-	wlog.InitGlobalLogger(log)
-
 	config, appErr := loadConfig()
 	if appErr != nil {
 		wlog.Critical(appErr.Error())
 		return
 	}
-	// * Create an application layer
-	app, appErr := app.New(config)
+	appErr = config.Normalize()
+	if appErr != nil {
+		wlog.Critical(appErr.Error())
+		return
+	}
+
+	// init of logger
+	externalLogger, appErr := initLogger(&config.LoggerConfig)
+	if appErr != nil {
+		wlog.Critical(appErr.Error())
+		return
+	}
+	// Create an application layer
+	app, appErr := app.New(config, externalLogger)
 	if appErr != nil {
 		wlog.Critical(appErr.Error())
 		return
@@ -70,19 +74,52 @@ func handleSignals(signal os.Signal, app *app.App) {
 func loadConfig() (*model.AppConfig, model.AppError) {
 	var appConfig model.AppConfig
 
-	configurator := configuration.New(
-		&appConfig,
-		// order of execution will be preserved:
-		configuration.NewFlagProvider(),
-		configuration.NewEnvProvider(),
-		configuration.NewDefaultProvider(),
-	).SetOptions(
-		configuration.OnFailFnOpt(func(err error) {
-			log.Printf(err.Error())
-		}))
+	// Tracer
+	appConfig.TracerConfig.Provider = flag.String("tracing_provider", "", "Collector's type (otlp|stdout|jaeger)")
+	appConfig.TracerConfig.Address = flag.String("tracing_address", "", "Connection to the tracer collector endpoint if needed (format x.x.x.x:xxxx)")
+	// Logger
+	appConfig.LoggerConfig.Provider = flag.String("logging_provider", "", "Collector's type (otlp|stdout|wlog)")
+	appConfig.LoggerConfig.Address = flag.String("logging_address", "", "Connection to the logger collector endpoint if needed (format x.x.x.x:xxxx)")
+	appConfig.LoggerConfig.LogLevel = flag.String("logging_level", "info", "Connection to the logger collector endpoint if needed (format x.x.x.x:xxxx)")
 
-	if err := configurator.InitValues(); err != nil {
-		return nil, model.NewInternalError("main.main.unmarshal_config.bad_arguments.parse_fail", err.Error())
-	}
+	// Consul
+	appConfig.Consul.Id = flag.String("id", "1", "Service tag")
+	appConfig.Consul.Address = flag.String("consul", "", "Host to consul")
+	appConfig.Consul.PublicAddress = flag.String("grpc_addr", "", "Public grpc address with port")
+	// Database
+	appConfig.Database.Url = flag.String("data_source", "", "Data source")
+	// Rabbit
+	appConfig.Rabbit.Url = flag.String("amqp", "", "AMQP connection")
+
+	flag.Parse()
+
 	return &appConfig, nil
+}
+
+func initLogger(conf *model.LogsConfig) (*logs.DynamicLogger, model.AppError) {
+	if conf == nil {
+		p := "wlog"
+		conf = &model.LogsConfig{Provider: &p}
+	}
+	appErr := conf.Normalize()
+	if appErr != nil {
+		return nil, appErr
+	}
+
+	defaultOut := wlog.NewLogger(&wlog.LoggerConfiguration{EnableConsole: true, ConsoleLevel: wlog.LevelDebug})
+
+	l, err := logs.New(
+		defaultOut,
+		logs.WithTimeout(time.Second*5),
+		logs.WithAddress(*conf.Address),
+		logs.WithServiceName(model.ServiceName),
+		logs.WithServiceVersion(model.ServiceVersion),
+		logs.WithExporter(*conf.Provider),
+		logs.WithLogLevel(*conf.LogLevel),
+	)
+
+	if err != nil {
+		return nil, model.NewInternalError("app.app.init_logger.default.create.error", err.Error())
+	}
+	return l, nil
 }

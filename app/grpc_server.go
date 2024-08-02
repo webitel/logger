@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"github.com/webitel/logger/registry"
 	"github.com/webitel/logger/registry/consul"
+	"github.com/webitel/webitel-go-kit/errors"
+	"github.com/webitel/webitel-go-kit/logs"
+	_ "go.opentelemetry.io/otel"
 	"net"
 	"net/http"
 	"strings"
@@ -13,7 +16,7 @@ import (
 	"github.com/webitel/logger/model"
 
 	proto_grpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
-	"github.com/webitel/wlog"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -41,7 +44,7 @@ func BuildServer(app *App, config *model.ConsulConfig, exitChan chan model.AppEr
 		return nil, appErr
 	}
 	//  * Open tcp connection
-	listener, err := net.Listen("tcp", config.PublicAddress)
+	listener, err := net.Listen("tcp", *config.PublicAddress)
 	if err != nil {
 		return nil, model.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
 	}
@@ -82,12 +85,12 @@ func (a *AppServer) Stop() model.AppError {
 
 func (a *AppServer) stopGrpcServer() model.AppError {
 	a.server.Stop()
-	wlog.Info("grpc: server stopped")
+	logs.Info("grpc: server stopped")
 	return nil
 }
 
 func buildGrpc(app *App) (*grpc.Server, model.AppError) {
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor), grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	// * Creating services
 	l, appErr := NewLoggerService(app)
 	if appErr != nil {
@@ -125,7 +128,7 @@ func unaryInterceptor(ctx context.Context,
 	h, err := handler(reqCtx, req)
 
 	if err != nil {
-		wlog.Error(fmt.Sprintf("[%s] method %s duration %s, error: %v", ip, info.FullMethod, time.Since(start), err.Error()))
+		logs.Error(errors.NewInternalError("app.grpc_server.unary_interceptor.handle_request.error", fmt.Sprintf("[%s] method %s duration %s, error: %v", ip, info.FullMethod, time.Since(start), err.Error())), logs.LogWithContext(ctx))
 
 		switch err.(type) {
 		case model.AppError:
@@ -135,7 +138,7 @@ func unaryInterceptor(ctx context.Context,
 			return h, err
 		}
 	} else {
-		wlog.Debug(fmt.Sprintf("[%s] method %s duration %s", ip, info.FullMethod, time.Since(start)))
+		logs.Debug(fmt.Sprintf("[%s] method %s duration %s", ip, info.FullMethod, time.Since(start)), logs.LogWithContext(ctx))
 	}
 
 	return h, err

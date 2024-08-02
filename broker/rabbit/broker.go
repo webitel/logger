@@ -2,13 +2,12 @@ package rabbit
 
 import (
 	"fmt"
+	"github.com/webitel/webitel-go-kit/logs"
 	"log"
 	"time"
 
-	"github.com/webitel/logger/model"
-	"github.com/webitel/wlog"
-
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/webitel/logger/model"
 )
 
 const MaxReconnectAttempts = 100
@@ -24,6 +23,10 @@ type RabbitBroker struct {
 }
 
 func BuildRabbit(config *model.RabbitConfig, errChan chan<- model.AppError) (*RabbitBroker, model.AppError) {
+	err := config.Normalize()
+	if err != nil {
+		return nil, err
+	}
 	return &RabbitBroker{
 		config:           config,
 		emergencyStopper: errChan,
@@ -62,7 +65,7 @@ func (l *RabbitBroker) Stop() {
 	if l.connection != nil {
 		l.connection.Close()
 	}
-	defer wlog.Info(fmtBrokerLog("connection gracefully closed"))
+	defer logs.Info(fmtBrokerLog("connection gracefully closed"))
 }
 
 var (
@@ -71,7 +74,7 @@ var (
 			select {
 			case amqpErr, _ := <-l.amqpCloseNotifier:
 				if amqpErr.Reason != "" {
-					wlog.Info(fmtBrokerLog(fmt.Sprintf("connection lost, %s", amqpErr.Reason)))
+					logs.Info(fmtBrokerLog(fmt.Sprintf("connection lost, %s", amqpErr.Reason)))
 				}
 
 				var (
@@ -87,7 +90,7 @@ var (
 					reconnectErr := l.reconnect()
 					if reconnectErr != nil {
 						reconnectAttempts++
-						wlog.Info(fmtBrokerLog(reconnectErr.Error()))
+						logs.Info(fmtBrokerLog(reconnectErr.Error()))
 						//time.Sleep(time.Second * 10)
 					} else {
 						continueReconnection = false
@@ -102,7 +105,7 @@ var (
 )
 
 func (l *RabbitBroker) connect() model.AppError {
-	conn, err := amqp.Dial(l.config.Url)
+	conn, err := amqp.Dial(*l.config.Url)
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.listen.server_connect.fail", err.Error())
 	}
@@ -118,13 +121,13 @@ func (l *RabbitBroker) connect() model.AppError {
 	if err != nil {
 		log.Fatalf("basic.qos: %v", err)
 	} // log.Fatalf?
-	wlog.Info(fmtBrokerLog("connection and amqp channel are opened"))
+	logs.Info(fmtBrokerLog("connection and amqp channel are opened"))
 	return nil
 }
 
 func (l *RabbitBroker) reconnect() model.AppError {
 	// try to create new connection channel
-	wlog.Debug(fmtBrokerLog("trying to reconnect"))
+	logs.Debug(fmtBrokerLog("trying to reconnect"))
 	err := l.connect()
 	if err != nil {
 		return err
@@ -179,7 +182,7 @@ func (l *RabbitBroker) ExchangeDeclare(exchangeName string, kind string, opts ..
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.exchange_declare.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s] exchange declared", exchangeName)))
+	logs.Info(fmtBrokerLog(fmt.Sprintf("[%s] exchange declared", exchangeName)))
 	return nil
 }
 
@@ -200,7 +203,7 @@ func (l *RabbitBroker) QueueDeclare(queueName string, opts ...QueueDeclareOption
 	if err != nil {
 		return "", model.NewInternalError("rabbit.listener.queue_declare.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue declared", queueName)))
+	logs.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue declared", queueName)))
 	return queueName, nil
 }
 
@@ -209,7 +212,7 @@ func (l *RabbitBroker) QueueBind(exchangeName string, queueName string, routingK
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.queue_bind.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] queue bind", exchangeName, routingKey, queueName)))
+	logs.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] queue bind", exchangeName, routingKey, queueName)))
 	return nil
 }
 
@@ -218,7 +221,7 @@ func (l *RabbitBroker) Consume(queueName string, consumerName string) (<-chan am
 	if err != nil {
 		return nil, model.NewInternalError("rabbit.listener.consume.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue started to consume", queueName)))
+	logs.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue started to consume", queueName)))
 	return ch, nil
 }
 
@@ -227,7 +230,7 @@ func (l *RabbitBroker) ExchangeBind(destination string, key string, source strin
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.exchange_bind.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] exchange binded", source, key, destination)))
+	logs.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] exchange binded", source, key, destination)))
 	return nil
 }
 

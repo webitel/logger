@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 
-	"github.com/webitel/wlog"
+	"log/slog"
 
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/watcher"
@@ -17,7 +18,6 @@ import (
 
 // region COMMON
 func (a *App) initializeWatchers() model.AppError {
-
 	configs, appErr := a.storage.Config().Get(
 		context.Background(),
 		nil,
@@ -86,7 +86,10 @@ func (a *App) DeleteLogCleaner(configId ...int) {
 
 }
 
-func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
+func (a *App) UpdateLogCleanerWithNewInterval(ctx context.Context, configId, daysToStore int) {
+	ctx, span := a.tracer.Start(ctx, "app.UpdateLogCleaner")
+	defer span.End()
+	span.SetAttributes(attribute.Int("worker.interval", daysToStore))
 	name := FormatKey(DeleteWatcherPrefix, configId)
 	val, ok := a.logCleaners[name]
 	if !ok {
@@ -94,18 +97,24 @@ func (a *App) UpdateLogCleanerWithNewInterval(configId, dayseToStore int) {
 	}
 	val.Stop()
 	delete(a.logCleaners, name)
-	a.InsertLogCleaner(configId, nil, dayseToStore)
-	wlog.Info(fmt.Sprintf("[%s]: recreated with new parameters", name))
+	a.InsertLogCleaner(configId, nil, daysToStore)
+	slog.InfoContext(ctx, fmt.Sprintf("[%s]: recreated with new parameters", name))
 }
 
 func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherRoutine {
 	name := FormatKey(DeleteWatcherPrefix, configId)
+	logAttr := slog.Group(
+		"worker",
+		slog.String("name", name),
+		slog.Int("config_id", configId),
+		slog.Int("period", daysToStore),
+	)
 	return func() {
 		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
 		if err != nil {
-			wlog.Info(fmt.Sprintf("[%s]: %s", name, err.Error()))
+			slog.Warn(fmt.Sprintf("[%s]: %s", name, err.Error()), logAttr)
 		} else {
-			wlog.Info(fmt.Sprintf("[%s]: cleaned %d rows", name, res))
+			slog.Debug(fmt.Sprintf("[%s]: cleaned %d rows", name, res), logAttr, slog.Int("cleaned", res))
 		}
 	}
 }
@@ -152,11 +161,20 @@ func (a *App) InsertLogUploader(configId int, startParams *watcher.StarterParams
 }
 
 func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.WatcherRoutine {
+	name := FormatKey(UploadWatcherPrefix, configId)
 	format := func(text string) string {
-		return fmt.Sprintf("[%s]: %s", FormatKey(UploadWatcherPrefix, configId), text)
+		return fmt.Sprintf("[%s]: %s", name, text)
 	}
 	return func() {
 		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {
+			logAttr := slog.Group(
+				"worker",
+				slog.String("name", name),
+				slog.Int("config_id", configId),
+				slog.Int64("domain", params.DomainId),
+				slog.Int("period", params.Period),
+				slog.Int("storage", params.StorageId),
+			)
 			filters := []any{
 				&model.Filter{
 					Column:         "config_id",
@@ -178,27 +196,27 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 			})
 			if appErr != nil {
 				if !IsErrNoRows(appErr) {
-					wlog.Info(format(appErr.Error()))
+					slog.Warn(format(appErr.Error()), logAttr)
 					return
 				}
-				wlog.Info(format("no new logs..."))
+				slog.Info(format("no new logs..."))
 				return
 			}
 			convertedLogs, appErr := convertLogModelToMessageBulk(logs)
 			if appErr != nil {
-				wlog.Info(format(appErr.Error()))
+				slog.Warn(format(appErr.Error()), logAttr)
 				return
 			}
 			buf := &bytes.Buffer{}
 			s := proto.Logs{Items: convertedLogs}
 			encodeResult, err := json.Marshal(s)
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				slog.Warn(format(err.Error()), logAttr)
 				return
 			}
 			_, err = buf.Write(encodeResult)
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				slog.Warn(format(err.Error()), logAttr)
 				return
 			}
 			year, month, day := time.Now().Date()
@@ -210,7 +228,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 				ViewName: &fileName,
 			})
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				slog.Warn(format(err.Error()), logAttr)
 				return
 			}
 			lastLogId := logs[0].Id
@@ -221,7 +239,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 
 			nullLogId, err := model.NewNullInt(convertedLogs[0].Id)
 			if err != nil {
-				wlog.Info(format(err.Error()))
+				slog.Warn(format(err.Error()), logAttr)
 				return
 			}
 			_, appErr = a.storage.Config().Update(
@@ -235,10 +253,10 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 				params.UserId,
 			)
 			if appErr != nil {
-				wlog.Info(format(appErr.Error()))
+				slog.Warn(format(appErr.Error()), logAttr)
 				return
 			}
-			wlog.Info(format("logs successfully uploaded to the storage!"))
+			slog.Info(format("logs successfully uploaded to the storage!"), logAttr)
 		}
 	}
 }

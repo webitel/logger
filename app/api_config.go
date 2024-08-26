@@ -5,6 +5,8 @@ import (
 	"context"
 	authmodel "github.com/webitel/logger/auth/model"
 	"github.com/webitel/logger/model"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type ConfigService struct {
@@ -21,6 +23,7 @@ func NewConfigService(app *App) (*ConfigService, model.AppError) {
 // ReadConfig selects config by id
 func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequest) (*proto.Config, error) {
 	var rbac *model.RbacOptions
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -45,6 +48,7 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 }
 
 func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Bool("include_existing", request.GetIncludeExisting()))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -59,6 +63,9 @@ func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Re
 
 // ReadConfigByObjectId used for internal purpose
 func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.ReadConfigByObjectIdRequest) (*proto.Config, error) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.Int("domain.id", int(in.GetDomainId())))
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("object.id", int(in.GetObjectId())))
 	resModel, err := s.app.GetConfigByObjectId(ctx, int(in.GetDomainId()), int(in.GetObjectId()))
 	if err != nil {
 		return nil, err
@@ -68,6 +75,9 @@ func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.Read
 
 // ReadConfigByObjectId used for internal purpose with client, checks if config enabled
 func (s *ConfigService) CheckConfigStatus(ctx context.Context, in *proto.CheckConfigStatusRequest) (*proto.ConfigStatus, error) {
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(attribute.Int("domain.id", int(in.GetDomainId())))
+	GroupAttributesAndBindToSpan(ctx, "in", attribute.String("object.name", in.GetObjectName()))
 	isEnabled, err := s.app.CheckConfigStatus(ctx, in.GetObjectName(), in.GetDomainId())
 	if err != nil {
 		return nil, err
@@ -82,6 +92,7 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 		rbac *model.RbacOptions
 		res  proto.Configs
 	)
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.String("q", in.GetQ()))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -119,6 +130,7 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 
 // UpdateConfig updates existing config
 func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfigRequest) (*proto.Config, error) {
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -154,6 +166,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 
 // PatchConfig updates existing config
 func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRequest) (*proto.Config, error) {
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -207,11 +220,13 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 	if err != nil {
 		return nil, err
 	}
+	GroupOutgoingAttributesAndBindToSpan(ctx, attribute.Int("config.id", resModel.Id))
 	return ConvertConfigModelToMessage(resModel)
 }
 
 // DeleteConfig deletes config by id
 func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/webitel/wlog"
+	"log/slog"
 )
 
 type WatcherRoutine func()
@@ -82,9 +82,10 @@ func NewUploadWatcher(name string, startParams *StarterParams, customExecutionPa
 }
 
 func (w *Watcher) Start() {
-	wlog.Debug(fmt.Sprintf("[%s] started", w.name))
+	logAttr := slog.Group("worker", slog.String("name", w.name), slog.Duration("interval", w.interval))
+	slog.Debug(fmt.Sprintf("[%s] started", w.name), logAttr)
 	defer func() {
-		wlog.Debug(fmt.Sprintf("[%s] finished", w.name))
+		slog.Debug(fmt.Sprintf("[%s] finished", w.name), logAttr)
 		close(w.stop)
 	}()
 	if w.startParams != nil {
@@ -95,7 +96,7 @@ func (w *Watcher) Start() {
 	}
 
 	for {
-		wlog.Info(fmt.Sprintf("[%s] will run every %d hours", w.name, w.interval/time.Hour))
+		slog.Debug(fmt.Sprintf("[%s] routine call", w.name), logAttr)
 		select {
 		case <-w.stop:
 			return

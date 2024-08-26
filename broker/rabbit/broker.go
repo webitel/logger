@@ -2,11 +2,10 @@ package rabbit
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/webitel/logger/model"
-	"github.com/webitel/wlog"
+	"log/slog"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -62,7 +61,7 @@ func (l *RabbitBroker) Stop() {
 	if l.connection != nil {
 		l.connection.Close()
 	}
-	defer wlog.Info(fmtBrokerLog("connection gracefully closed"))
+	defer slog.Info(fmtBrokerLog("connection gracefully closed"))
 }
 
 var (
@@ -70,9 +69,7 @@ var (
 		for {
 			select {
 			case amqpErr, _ := <-l.amqpCloseNotifier:
-				if amqpErr.Reason != "" {
-					wlog.Info(fmtBrokerLog(fmt.Sprintf("connection lost, %s", amqpErr.Reason)))
-				}
+				slog.Warn(fmtBrokerLog(fmt.Sprintf("connection lost %s", amqpErr.Reason)), slog.Int("code", amqpErr.Code))
 
 				var (
 					continueReconnection = true
@@ -87,7 +84,7 @@ var (
 					reconnectErr := l.reconnect()
 					if reconnectErr != nil {
 						reconnectAttempts++
-						wlog.Info(fmtBrokerLog(reconnectErr.Error()))
+						slog.Warn(fmtBrokerLog(reconnectErr.Error()), slog.Int("attempt", reconnectAttempts))
 						//time.Sleep(time.Second * 10)
 					} else {
 						continueReconnection = false
@@ -116,15 +113,15 @@ func (l *RabbitBroker) connect() model.AppError {
 
 	err = channel.Qos(1, 0, false)
 	if err != nil {
-		log.Fatalf("basic.qos: %v", err)
-	} // log.Fatalf?
-	wlog.Info(fmtBrokerLog("connection and amqp channel are opened"))
+		return model.NewInternalError("rabbit.listener.listen.qos.fail", err.Error())
+	}
+	slog.Info(fmtBrokerLog("connection and amqp channel are opened"))
 	return nil
 }
 
 func (l *RabbitBroker) reconnect() model.AppError {
 	// try to create new connection channel
-	wlog.Debug(fmtBrokerLog("trying to reconnect"))
+	slog.Debug(fmtBrokerLog("trying to reconnect"))
 	err := l.connect()
 	if err != nil {
 		return err
@@ -179,7 +176,7 @@ func (l *RabbitBroker) ExchangeDeclare(exchangeName string, kind string, opts ..
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.exchange_declare.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s] exchange declared", exchangeName)))
+	slog.Info(fmtBrokerLog(fmt.Sprintf("[%s] exchange declared", exchangeName)), slog.String("name", exchangeName))
 	return nil
 }
 
@@ -200,7 +197,7 @@ func (l *RabbitBroker) QueueDeclare(queueName string, opts ...QueueDeclareOption
 	if err != nil {
 		return "", model.NewInternalError("rabbit.listener.queue_declare.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue declared", queueName)))
+	slog.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue declared", queueName)), slog.String("name", queueName))
 	return queueName, nil
 }
 
@@ -209,7 +206,7 @@ func (l *RabbitBroker) QueueBind(exchangeName string, queueName string, routingK
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.queue_bind.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] queue bind", exchangeName, routingKey, queueName)))
+	slog.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] queue bind", exchangeName, routingKey, queueName)), slog.String("exchange", exchangeName), slog.String("routing", routingKey), slog.String("receiver", queueName))
 	return nil
 }
 
@@ -218,7 +215,7 @@ func (l *RabbitBroker) Consume(queueName string, consumerName string) (<-chan am
 	if err != nil {
 		return nil, model.NewInternalError("rabbit.listener.consume.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue started to consume", queueName)))
+	slog.Info(fmtBrokerLog(fmt.Sprintf("[%s] queue started to consume", queueName)), slog.String("name", queueName))
 	return ch, nil
 }
 
@@ -227,7 +224,7 @@ func (l *RabbitBroker) ExchangeBind(destination string, key string, source strin
 	if err != nil {
 		return model.NewInternalError("rabbit.listener.exchange_bind.request.fail", err.Error())
 	}
-	wlog.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] exchange binded", source, key, destination)))
+	slog.Info(fmtBrokerLog(fmt.Sprintf("[%s]->(%s)->[%s] exchange binded", source, key, destination)), slog.String("source", source), slog.String("routing", key), slog.String("destination", destination))
 	return nil
 }
 

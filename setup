@@ -1,0 +1,38 @@
+# OpenTelemetry Logger Configuration
+OTEL_LOG_LEVEL=debug
+
+### stdout ; stderr ; file ; otlphttp ; otlpgrpc ###
+OTEL_LOG_EXPORT=otlpgrpc
+OTEL_LOG_EXPORT=stdout
+
+
+
+# text ; json ; otel
+OTEL_LOG_FORMAT=text
+
+OTEL_LOG_FORMAT_TIMESTAMP="2006-01-02 15:04:05.000000Z07:00"
+
+### OpenTelemetry Tracing Configuration ###
+### stdout ; otlphttp ; otlpgrpc ###
+OTEL_TRACE_EXPORT=otlpgrpc
+
+### OpenTelemetry Metrics Configuration ###
+### stdout ; otlphttp ; otlpgrpc ###
+export OTEL_METRIC_EXPORT=
+
+# OpenTelemetry Exporter Endpoints Configuration
+#export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=
+#export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=
+#export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=
+
+# OpenTelemetry Exporter OTLP Configuration
+#export OTEL_EXPORTER_OTLP_INSECURE=false
+OTEL_EXPORTER_OTLP_ENDPOINT=http://10.10.10.200:4317
+
+
+OTEL_LOG_LEVEL=debug
+OTEL_LOG_EXPORT=otlpgrpc
+OTEL_LOG_EXPORT=stdout
+OTEL_LOG_FORMAT=text
+OTEL_LOG_FORMAT_TIMESTAMP="2006-01-02 15:04:05.000000Z07:00"
+OTEL_EXPORTER_OTLP_ENDPOINT=http://10.10.10.200:4317

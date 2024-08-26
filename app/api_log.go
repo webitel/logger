@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	authmodel "github.com/webitel/logger/auth/model"
+	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	"github.com/webitel/logger/model"
@@ -25,7 +26,7 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	var (
 		res proto.Logs
 	)
-
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("record.id", int(in.GetRecordId())), attribute.String("object", in.GetObject().String()))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -68,6 +69,7 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	var (
 		res proto.Logs
 	)
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("user.id", int(in.GetUserId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -112,6 +114,7 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	var (
 		res proto.Logs
 	)
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err

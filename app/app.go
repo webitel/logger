@@ -11,7 +11,10 @@ import (
 	authmodel "github.com/webitel/logger/auth/model"
 	"github.com/webitel/logger/auth/webitel_manager"
 	broker "github.com/webitel/logger/broker/rabbit"
-	"github.com/webitel/wlog"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +43,7 @@ const (
 
 type App struct {
 	config         *model.AppConfig
+	tracer         trace.Tracer
 	storage        storage.Storage
 	file           storage_grpc.FileServiceClient
 	logUploaders   map[string]*watcher.UploadWatcher
@@ -54,9 +58,8 @@ type App struct {
 }
 
 func New(config *model.AppConfig) (*App, model.AppError) {
-	app := &App{config: config, rabbitExitChan: make(chan model.AppError), serverExitChan: make(chan model.AppError)}
+	app := &App{config: config, rabbitExitChan: make(chan model.AppError), serverExitChan: make(chan model.AppError), tracer: otel.GetTracerProvider().Tracer("app_internal")}
 	var err error
-
 	// init of database
 	if &config.Database == nil {
 		return nil, model.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
@@ -148,7 +151,7 @@ func (a *App) Start() model.AppError {
 	a.StopAllWatchers()
 	appErr = a.storage.Close()
 	if appErr != nil {
-		wlog.Debug(appErr.Error())
+		slog.Error(appErr.Error())
 	}
 
 	return appErr
@@ -210,6 +213,7 @@ func BuildDatabase(config *model.DatabaseConfig) storage.Storage {
 }
 
 func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, model.AppError) {
+	span := trace.SpanFromContext(ctx)
 	session, err := a.sessionManager.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -217,6 +221,7 @@ func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, mod
 	if session.IsExpired() {
 		return nil, model.NewUnauthorizedError("app.app.authorize_from_context.validate_session.expired", "session expired")
 	}
+	span.SetAttributes(attribute.Int64("caller_user.id", session.GetUserId()), attribute.Int64("caller_user.domain", session.GetDomainId()))
 	return session, nil
 }
 
@@ -313,8 +318,8 @@ func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc 
 
 func (a *App) BrokerListenNewRecordLogs() model.AppError {
 
-	log := func(s string) {
-		wlog.Debug(fmt.Sprintf("[broker.record_logs.listener]: %s", s))
+	formatLog := func(s string) string {
+		return fmt.Sprintf("[broker.record_logs.listener]: %s", s)
 	}
 	// create or connect the logger exchange
 	appErr := a.rabbit.ExchangeDeclare("logger", "topic", broker.ExchangeEnableDurable)
@@ -349,9 +354,10 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 		for {
 			select {
 			case message, closed := <-del:
-
+				logAttr := slog.Group("message", slog.String("routing", message.RoutingKey), slog.String("body", string(message.Body)))
+				//logAttr := []any{"routing", message.RoutingKey, "body", string(message.Body)}
 				if !closed {
-					log("channel closed, ending listening")
+					slog.Warn(formatLog("channel closed, ending listening"), logAttr)
 					return
 				}
 				// adding timeout on each handle
@@ -366,16 +372,20 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 					} else {
 						message.Nack(false, true)
 					}
+					slog.Warn(formatLog(appErr.Error()), logAttr)
 					continue
 				}
 				err = message.Ack(false)
 				if err != nil {
 					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
+					err = nil
 				}
 				if appErr != nil {
-					log(appErr.Error())
+					slog.Warn(appErr.Error(), logAttr)
 				}
+				slog.Info(formatLog("message processed"), logAttr)
 			case <-stopper:
+				slog.Info(formatLog(fmt.Sprintf("consuming stopped")))
 				return
 			}
 		}
@@ -389,8 +399,8 @@ func (a *App) BrokerListenNewRecordLogs() model.AppError {
 }
 
 func (a *App) BrokerListenLoginAttempts() model.AppError {
-	log := func(s string) {
-		wlog.Debug(fmt.Sprintf("[broker.login_attempts.listener]: %s", s))
+	formatLog := func(s string) string {
+		return fmt.Sprintf("[broker.login_attempts.listener]: %s", s)
 	}
 	sourceExchangeName := "webitel"
 	sourceExchangeKind := "topic"
@@ -423,8 +433,10 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 		for {
 			select {
 			case message, closed := <-del:
+
+				logAttr := slog.Group("message", slog.String("routing", message.RoutingKey), slog.String("body", string(message.Body)))
 				if !closed {
-					log("channel closed, ending listening")
+					slog.Warn(formatLog("channel closed, ending listening"), logAttr)
 					return
 				}
 				// adding timeout on each handle
@@ -434,15 +446,15 @@ func (a *App) BrokerListenLoginAttempts() model.AppError {
 				appErr = a.HandleRabbitLoginMessage(ctx, &message)
 				cancelContext()
 				if appErr != nil {
-					log(fmt.Sprintf("(%s) %s", message.RoutingKey, appErr.Error()))
+					slog.Warn(formatLog(appErr.Error()), logAttr)
 				}
-				log(fmt.Sprintf("(%s) processed", message.RoutingKey))
+				slog.Info(formatLog("message processed"), logAttr)
 			case <-stopper:
+				slog.Info(formatLog(fmt.Sprintf("consuming stopped")))
 				return
 			}
 		}
 	}
-
 	err = a.rabbit.QueueStartConsume(queueName, "", handler, 5*time.Second)
 	if err != nil {
 		return err
@@ -463,11 +475,11 @@ func (a *App) HandleRabbitLoginMessage(ctx context.Context, message *amqp.Delive
 	splittedKey := strings.Split(message.RoutingKey, ".")
 	if len(splittedKey) < 4 {
 		message.Nack(false, true)
-		return model.NewInternalError("app.app.handle_rabbit_login_message.unmarshal.error", err.Error())
+		return model.NewInternalError("app.app.handle_rabbit_login_message.key.error", "provided routing key is not matching with this handler")
 	}
 
 	databaseModel, appErr := m.ConvertToDatabaseModel()
-	if err != nil {
+	if appErr != nil {
 		message.Nack(false, false)
 		return appErr
 	}
@@ -489,7 +501,7 @@ func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message *amqp.De
 	)
 	err := json.Unmarshal(message.Body, &m)
 	if err != nil {
-		wlog.Debug(fmt.Sprintf("error unmarshalling message. details: %s", err.Error()))
+		slog.Debug(fmt.Sprintf("error unmarshalling message. details: %s", err.Error()))
 		return nil
 	}
 
@@ -520,4 +532,18 @@ func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message *amqp.De
 	}
 
 	return nil
+}
+
+func GroupAttributesAndBindToSpan(ctx context.Context, rootName string, attrs ...attribute.KeyValue) {
+	span := trace.SpanFromContext(ctx)
+	group := model.NewAttributeGroup(rootName, attrs...)
+	span.SetAttributes(group.Unparse()...)
+}
+
+func GroupIncomingAttributesAndBindToSpan(ctx context.Context, attrs ...attribute.KeyValue) {
+	GroupAttributesAndBindToSpan(ctx, "in", attrs...)
+}
+
+func GroupOutgoingAttributesAndBindToSpan(ctx context.Context, attrs ...attribute.KeyValue) {
+	GroupAttributesAndBindToSpan(ctx, "out", attrs...)
 }

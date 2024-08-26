@@ -11,7 +11,6 @@ import (
 	"github.com/lib/pq"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
-	"github.com/webitel/wlog"
 )
 
 type Config struct {
@@ -130,7 +129,6 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		from p
 				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
-	wlog.Debug(query)
 	res, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.update.query.fail", err.Error())
@@ -210,8 +208,6 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 		))
 	}
 	// endregion
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	// region PREFORM
 	rows, err := base.RunWith(db).QueryContext(ctx)
 
@@ -248,8 +244,6 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 		Where("acl.subject = any( ?::int[])", pq.Array(groups)).
 		Where("acl.access & ? = ?", access, access).PlaceholderFormat(sq.Dollar)
 	base := sq.Select("1").Where(sq.Expr("exists(?)", subquery))
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	res := base.RunWith(db).QueryRowContext(ctx)
 	var ac bool
 	err := res.Scan(&ac)
@@ -265,8 +259,6 @@ func (c *Config) Delete(ctx context.Context, id int32) model.AppError {
 		return appErr
 	}
 	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).PlaceholderFormat(sq.Dollar)
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return model.NewInternalError("postgres.config.delete.query.error", err.Error())
@@ -292,8 +284,6 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 			Limit(1)
 		base = base.Where(sq.Expr("exists(?)", subquery))
 	}
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return model.NewInternalError("postgres.config.delete_many.query.error", err.Error())
@@ -313,8 +303,6 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.Object]: objId},
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId},
 	)
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get_by_object.query.fail", err.Error())
@@ -333,8 +321,6 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 		return nil, appErr
 	}
 	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id})
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
@@ -352,6 +338,7 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 		sql  string
 		args []any
 	)
+
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
@@ -363,8 +350,6 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 	default:
 		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
 	}
-
-	wlog.Debug(sql)
 	rows, err := db.QueryContext(ctx, sql, args...)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get.query_execute.fail", err.Error())

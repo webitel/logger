@@ -10,7 +10,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/webitel/logger/model"
 	"github.com/webitel/logger/storage"
-	"github.com/webitel/wlog"
 )
 
 var (
@@ -124,7 +123,6 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 	default:
 		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
 	}
-	wlog.Debug(query)
 	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
@@ -155,8 +153,6 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 		return false, model.NewBadRequestError("postgres.log.check_record.invalid_args.error", "object does not exist")
 	}
 	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
-	sql, _, _ := base.ToSql()
-	wlog.Debug(sql)
 	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
 		return false, model.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
@@ -180,8 +176,6 @@ func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) m
 	for _, log := range logs {
 		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, sq.Expr("(SELECT object_config.id FROM logger.object_config INNER JOIN directory.wbt_class ON object_config.object_id = wbt_class.id WHERE object_config.domain_id = ? AND wbt_class.name = ?)", domainId, log.Object.Name), log.Object.Name)
 	}
-	query, _, _ := base.ToSql()
-	wlog.Debug(query)
 
 	_, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
@@ -197,7 +191,6 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 	}
 
 	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
-	wlog.Debug(query)
 	rows, err := db.ExecContext(
 		ctx,
 		query,

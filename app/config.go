@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	authmodel "github.com/webitel/logger/auth/model"
+	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	"github.com/webitel/logger/watcher"
 
-	"github.com/webitel/wlog"
+	"log/slog"
 
 	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"github.com/webitel/logger/model"
@@ -29,9 +30,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int64) 
 	if err != nil {
 		return nil, err
 	}
-
-	a.UpdateConfigWatchers(oldConfig, newConfig)
-
+	a.UpdateConfigWatchers(ctx, oldConfig, newConfig)
 	return newConfig, nil
 
 }
@@ -47,11 +46,11 @@ func (a *App) PatchUpdateConfig(ctx context.Context, in *model.Config, fields []
 	if err != nil {
 		return nil, err
 	}
-	newConfig, err = a.storage.Config().Update(ctx, in, fields, int64(userId))
+	newConfig, err = a.storage.Config().Update(ctx, in, fields, userId)
 	if err != nil {
 		return nil, err
 	}
-	a.UpdateConfigWatchers(oldConfig, newConfig)
+	a.UpdateConfigWatchers(ctx, oldConfig, newConfig)
 
 	return newConfig, nil
 
@@ -81,21 +80,27 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 
 }
 
-func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
+func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *model.Config) {
+	ctx, span := a.tracer.Start(ctx, "worker.UpdateConfigWatchers")
+	defer span.End()
 	configId := newConfig.Id
 	domainId := newConfig.DomainId
+	span.SetAttributes(attribute.Int("config.id", configId))
 	if !newConfig.Enabled && oldConfig.Enabled { // changed to disabled
 		a.DeleteWatchers(configId)
-		wlog.Info(fmt.Sprintf("config with id %d disabled... watchers have been deleted !", configId))
+		span.AddEvent("config workers deleted")
+		slog.InfoContext(ctx, fmt.Sprintf("config with id %d disabled... watchers have been deleted !", configId))
 	} else if newConfig.Enabled && oldConfig.Enabled || (newConfig.Enabled && !oldConfig.Enabled) { // status wasn't changed and it's still enabled OR changed to enabled
-
-		if newConfig.DaysToStore != oldConfig.DaysToStore { // if days to store changed
-			if a.GetLogCleaner(configId) != nil { // if upload watcher exists then update it's new days to store
-				a.UpdateLogCleanerWithNewInterval(configId, newConfig.DaysToStore)
+		// if days to store changed, then we need to update cleaner worker
+		if newConfig.DaysToStore != oldConfig.DaysToStore {
+			// if cleaned exists update, otherwise insert new
+			if a.GetLogCleaner(configId) != nil {
+				a.UpdateLogCleanerWithNewInterval(ctx, configId, newConfig.DaysToStore)
 			} else {
 				a.InsertLogCleaner(configId, nil, newConfig.DaysToStore)
 			}
 		}
+		// find uploader params, if exists then update params otherwise insert new
 		if params := a.GetLogUploaderParams(configId); params != nil {
 			params.UserId = newConfig.UpdatedBy.Int64()
 			params.StorageId = newConfig.Storage.Id.Int()
@@ -110,7 +115,7 @@ func (a *App) UpdateConfigWatchers(oldConfig, newConfig *model.Config) {
 				DomainId:     domainId,
 			})
 		}
-		wlog.Info(fmt.Sprintf("config [%d]: watchers have been updated!", configId))
+		span.AddEvent("config workers updated")
 	}
 	// else status still disabled
 }
@@ -120,7 +125,7 @@ func (a *App) InsertConfig(ctx context.Context, in *model.Config, userId int64) 
 		newModel *model.Config
 	)
 	if in == nil {
-		model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
 
 	newModel, err := a.storage.Config().Insert(ctx, in, userId)
@@ -142,14 +147,11 @@ func (a *App) InsertConfig(ctx context.Context, in *model.Config, userId int64) 
 }
 
 func (a *App) GetConfigByObjectId(ctx context.Context /*opt *model.SearchOptions,*/, domainId int, objectId int) (*model.Config, model.AppError) {
-
 	res, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if appErr != nil {
 		return nil, appErr
 	}
-
 	return res, nil
-
 }
 
 func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int64) (bool, model.AppError) {

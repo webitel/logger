@@ -167,9 +167,11 @@ func (s *LoggerService) DeleteConfigLogs(ctx context.Context, request *proto.Del
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// RBAC check
-	rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode))
-	if err != nil || !rbacAccess {
-		return nil, s.app.MakeScopeError(session, scope, accessMode)
+	if scope.IsRbacUsed() {
+		rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode))
+		if err != nil || !rbacAccess {
+			return nil, s.app.MakeScopeError(session, scope, accessMode)
+		}
 	}
 
 	var olderThan time.Time

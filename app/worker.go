@@ -110,7 +110,7 @@ func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.Watcher
 		slog.Int("period", daysToStore),
 	)
 	return func() {
-		res, err := a.storage.Log().DeleteByLowerThanDate(context.Background(), time.Now().AddDate(0, 0, -daysToStore), configId)
+		res, err := a.DeleteLogs(context.Background(), configId, time.Now().AddDate(0, 0, -daysToStore))
 		if err != nil {
 			slog.Warn(fmt.Sprintf("[%s]: %s", name, err.Error()), logAttr)
 		} else {

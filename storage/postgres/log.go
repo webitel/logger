@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -124,6 +125,7 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
 	}
 	rows, err := db.QueryContext(ctx, query, args...)
+	slog.Debug(query, args)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
 	}
@@ -154,6 +156,7 @@ func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId 
 	}
 	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
 	res, err := base.RunWith(db).ExecContext(ctx)
+	slog.Debug(base.ToSql())
 	if err != nil {
 		return false, model.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
 	}
@@ -178,6 +181,7 @@ func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) m
 	}
 
 	_, err := base.RunWith(db).ExecContext(ctx)
+	slog.Debug(base.ToSql())
 	if err != nil {
 		return model.NewInternalError("postgres.log.insert.query.error", err.Error())
 	}
@@ -191,6 +195,7 @@ func (c *Log) DeleteByLowerThanDate(ctx context.Context, date time.Time, configI
 	}
 
 	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
+	slog.Debug(query)
 	rows, err := db.ExecContext(
 		ctx,
 		query,

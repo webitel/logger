@@ -15,6 +15,8 @@ type Config struct {
 	DomainId        int64
 	Description     NullString
 	LastUploadedLog NullInt
+	LogsSize        NullString
+	LogsCount       NullInt
 }
 
 // Front-end fields
@@ -33,6 +35,8 @@ var ConfigFields = struct {
 	DomainId        string
 	Description     string
 	LastUploadedLog string
+	LogsSize        string
+	LogsCount       string
 }{
 	Id:              "id",
 	Object:          "object",
@@ -47,5 +51,7 @@ var ConfigFields = struct {
 	Storage:         "storage",
 	DomainId:        "domainId",
 	Description:     "description",
-	LastUploadedLog: "last_uploaded_log",
+	LastUploadedLog: "lastUploadedLog",
+	LogsSize:        "logsSize",
+	LogsCount:       "logsCount",
 }

@@ -96,6 +96,13 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	return &metadata, nil
 }
 
+func (a *App) DeleteLogs(ctx context.Context, configId int, olderThan time.Time) (int, model.AppError) {
+	if olderThan.IsZero() {
+		olderThan = time.Now()
+	}
+	return a.storage.Log().DeleteByLowerThanDate(ctx, olderThan, configId)
+}
+
 func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) model.AppError {
 
 	model, err := convertRabbitMessageToModel(rabbitMessage)

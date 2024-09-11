@@ -152,6 +152,38 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	return &res, nil
 }
 
+func (s *LoggerService) DeleteConfigLogs(ctx context.Context, request *proto.DeleteConfigLogsRequest) (*proto.DeleteConfigLogsResponse, error) {
+	session, err := s.app.AuthorizeFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// OBAC check
+	accessMode := authmodel.Edit
+	secondaryMode := authmodel.Delete
+	scope := session.GetScope(model.ScopeLog)
+	// Edit or Delete permissions allow this operation
+	if !session.HasAccess(scope, accessMode) && !session.HasAccess(scope, secondaryMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
+	}
+	// RBAC check
+	rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode))
+	if err != nil || !rbacAccess {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
+	}
+
+	var olderThan time.Time
+	if request.GetOlderThan() != 0 {
+		olderThan = time.UnixMilli(request.OlderThan)
+	}
+	processed, err := s.app.DeleteLogs(ctx, int(request.ConfigId), olderThan)
+	if err != nil {
+		return nil, err
+	}
+
+	return &proto.DeleteConfigLogsResponse{Processed: int64(processed)}, nil
+}
+
 // Fills the
 // DateFrom, DateTo, UserIp, Actions
 func extractDefaultFiltersFromLogSearch(in LogSearcher) *model.LogFilters {

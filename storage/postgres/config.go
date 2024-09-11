@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -31,6 +32,8 @@ var (
 		model.ConfigFields.UpdatedBy:       "object_config.updated_by",
 		model.ConfigFields.Description:     "object_config.description",
 		model.ConfigFields.LastUploadedLog: "object_config.last_uploaded_log_id",
+		model.ConfigFields.LogsCount:       "(select count(l.*) from logger.log l where l.config_id = object_config.id) logs_count",
+		model.ConfigFields.LogsSize:        "(select pg_size_pretty(sum(pg_column_size(l))) from logger.log l where l.config_id = object_config.id) logs_size",
 
 		// [alias]
 		model.ConfigFields.Storage: "object_config.storage_id, file_backend_profiles.name as storage_name",
@@ -108,6 +111,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		}
 	}
 	query, args, _ := base.ToSql()
+	slog.Debug(query)
 	query = fmt.Sprintf(
 		`with p as (%s RETURNING *)
 		select p.id,
@@ -210,6 +214,7 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 	// endregion
 	// region PREFORM
 	rows, err := base.RunWith(db).QueryContext(ctx)
+	slog.Debug(base.ToSql())
 
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get_available_objects.query.fail", err.Error())
@@ -245,6 +250,7 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 		Where("acl.access & ? = ?", access, access).PlaceholderFormat(sq.Dollar)
 	base := sq.Select("1").Where(sq.Expr("exists(?)", subquery))
 	res := base.RunWith(db).QueryRowContext(ctx)
+	slog.Debug(base.ToSql())
 	var ac bool
 	err := res.Scan(&ac)
 	if err != nil {
@@ -260,6 +266,7 @@ func (c *Config) Delete(ctx context.Context, id int32) model.AppError {
 	}
 	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).PlaceholderFormat(sq.Dollar)
 	res, err := base.RunWith(db).ExecContext(ctx)
+	slog.Debug(base.ToSql())
 	if err != nil {
 		return model.NewInternalError("postgres.config.delete.query.error", err.Error())
 	}
@@ -285,6 +292,7 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 		base = base.Where(sq.Expr("exists(?)", subquery))
 	}
 	res, err := base.RunWith(db).ExecContext(ctx)
+	slog.Debug(base.ToSql())
 	if err != nil {
 		return model.NewInternalError("postgres.config.delete_many.query.error", err.Error())
 	}
@@ -304,6 +312,7 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId},
 	)
 	rows, err := base.RunWith(db).QueryContext(ctx)
+	slog.Debug(base.ToSql())
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get_by_object.query.fail", err.Error())
 	}
@@ -322,6 +331,7 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (
 	}
 	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id})
 	rows, err := base.RunWith(db).QueryContext(ctx)
+	slog.Debug(base.ToSql())
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
 	}
@@ -351,6 +361,7 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
 	}
 	rows, err := db.QueryContext(ctx, sql, args...)
+	slog.Debug(sql, args)
 	if err != nil {
 		return nil, model.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
 	}
@@ -422,6 +433,10 @@ func (c *Config) ScanRows(rows *sql.Rows) ([]*model.Config, model.AppError) {
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Description })
 			case "last_uploaded_log_id":
 				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LastUploadedLog })
+			case "logs_count":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LogsCount })
+			case "logs_size":
+				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LogsSize })
 			default:
 				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
 			}
@@ -490,7 +505,10 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 }
 
 func (c *Config) GetQueryBase(fields []string, rbac *model.RbacOptions) sq.SelectBuilder {
-	base := sq.Select(fields...).From("logger.object_config").JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").JoinClause("LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = object_config.storage_id").PlaceholderFormat(sq.Dollar)
+	base := sq.Select(fields...).From("logger.object_config").
+		JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
+		JoinClause("LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = object_config.storage_id").
+		PlaceholderFormat(sq.Dollar)
 	return c.insertRbacCondition(base, rbac)
 }
 

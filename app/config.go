@@ -322,7 +322,8 @@ func ConvertConfigModelToMessage(in *model.Config) (*proto.Config, model.AppErro
 		DaysToStore: int32(in.DaysToStore),
 		Period:      int32(in.Period),
 		Description: in.Description.String(),
-		//DomainId:    int32(in.DomainId),
+		LogsSize:    in.LogsSize.String(),
+		LogsCount:   in.LogsCount.Int64(),
 	}
 	if !in.Object.IsZero() {
 		conf.Object = &proto.Lookup{

@@ -8,11 +8,14 @@ import (
 	"log/slog"
 	"net"
 	"strconv"
+	"time"
 )
 
 type ConsulRegistry struct {
 	registrationConfig *consulapi.AgentServiceRegistration
 	client             *consulapi.Client
+	stop               chan any
+	checkId            string
 }
 
 func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppError) {
@@ -47,19 +50,37 @@ func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppEr
 		Check: &consulapi.AgentServiceCheck{
 			DeregisterCriticalServiceAfter: registry.DeregisterCriticalServiceAfter.String(),
 			CheckID:                        config.Id,
-			TCP:                            config.PublicAddress,
-			Interval:                       registry.CheckInterval.String(),
+			TTL:                            registry.CheckInterval.String(),
 		},
 	}
+	entity.stop = make(chan any)
 
 	return &entity, nil
 }
 
 func (c *ConsulRegistry) Register() model.AppError {
-	err := c.client.Agent().ServiceRegister(c.registrationConfig)
+	agent := c.client.Agent()
+	err := agent.ServiceRegister(c.registrationConfig)
 	if err != nil {
+		return model.NewInternalError("consul.registry.consul.call_register.error", err.Error())
+	}
+	var checks map[string]*consulapi.AgentCheck
+	if checks, err = agent.Checks(); err != nil {
+		return model.NewInternalError("consul.registry.consul.register.get_checks.error", err.Error())
+	}
+
+	var serviceCheck *consulapi.AgentCheck
+	for _, check := range checks {
+		if check.ServiceID == c.registrationConfig.ID {
+			serviceCheck = check
+		}
+	}
+
+	if serviceCheck == nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
 	}
+	c.checkId = serviceCheck.CheckID
+	go c.RunServiceCheck()
 	slog.Info(fmtConsulLog("service was registered"))
 	return nil
 }
@@ -69,8 +90,28 @@ func (c *ConsulRegistry) Deregister() model.AppError {
 	if err != nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
 	}
+	c.stop <- true
 	slog.Info(fmtConsulLog("service was deregistered"))
 	return nil
+}
+
+func (c *ConsulRegistry) RunServiceCheck() model.AppError {
+	defer slog.Info(fmtConsulLog("stopped service checker"))
+	slog.Info(fmtConsulLog("started service checker"))
+	ticker := time.NewTicker(registry.CheckInterval / 2)
+	for {
+		select {
+		case <-c.stop:
+			// gracefull stop
+			return nil
+		case <-ticker.C:
+			err := c.client.Agent().UpdateTTL(c.checkId, "success", "pass")
+			if err != nil {
+				slog.Warn(fmtConsulLog(err.Error()))
+			}
+			// TODO: seems that connection is lost, reconnect?
+		}
+	}
 }
 
 func fmtConsulLog(s string) string {

@@ -8,7 +8,7 @@ import (
 const (
 	DeregisterCriticalServiceAfter = 30 * time.Second
 	ServiceName                    = "logger"
-	CheckInterval                  = 1 * time.Minute
+	CheckInterval                  = 5 * time.Second
 )
 
 type ServiceRegistrator interface {

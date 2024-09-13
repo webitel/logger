@@ -41,6 +41,8 @@ func main() {
 	}
 	serviceId = config.Consul.Id
 
+	var addSource bool
+
 	if config.Log.SdkExport {
 		sd := SetupOtel(config.Log.LogLevel)
 		defer sd(context.Background())
@@ -53,13 +55,17 @@ func main() {
 			lvl = slog.LevelWarn
 		case "error":
 			lvl = slog.LevelError
-		case "debug":
-			lvl = slog.LevelDebug
 		default:
-			slog.Info("unable to determine log level, setting debug")
+			addSource = true
 			lvl = slog.LevelDebug
 		}
-		slog.SetLogLoggerLevel(lvl)
+		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			AddSource:   addSource,
+			Level:       lvl,
+			ReplaceAttr: nil,
+		})
+		logger := slog.New(handler)
+		slog.SetDefault(logger)
 	}
 
 	// * Create an application layer

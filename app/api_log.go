@@ -153,6 +153,7 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 }
 
 func (s *LoggerService) DeleteConfigLogs(ctx context.Context, request *proto.DeleteConfigLogsRequest) (*proto.DeleteConfigLogsResponse, error) {
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(request.GetConfigId())))
 	session, err := s.app.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err

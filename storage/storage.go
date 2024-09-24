@@ -57,7 +57,7 @@ type LogStore interface {
 }
 
 type ConfigStore interface {
-	CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint8) (bool, model.AppError)
+	CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, model.AppError)
 	// GetAvailableSystemObjects - get all available objects from domain which are named as [filters]
 	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, model.AppError)
 	//CheckAccessByObjectId(ctx context.Context, domainId, objectId int64, groups []int, access auth_manager.PermissionAccess) (bool, model.AppError)

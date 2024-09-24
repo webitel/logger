@@ -33,8 +33,8 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	}
 	// OBAC check
 	accessMode := authmodel.Read
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, accessMode) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// common log filters
@@ -52,12 +52,12 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	if param := in.GetObject(); param != 0 {
 		filters.Object = []int64{int64(param)}
 	}
-
-	resModels, err := s.app.SearchLogs(ctx, ExtractSearchOptions(in), filters)
+	searchOpts := ExtractSearchOptions(in)
+	resModels, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
 		return nil, err
 	}
-	res.Next, res.Items, err = CalculateListResultMetadata[*model.Log, *proto.Log](in, resModels, convertLogModelToMessage)
+	res.Next, res.Items, err = CalculateListResultMetadata[*model.Log, *proto.Log](searchOpts, resModels, convertLogModelToMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -76,8 +76,8 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	}
 	// OBAC check
 	accessMode := authmodel.Read
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, accessMode) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 
@@ -98,11 +98,12 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	}
 
 	// perform
-	resModels, err := s.app.SearchLogs(ctx, ExtractSearchOptions(in), filters)
+	searchOpts := ExtractSearchOptions(in)
+	resModels, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
 		return nil, err
 	}
-	res.Next, res.Items, err = CalculateListResultMetadata[*model.Log, *proto.Log](in, resModels, convertLogModelToMessage)
+	res.Next, res.Items, err = CalculateListResultMetadata[*model.Log, *proto.Log](searchOpts, resModels, convertLogModelToMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -122,8 +123,8 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 
 	// OBAC check
 	accessMode := authmodel.Read
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, accessMode) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 
@@ -140,11 +141,12 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 		filters.User = param
 	}
 
-	resModels, err := s.app.SearchLogs(ctx, ExtractSearchOptions(in), filters)
+	searchOpts := ExtractSearchOptions(in)
+	resModels, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
 		return nil, err
 	}
-	res.Next, res.Items, err = CalculateListResultMetadata[*model.Log, *proto.Log](in, resModels, convertLogModelToMessage)
+	res.Next, res.Items, err = CalculateListResultMetadata[*model.Log, *proto.Log](searchOpts, resModels, convertLogModelToMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -162,15 +164,22 @@ func (s *LoggerService) DeleteConfigLogs(ctx context.Context, request *proto.Del
 	// OBAC check
 	accessMode := authmodel.Edit
 	secondaryMode := authmodel.Delete
-	scope := session.GetScope(model.ScopeLog)
+	scope := model.ScopeLog
 	// Edit or Delete permissions allow this operation
-	if !session.HasAccess(scope, accessMode) && !session.HasAccess(scope, secondaryMode) {
+	if !session.HasObacAccess(scope, accessMode) && !session.HasObacAccess(scope, secondaryMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// RBAC check
-	if scope.IsRbacUsed() {
-		rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode))
-		if err != nil || !rbacAccess {
+	if session.UseRbacAccess(scope, accessMode) && session.UseRbacAccess(scope, secondaryMode) {
+		rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode&secondaryMode))
+		if err != nil {
+			return nil, err
+		}
+		secondaryRbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(secondaryMode))
+		if err != nil {
+			return nil, err
+		}
+		if !rbacAccess && !secondaryRbacAccess {
 			return nil, s.app.MakeScopeError(session, scope, accessMode)
 		}
 	}

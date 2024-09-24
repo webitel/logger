@@ -232,11 +232,11 @@ func (a *App) MakePermissionError(session *authmodel.Session) model.AppError {
 	return model.NewForbiddenError("app.permissions.check_access.denied", fmt.Sprintf("userId=%d, access denied", session.GetUserId()))
 }
 
-func (a *App) MakeScopeError(session *authmodel.Session, scope *authmodel.Scope, access authmodel.AccessMode) model.AppError {
-	if session == nil || session.GetUser() == nil || scope == nil {
+func (a *App) MakeScopeError(session *authmodel.Session, scope string, access authmodel.AccessMode) model.AppError {
+	if session == nil || session.GetUser() == nil || scope == "" {
 		return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied"))
 	}
-	return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied scope=%s access=%d for user %d", scope.Name, access, session.GetUserId()))
+	return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied scope=%s access=%d for user %d", scope, access, session.GetUserId()))
 }
 
 func (a *App) StopAllWatchers() {

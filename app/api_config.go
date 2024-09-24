@@ -28,16 +28,17 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 	if err != nil {
 		return nil, err
 	}
+	scope := model.ScopeLog
+	accessMode := authmodel.Read
 	// OBAC check
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, authmodel.Read) {
-		return nil, s.app.MakeScopeError(session, scope, authmodel.Read)
+	if !session.HasObacAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// RBAC check
-	if scope.IsRbacUsed() {
+	if session.UseRbacAccess(scope, accessMode) {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: authmodel.Read.Value(),
+			Access: accessMode.Value(),
 		}
 	}
 	resModel, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
@@ -53,9 +54,10 @@ func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.Re
 	if err != nil {
 		return nil, err
 	}
+	scope := model.ScopeLog
+	accessMode := authmodel.Read
 	// OBAC check
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, authmodel.Read) {
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, authmodel.Read)
 	}
 	return s.app.GetSystemObjects(ctx, request, int(session.GetDomainId()))
@@ -98,20 +100,21 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 		return nil, err
 	}
 
+	scope := model.ScopeLog
+	accessMode := authmodel.Read
 	// OBAC check
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, authmodel.Read) {
-		return nil, s.app.MakeScopeError(session, scope, authmodel.Read)
+	if !session.HasObacAccess(scope, accessMode) {
+		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// RBAC check
-	if scope.IsRbacUsed() {
+	if session.UseRbacAccess(scope, accessMode) {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: authmodel.Read.Value(),
+			Access: accessMode.Value(),
 		}
 	}
-
-	resModels, err := s.app.GetAllConfigs(ctx, rbac, ExtractSearchOptions(in), session.GetDomainId())
+	searchOpts := ExtractSearchOptions(in)
+	resModels, err := s.app.GetAllConfigs(ctx, rbac, searchOpts, session.GetDomainId())
 	if err != nil {
 		if IsErrNoRows(err) {
 			return &res, nil
@@ -119,7 +122,7 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 			return nil, err
 		}
 	}
-	res.Next, res.Items, err = CalculateListResultMetadata[*model.Config, *proto.Config](in, resModels, ConvertConfigModelToMessage)
+	res.Next, res.Items, err = CalculateListResultMetadata[*model.Config, *proto.Config](searchOpts, resModels, ConvertConfigModelToMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -136,14 +139,14 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 		return nil, err
 	}
 
-	// OBAC check
-	scope := session.GetScope(model.ScopeLog)
+	scope := model.ScopeLog
 	accessMode := authmodel.Edit
-	if !session.HasAccess(scope, accessMode) {
+	// OBAC check
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	// RBAC check
-	if scope.IsRbacUsed() {
+	if session.UseRbacAccess(scope, accessMode) {
 		access, err := s.app.ConfigCheckAccess(ctx, session.GetDomainId(), int64(in.GetConfigId()), session.GetAclRoles(), accessMode)
 		if err != nil {
 			return nil, err
@@ -174,13 +177,13 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 
 	// OBAC check
 	accessMode := authmodel.Edit
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, authmodel.Edit) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 
 	// RBAC check
-	if scope.IsRbacUsed() {
+	if session.UseRbacAccess(scope, accessMode) {
 		access, err := s.app.ConfigCheckAccess(ctx, session.GetDomainId(), int64(in.GetConfigId()), session.GetAclRoles(), accessMode)
 		if err != nil {
 			return nil, err
@@ -208,15 +211,15 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 	}
 	// OBAC check
 	accessMode := authmodel.Add
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, accessMode) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	model, err := ConvertCreateConfigMessageToModel(in, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.InsertConfig(ctx, model, session.GetDomainId())
+	resModel, err := s.app.InsertConfig(ctx, model, session.GetUserId())
 	if err != nil {
 		return nil, err
 	}
@@ -232,11 +235,11 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 		return nil, err
 	}
 	accessMode := authmodel.Delete
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, authmodel.Add) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
-	if scope.IsRbacUsed() {
+	if session.UseRbacAccess(scope, accessMode) {
 		access, err := s.app.ConfigCheckAccess(ctx, session.GetDomainId(), int64(in.GetConfigId()), session.GetAclRoles(), accessMode)
 		if err != nil {
 			return nil, err
@@ -259,15 +262,15 @@ func (s *ConfigService) DeleteConfigBulk(ctx context.Context, in *proto.DeleteCo
 		return nil, err
 	}
 	accessMode := authmodel.Edit
-	scope := session.GetScope(model.ScopeLog)
-	if !session.HasAccess(scope, authmodel.Add) {
+	scope := model.ScopeLog
+	if !session.HasObacAccess(scope, accessMode) {
 		return nil, s.app.MakeScopeError(session, scope, accessMode)
 	}
 	var rbac *model.RbacOptions
-	if scope.IsRbacUsed() {
+	if session.UseRbacAccess(scope, accessMode) {
 		rbac = &model.RbacOptions{
 			Groups: session.GetAclRoles(),
-			Access: authmodel.Delete.Value(),
+			Access: accessMode.Value(),
 		}
 	}
 	appErr := s.app.DeleteConfigs(ctx, rbac, in.GetIds())

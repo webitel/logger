@@ -52,12 +52,12 @@ func (s *Session) GetDomainId() int64 {
 	return s.domainId
 }
 
-func (s *Session) GetAclRoles() []int {
-	var roles []int
+func (s *Session) GetAclRoles() []int64 {
+	roles := []int64{s.GetUserId()}
 	for _, role := range s.roles {
 		roles = append(
 			roles,
-			int(role.Id),
+			role.Id,
 		)
 	}
 	return roles
@@ -69,14 +69,15 @@ func (s *Session) IsExpired() bool {
 
 func (s *Session) HasPermission(permissionName string) bool {
 	for _, permission := range s.permissions {
-		if permission.Name == permissionName {
+		if permission.Id == permissionName {
 			return true
 		}
 	}
 	return false
 }
 
-func (s *Session) HasAccess(scope *Scope, accessType AccessMode) bool {
+func (s *Session) HasObacAccess(scopeName string, accessType AccessMode) bool {
+	scope := s.GetScope(scopeName)
 	if scope == nil {
 		return false
 	}
@@ -103,6 +104,33 @@ func (s *Session) HasAccess(scope *Scope, accessType AccessMode) bool {
 		if strings.IndexByte(scope.Access, mode) < 0 {
 			return false
 		}
+	}
+
+	return true
+}
+
+func (s *Session) UseRbacAccess(scopeName string, accessType AccessMode) bool {
+	scope := s.GetScope(scopeName)
+	if scope == nil || !scope.Rbac {
+		return false
+	}
+
+	var (
+		bypass string
+	)
+
+	switch accessType {
+	case Delete, Read | Delete:
+		bypass = "delete"
+	case Edit, Read | Edit:
+		bypass = "write"
+	case Read, NONE:
+		bypass = "read"
+	case Add, Read | Add:
+		bypass = "add"
+	}
+	if bypass != "" && s.HasPermission(bypass) {
+		return false
 	}
 
 	return true

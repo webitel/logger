@@ -238,7 +238,7 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 	return res, nil
 }
 
-func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int, access uint8) (bool, model.AppError) {
+func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, model.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return false, appErr
@@ -270,8 +270,8 @@ func (c *Config) Delete(ctx context.Context, id int32) model.AppError {
 	if err != nil {
 		return model.NewInternalError("postgres.config.delete.query.error", err.Error())
 	}
-	if i, err := res.RowsAffected(); err == nil && i == 0 {
-		return model.NewBadRequestError("postgres.config.delete.result.no_rows_for_delete", err.Error())
+	if i, err := res.RowsAffected(); err != nil || i == 0 {
+		return model.NewBadRequestError("postgres.config.delete.result.no_rows_for_delete", "no rows were affected by deletion")
 	}
 	return nil
 }

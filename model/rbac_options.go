@@ -1,6 +1,6 @@
 package model
 
 type RbacOptions struct {
-	Groups []int
+	Groups []int64
 	Access uint8
 }

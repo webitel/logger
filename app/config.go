@@ -206,7 +206,7 @@ func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []
 	return nil
 }
 
-func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups []int, access authmodel.AccessMode) (bool, model.AppError) {
+func (a *App) ConfigCheckAccess(ctx context.Context, domainId, id int64, groups []int64, access authmodel.AccessMode) (bool, model.AppError) {
 	available, err := a.storage.Config().CheckAccess(ctx, domainId, id, groups, access.Value())
 	if err != nil {
 		if IsErrNoRows(err) {

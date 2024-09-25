@@ -171,7 +171,7 @@ func (s *LoggerService) DeleteConfigLogs(ctx context.Context, request *proto.Del
 	}
 	// RBAC check
 	if session.UseRbacAccess(scope, accessMode) && session.UseRbacAccess(scope, secondaryMode) {
-		rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode&secondaryMode))
+		rbacAccess, err := s.app.storage.Config().CheckAccess(ctx, session.GetDomainId(), request.GetConfigId(), session.GetAclRoles(), uint8(accessMode))
 		if err != nil {
 			return nil, err
 		}

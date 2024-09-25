@@ -101,19 +101,19 @@ var (
 func (l *RabbitBroker) connect() model.AppError {
 	conn, err := amqp.Dial(l.config.Url)
 	if err != nil {
-		return model.NewInternalError("rabbit.listener.listen.server_connect.fail", err.Error())
+		return model.NewInternalError("rabbit.listener.listen.server_connect.fail", fmtBrokerLog(err.Error()))
 	}
 	l.connection = conn
 	channel, err := conn.Channel()
 	if err != nil {
-		return model.NewInternalError("rabbit.listener.listen.channel_connect.fail", err.Error())
+		return model.NewInternalError("rabbit.listener.listen.channel_connect.fail", fmtBrokerLog(err.Error()))
 	}
 	l.channel = channel
 	l.amqpCloseNotifier = l.channel.NotifyClose(make(chan *amqp.Error))
 
 	err = channel.Qos(1, 0, false)
 	if err != nil {
-		return model.NewInternalError("rabbit.listener.listen.qos.fail", err.Error())
+		return model.NewInternalError("rabbit.listener.listen.qos.fail", fmtBrokerLog(err.Error()))
 	}
 	slog.Info(fmtBrokerLog("connection and amqp channel are opened"))
 	return nil

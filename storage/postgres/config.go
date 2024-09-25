@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -254,6 +255,9 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 	var ac bool
 	err := res.Scan(&ac)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
 		return false, model.NewInternalError("postgres.config.check_access.scan.error", err.Error())
 	}
 	return ac, nil

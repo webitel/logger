@@ -216,7 +216,7 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.InsertConfig(ctx, model, session.GetDomainId())
+	resModel, err := s.app.InsertConfig(ctx, model, session.GetUserId())
 	if err != nil {
 		return nil, err
 	}

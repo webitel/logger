@@ -15,14 +15,14 @@ import (
 	"github.com/webitel/logger/model"
 )
 
-func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int64) (*model.Config, model.AppError) {
+func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int64, domainId int64) (*model.Config, model.AppError) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id)
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id, domainId)
 	if err != nil {
 		return nil, err
 	}
@@ -35,14 +35,14 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config, userId int64) 
 
 }
 
-func (a *App) PatchUpdateConfig(ctx context.Context, in *model.Config, fields []string, userId int64) (*model.Config, model.AppError) {
+func (a *App) PatchUpdateConfig(ctx context.Context, in *model.Config, fields []string, userId int64, domainId int64) (*model.Config, model.AppError) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
 	}
-	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id)
+	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id, domainId)
 	if err != nil {
 		return nil, err
 	}
@@ -182,24 +182,24 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 
 }
 
-func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError) {
-	res, appErr := a.storage.Config().GetById(ctx, rbac, id)
+func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, model.AppError) {
+	res, appErr := a.storage.Config().GetById(ctx, rbac, id, domainId)
 	if appErr != nil {
 		return nil, appErr
 	}
 	return res, nil
 }
 
-func (a *App) DeleteConfig(ctx context.Context, id int32) model.AppError {
-	appErr := a.storage.Config().Delete(ctx, id)
+func (a *App) DeleteConfig(ctx context.Context, id int32, domainId int64) model.AppError {
+	appErr := a.storage.Config().Delete(ctx, id, domainId)
 	if appErr != nil {
 		return appErr
 	}
 	return nil
 }
 
-func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []int32) model.AppError {
-	appErr := a.storage.Config().DeleteMany(ctx, rbac, ids)
+func (a *App) DeleteConfigs(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) model.AppError {
+	appErr := a.storage.Config().DeleteMany(ctx, rbac, ids, domainId)
 	if appErr != nil {
 		return appErr
 	}
@@ -223,7 +223,7 @@ func (a *App) GetAllConfigs(ctx context.Context, rbac *model.RbacOptions, search
 		ctx,
 		searchOpt,
 		rbac,
-		model.Filter{
+		&model.Filter{
 			Column:         "object_config.domain_id",
 			Value:          domainId,
 			ComparisonType: model.Equal,

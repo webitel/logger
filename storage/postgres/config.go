@@ -263,12 +263,12 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 	return ac, nil
 }
 
-func (c *Config) Delete(ctx context.Context, id int32) model.AppError {
+func (c *Config) Delete(ctx context.Context, id int32, domainId int64) model.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).PlaceholderFormat(sq.Dollar)
+	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}).PlaceholderFormat(sq.Dollar)
 	res, err := base.RunWith(db).ExecContext(ctx)
 	slog.Debug(base.ToSql())
 	if err != nil {
@@ -280,12 +280,12 @@ func (c *Config) Delete(ctx context.Context, id int32) model.AppError {
 	return nil
 }
 
-func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) model.AppError {
+func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) model.AppError {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return appErr
 	}
-	base := sq.Delete("logger.object_config").Where(sq.Expr(configFieldsFilterMap[model.ConfigFields.Id]+" = any(?::int[])", pq.Array(ids))).PlaceholderFormat(sq.Dollar)
+	base := sq.Delete("logger.object_config").Where(sq.Expr(configFieldsFilterMap[model.ConfigFields.Id]+" = any(?::int[])", pq.Array(ids))).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}).PlaceholderFormat(sq.Dollar)
 	if rbac != nil {
 		subquery := sq.Select("1").From("logger.object_config_acl acl").
 			Where("acl.dc = "+configFieldsFilterMap[model.ConfigFields.DomainId]).
@@ -328,12 +328,12 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*m
 	return configs, nil
 }
 
-func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError) {
+func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, model.AppError) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id})
+	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId})
 	rows, err := base.RunWith(db).QueryContext(ctx)
 	slog.Debug(base.ToSql())
 	if err != nil {
@@ -358,6 +358,9 @@ func (c *Config) Get(ctx context.Context, opt *model.SearchOptions, rbac *model.
 		return nil, appErr
 	}
 	base, appErr := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt, rbac), configFieldsFilterMap, filters)
+	if appErr != nil {
+		return nil, appErr
+	}
 	switch req := base.(type) {
 	case sq.SelectBuilder:
 		sql, args, _ = req.ToSql()

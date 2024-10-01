@@ -41,7 +41,7 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 			Access: accessMode.Value(),
 		}
 	}
-	resModel, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
+	resModel, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()), session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.UpdateConfig(ctx, mod, session.GetUserId())
+	resModel, err := s.app.UpdateConfig(ctx, mod, session.GetUserId(), session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.PatchUpdateConfig(ctx, updatedConfigModel, in.GetFields(), session.GetUserId())
+	resModel, err := s.app.PatchUpdateConfig(ctx, updatedConfigModel, in.GetFields(), session.GetUserId(), session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 			return nil, s.app.MakeScopeError(session, scope, accessMode)
 		}
 	}
-	appErr := s.app.DeleteConfig(ctx, in.GetConfigId())
+	appErr := s.app.DeleteConfig(ctx, in.GetConfigId(), session.GetDomainId())
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -273,7 +273,7 @@ func (s *ConfigService) DeleteConfigBulk(ctx context.Context, in *proto.DeleteCo
 			Access: accessMode.Value(),
 		}
 	}
-	appErr := s.app.DeleteConfigs(ctx, rbac, in.GetIds())
+	appErr := s.app.DeleteConfigs(ctx, rbac, in.GetIds(), session.GetDomainId())
 	if appErr != nil {
 		return nil, appErr
 	}

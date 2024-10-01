@@ -67,9 +67,9 @@ type ConfigStore interface {
 	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, model.AppError)
 	//GetAll(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, domainId int) (*[]model.Config, model.AppError)
 	//GetAllEnabledConfigs(ctx context.Context) (*[]model.Config, model.AppError)
-	GetById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError)
-	Delete(ctx context.Context, id int32) model.AppError
-	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32) model.AppError
+	GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, model.AppError)
+	Delete(ctx context.Context, id int32, domainId int64) model.AppError
+	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) model.AppError
 }
 
 type LoginAttemptStore interface {
@@ -154,6 +154,8 @@ func ApplyFiltersToBuilderBulk(base any, columnAlias map[string]string, filters 
 		case squirrel.SelectBuilder:
 			base = baseType.Where(applyFilter(data, columnAlias))
 		}
+	default:
+		return nil, model.NewInternalError("storage.storage.apply_filters_to_builder_bulk.switch_filter.unknown", "invalid filter type")
 	}
 
 	return base, nil

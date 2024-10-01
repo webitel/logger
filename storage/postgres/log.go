@@ -117,6 +117,9 @@ func (c *Log) Get(ctx context.Context, opt *model.SearchOptions, filters any) ([
 		return nil, appErr
 	}
 	base, appErr := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt), logFieldsFilterMap, filters)
+	if appErr != nil {
+		return nil, appErr
+	}
 	switch req := base.(type) {
 	case sq.SelectBuilder:
 		query, args, _ = req.ToSql()

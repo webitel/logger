@@ -33,7 +33,7 @@ func NewMessage(userId int64, userIp string, action Action, recordId int64, reco
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
 			UserIp: userIp,
-			Date:   time.Now().UnixMilli(),
+			Date:   time.Now().Unix(),
 			Action: action.String(),
 		},
 		Records: []*Record{{
@@ -52,7 +52,7 @@ func NewCreateMessage(userId int64, userIp string, recordId int64, recordBody an
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
 			UserIp: userIp,
-			Date:   time.Now().UnixMilli(),
+			Date:   time.Now().Unix(),
 			Action: CreateAction.String(),
 		},
 		Records: []*Record{{
@@ -71,7 +71,7 @@ func NewUpdateMessage(userId int64, userIp string, recordId int64, recordBody an
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
 			UserIp: userIp,
-			Date:   time.Now().UnixMilli(),
+			Date:   time.Now().Unix(),
 			Action: UpdateAction.String(),
 		},
 		Records: []*Record{{
@@ -86,7 +86,7 @@ func NewDeleteMessage(userId int64, userIp string, recordId int64) (*Message, er
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
 			UserIp: userIp,
-			Date:   time.Now().UnixMilli(),
+			Date:   time.Now().Unix(),
 			Action: DeleteAction.String(),
 		},
 		Records: []*Record{{

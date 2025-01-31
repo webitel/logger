@@ -39,45 +39,13 @@ func NewMessage(userId int64, userIp string, action Action, recordId int64, reco
 }
 
 func NewCreateMessage(userId int64, userIp string, recordId int64, recordBody any) (*Message, error) {
-	return &Message{
-		RequiredFields: RequiredFields{
-			UserId: int(userId),
-			UserIp: userIp,
-			Date:   time.Now().Unix(),
-			Action: CreateAction.String(),
-		},
-		Records: []*Record{{
-			Id:       recordId,
-			NewState: recordBody,
-		}},
-	}, nil
+	return NewMessage(userId, userIp, CreateAction, recordId, recordBody)
 }
 
 func NewUpdateMessage(userId int64, userIp string, recordId int64, recordBody any) (*Message, error) {
-	return &Message{
-		RequiredFields: RequiredFields{
-			UserId: int(userId),
-			UserIp: userIp,
-			Date:   time.Now().Unix(),
-			Action: UpdateAction.String(),
-		},
-		Records: []*Record{{
-			Id:       recordId,
-			NewState: recordBody,
-		}},
-	}, nil
+	return NewMessage(userId, userIp, UpdateAction, recordId, recordBody)
 }
 
 func NewDeleteMessage(userId int64, userIp string, recordId int64) (*Message, error) {
-	return &Message{
-		RequiredFields: RequiredFields{
-			UserId: int(userId),
-			UserIp: userIp,
-			Date:   time.Now().Unix(),
-			Action: DeleteAction.String(),
-		},
-		Records: []*Record{{
-			Id: recordId,
-		}},
-	}, nil
+	return NewMessage(userId, userIp, DeleteAction, recordId, nil)
 }

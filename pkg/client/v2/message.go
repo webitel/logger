@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -13,8 +12,8 @@ type RequiredFields struct {
 }
 
 type Record struct {
-	Id       int64  `json:"id,omitempty"`
-	NewState []byte `json:"newState,omitempty"`
+	Id       int64 `json:"id,omitempty"`
+	NewState any   `json:"newState,omitempty"`
 }
 
 type Message struct {
@@ -25,10 +24,6 @@ type Message struct {
 type MessageOpts func(*Message) error
 
 func NewMessage(userId int64, userIp string, action Action, recordId int64, recordBody any) (*Message, error) {
-	body, err := json.Marshal(recordBody)
-	if err != nil {
-		return nil, err
-	}
 	return &Message{
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
@@ -38,16 +33,12 @@ func NewMessage(userId int64, userIp string, action Action, recordId int64, reco
 		},
 		Records: []*Record{{
 			Id:       recordId,
-			NewState: body,
+			NewState: recordBody,
 		}},
 	}, nil
 }
 
 func NewCreateMessage(userId int64, userIp string, recordId int64, recordBody any) (*Message, error) {
-	body, err := json.Marshal(recordBody)
-	if err != nil {
-		return nil, err
-	}
 	return &Message{
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
@@ -57,16 +48,12 @@ func NewCreateMessage(userId int64, userIp string, recordId int64, recordBody an
 		},
 		Records: []*Record{{
 			Id:       recordId,
-			NewState: body,
+			NewState: recordBody,
 		}},
 	}, nil
 }
 
 func NewUpdateMessage(userId int64, userIp string, recordId int64, recordBody any) (*Message, error) {
-	body, err := json.Marshal(recordBody)
-	if err != nil {
-		return nil, err
-	}
 	return &Message{
 		RequiredFields: RequiredFields{
 			UserId: int(userId),
@@ -76,7 +63,7 @@ func NewUpdateMessage(userId int64, userIp string, recordId int64, recordBody an
 		},
 		Records: []*Record{{
 			Id:       recordId,
-			NewState: body,
+			NewState: recordBody,
 		}},
 	}, nil
 }

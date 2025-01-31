@@ -102,9 +102,9 @@ func WithGrpcConsulAddress(consulIpAddress string) LoggerClientOpts {
 
 }
 
-func WithAmqpConnectionString(rabbitConnectionString string) LoggerClientOpts {
+func WithAmqpConnectionString(amqpConnectionString string) LoggerClientOpts {
 	return func(client *LoggerClient) error {
-		conn, err := amqp.Dial(rabbitConnectionString)
+		conn, err := amqp.Dial(amqpConnectionString)
 		if err != nil {
 			return err
 		}

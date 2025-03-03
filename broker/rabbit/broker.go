@@ -85,7 +85,7 @@ var (
 					if reconnectErr != nil {
 						reconnectAttempts++
 						slog.Warn(fmtBrokerLog(reconnectErr.Error()), slog.Int("attempt", reconnectAttempts))
-						//time.Sleep(time.Second * 10)
+						time.Sleep(time.Second * 10)
 					} else {
 						continueReconnection = false
 					}

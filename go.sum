@@ -26,6 +26,8 @@ buf.build/gen/go/webitel/logger/protocolbuffers/go v1.34.2-20240911114117-1d910a
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.34.2-20240911114117-1d910a772b4f.2/go.mod h1:Weu2owrpfd2sL8/q9pO6bm35CKaqE/vEG39AjuJ5fcc=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.4-20250128105802-aaacc0377b27.1 h1:MecpVVYa8m8Q5AfjcTqVKBdnnT3mfvwoUq+RO9J4TaU=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.4-20250128105802-aaacc0377b27.1/go.mod h1:sIqtudRiH9K2ks4loN2AW2gAuIMil2dvID+GRHHFBDM=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250326082640-75127b078b82.1 h1:t4WEQ1xHf0ZrUIk0HtdMMbVOlVpMkfmjQhVfMrH26Nw=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250326082640-75127b078b82.1/go.mod h1:hh4fRtH1X6CsjyXnBF3vy3P4D8I4jqMbjZk2B1Q1Ppg=
 buf.build/gen/go/webitel/storage/grpc/go v1.4.0-20240527133229-1d3ffabec5d4.1 h1:bhJgmGU7FQ1+nbco2PSyG3PLroM7MpZFtOqsVgOxI38=
 buf.build/gen/go/webitel/storage/grpc/go v1.4.0-20240527133229-1d3ffabec5d4.1/go.mod h1:9tl9YVG7PbWEC9mciM+ed+CI8YEIxABCd4UfT7QmtUI=
 buf.build/gen/go/webitel/storage/protocolbuffers/go v1.34.1-20240527133229-1d3ffabec5d4.1 h1:h8kT1Iuawq7vZSoTom7R8zC2HepqW7IO8hOgBCk0hr0=
@@ -2875,6 +2877,8 @@ google.golang.org/protobuf v1.34.2 h1:6xV6lTsCfpGD21XK49h7MhtcApnLqkfYgPcdHftf6h
 google.golang.org/protobuf v1.34.2/go.mod h1:qYOHts0dSfpeUzUFpOMr/WGzszTmLH+DiWniOlNbLDw=
 google.golang.org/protobuf v1.36.4 h1:6A3ZDJHn/eNqc1i+IdefRzy/9PokBTPvcqMySR7NNIM=
 google.golang.org/protobuf v1.36.4/go.mod h1:9fA7Ob0pmnwhb644+1+CVWFRbNajQ6iRojtC/QF5bRE=
+google.golang.org/protobuf v1.36.6 h1:z1NpPI8ku2WgiWnf+t9wTPsn6eP1L7ksHUlkfLvd9xY=
+google.golang.org/protobuf v1.36.6/go.mod h1:jduwjTPXsFjZGTmRluh+L6NjiWu7pchiJ2/5YcXBHnY=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=

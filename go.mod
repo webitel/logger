@@ -4,7 +4,7 @@ go 1.22.5
 
 require (
 	buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20240911114117-1d910a772b4f.1
-	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.4-20250128105802-aaacc0377b27.1
+	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250326082640-75127b078b82.1
 	buf.build/gen/go/webitel/storage/grpc/go v1.4.0-20240527133229-1d3ffabec5d4.1
 	buf.build/gen/go/webitel/storage/protocolbuffers/go v1.34.1-20240527133229-1d3ffabec5d4.1
 	buf.build/gen/go/webitel/webitel-go/grpc/go v1.4.0-20240531110420-b63fb1a10a5c.1
@@ -238,7 +238,7 @@ require (
 	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240805194559-2c9e96a0b5d4 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240805194559-2c9e96a0b5d4 // indirect
-	google.golang.org/protobuf v1.36.4 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

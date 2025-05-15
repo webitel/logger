@@ -1,0 +1,13 @@
+[Unit]
+Description=Webitel Logger Service
+After=network.target
+
+[Service]
+ExecStart=webitel-logger -id 20 \
+	-consul 127.0.0.1:8500 \
+    -grpc_addr 127.0.0.1:10011 \
+    -amqp amqp://webitel:webitel@127.0.0.1:5672?heartbeat=10 \
+	-data_source postgres://opensips:webitel@127.0.0.1:5432/webitel?application_name=logger&sslmode=disable&connect_timeout=10
+
+[Install]
+WantedBy=multi-user.target

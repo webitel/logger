@@ -1,9 +1,9 @@
-name: Release
+name: Development
 
 on:
   push:
     branches:
-      - v*.* # Only release branches
+      - main
 
 jobs:
   prepare:
@@ -33,4 +33,4 @@ jobs:
     secrets: inherit
     with:
       component: ${{ needs.prepare.outputs.component }}
-      repository-environment: ${{ needs.prepare.outputs.component }}
+      repository-environment: acceptance

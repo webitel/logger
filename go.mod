@@ -4,7 +4,7 @@ go 1.22.5
 
 require (
 	buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250415132635-95bdad2d395b.2
-	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250415132635-95bdad2d395b.1
+	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250415134656-e56f83559c5f.1
 	buf.build/gen/go/webitel/storage/grpc/go v1.4.0-20240527133229-1d3ffabec5d4.1
 	buf.build/gen/go/webitel/storage/protocolbuffers/go v1.34.1-20240527133229-1d3ffabec5d4.1
 	buf.build/gen/go/webitel/webitel-go/grpc/go v1.4.0-20240531110420-b63fb1a10a5c.1
@@ -21,11 +21,13 @@ require (
 	github.com/mbobakov/grpc-consul-resolver v1.5.2
 	github.com/nicksnyder/go-i18n v1.10.1
 	github.com/rabbitmq/amqp091-go v1.8.1
+	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1
 	github.com/webitel/webitel-go-kit v0.0.13-0.20240813213129-56a49a38c8a6
 	go.opentelemetry.io/contrib/bridges/otelslog v0.3.0
 	go.opentelemetry.io/otel v1.28.0
 	go.opentelemetry.io/otel/log v0.4.0
 	go.opentelemetry.io/otel/sdk v1.28.0
+	go.opentelemetry.io/otel/trace v1.28.0
 	google.golang.org/grpc v1.65.0
 )
 
@@ -202,8 +204,6 @@ require (
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
 	github.com/ultraware/funlen v0.0.3 // indirect
 	github.com/ultraware/whitespace v0.0.5 // indirect
-	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1 // indirect
-	github.com/uptrace/opentelemetry-go-extra/otelsqlx v0.3.1 // indirect
 	github.com/uudashr/gocognit v1.0.6 // indirect
 	github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20240807083813-0853fbc06218 // indirect
 	github.com/yagipy/maintidx v1.0.0 // indirect
@@ -223,7 +223,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.28.0 // indirect
 	go.opentelemetry.io/otel/sdk/log v0.4.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.28.0 // indirect
-	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect

@@ -19,3 +19,21 @@
 
 # Go workspace file
 go.work
+
+# Editor junk
+*.sublime-workspace
+*.swp
+.idea/
+.fleet/
+*.iml
+*.tmp
+.vscode/
+!.vscode/launch.json
+.vs/
+.eslintcache
+.stylelintcache
+
+# Ignore OSX indexing
+.DS_Store
+
+dist

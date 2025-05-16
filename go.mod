@@ -21,11 +21,13 @@ require (
 	github.com/mbobakov/grpc-consul-resolver v1.5.2
 	github.com/nicksnyder/go-i18n v1.10.1
 	github.com/rabbitmq/amqp091-go v1.8.1
+	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1
 	github.com/webitel/webitel-go-kit v0.0.13-0.20240813213129-56a49a38c8a6
-	go.opentelemetry.io/contrib/bridges/otelslog v0.3.0
-	go.opentelemetry.io/otel v1.28.0
-	go.opentelemetry.io/otel/log v0.4.0
+	go.opentelemetry.io/contrib/bridges/otelslog v0.10.0
+	go.opentelemetry.io/otel v1.35.0
+	go.opentelemetry.io/otel/log v0.11.0
 	go.opentelemetry.io/otel/sdk v1.28.0
+	go.opentelemetry.io/otel/trace v1.35.0
 	google.golang.org/grpc v1.65.0
 )
 
@@ -96,7 +98,7 @@ require (
 	github.com/golangci/misspell v0.4.0 // indirect
 	github.com/golangci/revgrep v0.0.0-20220804021717-745bb2f7c2e6 // indirect
 	github.com/golangci/unconvert v0.0.0-20180507085042-28b1c447d1f4 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/gordonklaus/ineffassign v0.0.0-20230107090616-13ace0543b28 // indirect
 	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
 	github.com/gostaticanalysis/comment v1.4.2 // indirect
@@ -191,7 +193,7 @@ require (
 	github.com/ssgreg/nlreturn/v2 v2.2.1 // indirect
 	github.com/stbenjam/no-sprintf-host-port v0.1.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
 	github.com/t-yuki/gocover-cobertura v0.0.0-20180217150009-aaee18c8195c // indirect
 	github.com/tdakkota/asciicheck v0.2.0 // indirect
@@ -202,13 +204,12 @@ require (
 	github.com/tommy-muehle/go-mnd/v2 v2.5.1 // indirect
 	github.com/ultraware/funlen v0.0.3 // indirect
 	github.com/ultraware/whitespace v0.0.5 // indirect
-	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1 // indirect
-	github.com/uptrace/opentelemetry-go-extra/otelsqlx v0.3.1 // indirect
 	github.com/uudashr/gocognit v1.0.6 // indirect
 	github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20240807083813-0853fbc06218 // indirect
 	github.com/yagipy/maintidx v1.0.0 // indirect
 	github.com/yeya24/promlinter v0.2.0 // indirect
 	gitlab.com/bosi/decorder v0.2.3 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/propagators/jaeger v1.28.0 // indirect
 	go.opentelemetry.io/contrib/samplers/jaegerremote v0.22.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc v0.0.0-20240805233418-127d068751eb // indirect
@@ -220,10 +221,9 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.28.0 // indirect
-	go.opentelemetry.io/otel/metric v1.28.0 // indirect
+	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk/log v0.4.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.28.0 // indirect
-	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect

@@ -7,6 +7,7 @@ import (
 	"github.com/webitel/logger/internal/model"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -39,11 +40,17 @@ func NewConfigService(app ConfigManager) (*ConfigService, model.AppError) {
 func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequest) (*proto.Config, error) {
 	var rbac *model.RbacOptions
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
-	resModel, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
+	config, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	return ConvertConfigModelToMessage(resModel)
+	message, err := s.Marshal(config)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
+	}
+	return message[0], nil
 }
 
 func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
@@ -56,11 +63,17 @@ func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.Read
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Int("domain.id", int(in.GetDomainId())))
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("object.id", int(in.GetObjectId())))
-	resModel, err := s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()), 0)
+	config, err := s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()), 0)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	return ConvertConfigModelToMessage(resModel)
+	message, err := s.Marshal(config)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
+	}
+	return message[0], nil
 }
 
 // ReadConfigByObjectId used for internal purpose with client, checks if config enabled
@@ -83,14 +96,18 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 	)
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.String("q", in.GetQ()))
 	searchOpts := ExtractSearchOptions(in)
-	resModels, err := s.app.SearchConfig(ctx, rbac, searchOpts)
+	configs, err := s.app.SearchConfig(ctx, rbac, searchOpts)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	res.Next, res.Items, err = utils.CalculateListResultMetadata[*model.Config, *proto.Config](searchOpts, resModels, ConvertConfigModelToMessage)
+	messages, err := s.Marshal(configs...)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
 	}
+
+	res.Items, res.Next = utils.ResolvePaging(searchOpts.GetSize(), messages)
 	res.Page = in.GetPage()
 
 	return &res, nil
@@ -104,11 +121,17 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.UpdateConfig(ctx, mod)
+	config, err := s.app.UpdateConfig(ctx, mod)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	return ConvertConfigModelToMessage(resModel)
+	message, err := s.Marshal(config)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
+	}
+	return message[0], nil
 
 }
 
@@ -119,25 +142,38 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.UpdateConfig(ctx, updatedConfigModel)
+	config, err := s.app.UpdateConfig(ctx, updatedConfigModel)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	return ConvertConfigModelToMessage(resModel)
+	message, err := s.Marshal(config)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
+	}
+
+	return message[0], nil
 }
 
 // CreateConfig inserts new config
 func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfigRequest) (*proto.Config, error) {
-	model, err := ConvertCreateConfigMessageToModel(in)
+	model, err := s.ConvertCreateConfigMessageToModel(in)
 	if err != nil {
 		return nil, err
 	}
-	resModel, err := s.app.InsertConfig(ctx, model)
+	config, err := s.app.InsertConfig(ctx, model)
 	if err != nil {
 		return nil, err
 	}
-	GroupOutgoingAttributesAndBindToSpan(ctx, attribute.Int("config.id", resModel.Id))
-	return ConvertConfigModelToMessage(resModel)
+	messages, err := s.Marshal(config)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
+	}
+	GroupOutgoingAttributesAndBindToSpan(ctx, attribute.Int("config.id", config.Id))
+
+	return messages[0], nil
 }
 
 // DeleteConfig deletes config by id
@@ -189,13 +225,12 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Conf
 	return config, nil
 }
 
-func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Config, model.AppError) {
+func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Config, model.AppError) {
 
 	if in.GetDaysToStore() <= 0 {
 		return nil, model.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
 	}
 	config := &model.Config{
-
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
@@ -218,30 +253,34 @@ func ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Co
 	return config, nil
 }
 
-func ConvertConfigModelToMessage(in *model.Config) (*proto.Config, model.AppError) {
+func (s *ConfigService) Marshal(models ...*model.Config) ([]*proto.Config, model.AppError) {
+	var res []*proto.Config
+	for _, in := range models {
+		conf := &proto.Config{
+			Id:          int32(in.Id),
+			Enabled:     in.Enabled,
+			DaysToStore: int32(in.DaysToStore),
+			Period:      int32(in.Period),
+			Description: in.Description.String(),
+			LogsSize:    in.LogsSize.String(),
+			LogsCount:   in.LogsCount.Int64(),
+		}
+		if !in.Object.IsZero() {
+			conf.Object = &proto.Lookup{
+				Id:   int32(in.Object.Id.Int()),
+				Name: in.Object.Name.String(),
+			}
+		}
+		if !in.Storage.IsZero() {
+			conf.Storage = &proto.Lookup{
+				Id:   int32(in.Storage.Id.Int()),
+				Name: in.Storage.Name.String(),
+			}
+		}
+		res = append(res, conf)
+	}
 
-	conf := &proto.Config{
-		Id:          int32(in.Id),
-		Enabled:     in.Enabled,
-		DaysToStore: int32(in.DaysToStore),
-		Period:      int32(in.Period),
-		Description: in.Description.String(),
-		LogsSize:    in.LogsSize.String(),
-		LogsCount:   in.LogsCount.Int64(),
-	}
-	if !in.Object.IsZero() {
-		conf.Object = &proto.Lookup{
-			Id:   int32(in.Object.Id.Int()),
-			Name: in.Object.Name.String(),
-		}
-	}
-	if !in.Storage.IsZero() {
-		conf.Storage = &proto.Lookup{
-			Id:   int32(in.Storage.Id.Int()),
-			Name: in.Storage.Name.String(),
-		}
-	}
-	return conf, nil
+	return res, nil
 }
 
 func calculateNextPeriodFromDate(period int, from time.Time) *model.NullTime {

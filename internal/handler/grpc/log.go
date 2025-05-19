@@ -5,6 +5,7 @@ import (
 	"github.com/webitel/logger/internal/handler/grpc/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"log/slog"
 	"time"
 
 	"github.com/webitel/logger/internal/model"
@@ -30,9 +31,6 @@ func NewLoggerService(app LogManager) (*LoggerService, model.AppError) {
 }
 
 func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.SearchLogByRecordIdRequest) (*proto.Logs, error) {
-	var (
-		res proto.Logs
-	)
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("record.id", int(in.GetRecordId())), attribute.String("object", in.GetObject().String()))
 	// common log filters
 	filters := extractDefaultFiltersFromLogSearch(in)
@@ -50,22 +48,23 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 		filters.Object = []int64{int64(param)}
 	}
 	searchOpts := ExtractSearchOptions(in)
-	resModels, err := s.app.SearchLogs(ctx, searchOpts, filters)
+	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	res.Next, res.Items, err = utils.CalculateListResultMetadata[*model.Log, *proto.Log](searchOpts, resModels, convertLogModelToMessage)
+	messages, err := s.Marshal(models...)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
 	}
+	var res proto.Logs
+	res.Items, res.Next = utils.ResolvePaging(searchOpts.GetSize(), messages)
 	res.Page = in.GetPage()
 	return &res, nil
 }
 
 func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchLogByUserIdRequest) (*proto.Logs, error) {
-	var (
-		res proto.Logs
-	)
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("user.id", int(in.GetUserId())))
 
 	// common log filters
@@ -86,22 +85,22 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 
 	// perform
 	searchOpts := ExtractSearchOptions(in)
-	resModels, err := s.app.SearchLogs(ctx, searchOpts, filters)
+	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
 		return nil, err
 	}
-	res.Next, res.Items, err = utils.CalculateListResultMetadata[*model.Log, *proto.Log](searchOpts, resModels, convertLogModelToMessage)
+	messages, err := s.Marshal(models...)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
 	}
+	var res proto.Logs
+	res.Items, res.Next = utils.ResolvePaging(searchOpts.GetSize(), messages)
 	res.Page = in.GetPage()
 	return &res, nil
 }
 
 func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.SearchLogByConfigIdRequest) (*proto.Logs, error) {
-	var (
-		res proto.Logs
-	)
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	// common log filters
 	filters := extractDefaultFiltersFromLogSearch(in)
@@ -117,14 +116,18 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	}
 
 	searchOpts := ExtractSearchOptions(in)
-	resModels, err := s.app.SearchLogs(ctx, searchOpts, filters)
+	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, InternalError
 	}
-	res.Next, res.Items, err = utils.CalculateListResultMetadata[*model.Log, *proto.Log](searchOpts, resModels, convertLogModelToMessage)
+	messages, err := s.Marshal(models...)
 	if err != nil {
-		return nil, err
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
 	}
+	var res proto.Logs
+	res.Items, res.Next = utils.ResolvePaging(searchOpts.GetSize(), messages)
 	res.Page = in.GetPage()
 	return &res, nil
 }
@@ -169,82 +172,43 @@ func extractDefaultFiltersFromLogSearch(in LogSearcher) *model.LogFilters {
 	return filters
 }
 
-func (s *LoggerService) Marshal(m *model.Log) (*proto.Log, model.AppError) {
-	log := &proto.Log{
-		Id:     int32(m.Id),
-		Action: m.Action,
+func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, model.AppError) {
 
-		UserIp:   m.UserIp,
-		NewState: string(m.NewState),
-		ConfigId: int32(m.ConfigId),
-	}
-	if !m.User.IsZero() {
-		log.User = &proto.Lookup{
-			Id:   int32(m.User.Id.Int()),
-			Name: m.User.Name.String(),
-		}
-	}
-	if !m.Object.IsZero() {
-		log.Object = &proto.Lookup{
-			Id:   int32(m.Object.Id.Int()),
-			Name: m.Object.Name.String(),
-		}
-	}
-	if !m.Date.IsZero() {
-		log.Date = m.Date.ToMilliseconds()
-	}
-	if s := m.Record.Id.Int32(); s != 0 {
-		log.Record = &proto.Lookup{
-			Id:   s,
-			Name: m.Record.Name.String(),
-		}
-	}
-	return log, nil
-}
+	var res []*proto.Log
+	for _, m := range models {
+		log := &proto.Log{
+			Id:     int32(m.Id),
+			Action: m.Action,
 
-func (s *LoggerService) Unmarshal(m *model.Log) (*proto.Log, model.AppError) {
-	log := &proto.Log{
-		Id:     int32(m.Id),
-		Action: m.Action,
+			UserIp:   m.UserIp,
+			NewState: string(m.NewState),
+			ConfigId: int32(m.ConfigId),
+		}
+		if !m.User.IsZero() {
+			log.User = &proto.Lookup{
+				Id:   int32(m.User.Id.Int()),
+				Name: m.User.Name.String(),
+			}
+		}
+		if !m.Object.IsZero() {
+			log.Object = &proto.Lookup{
+				Id:   int32(m.Object.Id.Int()),
+				Name: m.Object.Name.String(),
+			}
+		}
+		if !m.Date.IsZero() {
+			log.Date = m.Date.ToMilliseconds()
+		}
+		if s := m.Record.Id.Int32(); s != 0 {
+			log.Record = &proto.Lookup{
+				Id:   s,
+				Name: m.Record.Name.String(),
+			}
+		}
+		res = append(res, log)
+	}
 
-		UserIp:   m.UserIp,
-		NewState: string(m.NewState),
-		ConfigId: int32(m.ConfigId),
-	}
-	if !m.User.IsZero() {
-		log.User = &proto.Lookup{
-			Id:   int32(m.User.Id.Int()),
-			Name: m.User.Name.String(),
-		}
-	}
-	if !m.Object.IsZero() {
-		log.Object = &proto.Lookup{
-			Id:   int32(m.Object.Id.Int()),
-			Name: m.Object.Name.String(),
-		}
-	}
-	if !m.Date.IsZero() {
-		log.Date = m.Date.ToMilliseconds()
-	}
-	if s := m.Record.Id.Int32(); s != 0 {
-		log.Record = &proto.Lookup{
-			Id:   s,
-			Name: m.Record.Name.String(),
-		}
-	}
-	return log, nil
-}
-
-func convertLogModelToMessageBulk(m []*model.Log) ([]*proto.Log, model.AppError) {
-	var rows []*proto.Log
-	for _, v := range m {
-		protoLog, err := convertLogModelToMessage(v)
-		if err != nil {
-			return nil, err
-		}
-		rows = append(rows, protoLog)
-	}
-	return rows, nil
+	return res, nil
 }
 
 func GroupAttributesAndBindToSpan(ctx context.Context, rootName string, attrs ...attribute.KeyValue) {

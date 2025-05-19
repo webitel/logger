@@ -27,16 +27,9 @@ func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, model.
 	return result, nil
 }
 
-// C type of input, K type of output
-func CalculateListResultMetadata[C any, K any](s Lister, items []C, convertFunc func(C) (K, model.AppError)) (bool, []K, model.AppError) {
-	var (
-		result []K
-		err    model.AppError
-	)
-	next, filteredInput := GetListResult[C](s, items)
-	result, err = ConvertToOutputBulk[C, K](filteredInput, convertFunc)
-	if err != nil {
-		return false, nil, err
+func ResolvePaging[C any](size int, items []C) (result []C, next bool) {
+	if len(items) >= size {
+		return items[0:size], true
 	}
-	return next, result, nil
+	return items, false
 }

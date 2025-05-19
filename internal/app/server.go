@@ -3,8 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
-	"github.com/webitel/logger/registry"
-	"github.com/webitel/logger/registry/consul"
+	proto "github.com/webitel/logger/api/logger"
+	"github.com/webitel/logger/internal/registry"
+	"github.com/webitel/logger/internal/registry/consul"
 	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -13,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	proto_grpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
-	"github.com/webitel/logger/model"
+	handlergrpc "github.com/webitel/logger/internal/handler/grpc"
+	"github.com/webitel/logger/internal/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -91,19 +92,19 @@ func (a *AppServer) stopGrpcServer() model.AppError {
 func buildGrpc(app *App) (*grpc.Server, model.AppError) {
 	grpcServer := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithMessageEvents(otelgrpc.SentEvents, otelgrpc.ReceivedEvents))), grpc.UnaryInterceptor(unaryInterceptor))
 	// * Creating services
-	l, appErr := NewLoggerService(app)
+	l, appErr := handlergrpc.NewLoggerService(app)
 	if appErr != nil {
 		return nil, appErr
 	}
-	c, appErr := NewConfigService(app)
+	c, appErr := handlergrpc.NewConfigService(app)
 	if appErr != nil {
 		return nil, appErr
 	}
 
 	// * register logger service
-	proto_grpc.RegisterLoggerServiceServer(grpcServer, l)
+	proto.RegisterLoggerServiceServer(grpcServer, l)
 	// * register config service
-	proto_grpc.RegisterConfigServiceServer(grpcServer, c)
+	proto.RegisterConfigServiceServer(grpcServer, c)
 
 	return grpcServer, nil
 }

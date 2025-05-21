@@ -20,6 +20,8 @@ buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20240911114117-1d910a772b4f.1 h1:
 buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20240911114117-1d910a772b4f.1/go.mod h1:f5W+yywJeSjcO8ervDzYp+zc3Sum0vV2jLGfJ1VkozY=
 buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250415132635-95bdad2d395b.2 h1:CvBwzdSEbjBWl+e+BWRCLBFNDvnL4hMoJ14C/f836FU=
 buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250415132635-95bdad2d395b.2/go.mod h1:x8ton/CXan0oy9mdKp7bPicQqIA3QLPd2COhPERUeNw=
+buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250521140117-f398110e2a84.2 h1:W8rqekscTkLdzTwLVge0ERYydDoNV1pKO6BnMy4jX20=
+buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250521140117-f398110e2a84.2/go.mod h1:JbrEt5dIuIYLQAWkQctNka2l+atpTrjOu/aKoNzzT4c=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.34.1-20240527133226-9a6f6ba37b1e.1 h1:zsrytJb8Pe0oDAmgfyMi5q+Q0hz3+qiNz7Pm/94mJI8=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.34.1-20240527133226-9a6f6ba37b1e.1/go.mod h1:w0oQz8NcU7hC9ClkXDegSL5U8cUgyJAjfRzn4WbjUAs=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.34.2-20240910090304-e9f21d61a177.2 h1:aXKyaD10uXsEDbyFpaT57Qu9bt5vXYXtXtgKvkNvrmM=
@@ -32,6 +34,8 @@ buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250326082640-75127b
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250326082640-75127b078b82.1/go.mod h1:hh4fRtH1X6CsjyXnBF3vy3P4D8I4jqMbjZk2B1Q1Ppg=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250415132635-95bdad2d395b.1 h1:B6ZZtZssJLmuTAXO/2FLUSsE7lIpmQdtbleW0vQ1+sc=
 buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250415132635-95bdad2d395b.1/go.mod h1:hh4fRtH1X6CsjyXnBF3vy3P4D8I4jqMbjZk2B1Q1Ppg=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250521140117-f398110e2a84.1 h1:jhcfYPNR7tEJi7m2QkIuRdHbH/x1YdW4pK9mMssM7Z4=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250521140117-f398110e2a84.1/go.mod h1:hh4fRtH1X6CsjyXnBF3vy3P4D8I4jqMbjZk2B1Q1Ppg=
 buf.build/gen/go/webitel/storage/grpc/go v1.4.0-20240527133229-1d3ffabec5d4.1 h1:bhJgmGU7FQ1+nbco2PSyG3PLroM7MpZFtOqsVgOxI38=
 buf.build/gen/go/webitel/storage/grpc/go v1.4.0-20240527133229-1d3ffabec5d4.1/go.mod h1:9tl9YVG7PbWEC9mciM+ed+CI8YEIxABCd4UfT7QmtUI=
 buf.build/gen/go/webitel/storage/protocolbuffers/go v1.34.1-20240527133229-1d3ffabec5d4.1 h1:h8kT1Iuawq7vZSoTom7R8zC2HepqW7IO8hOgBCk0hr0=

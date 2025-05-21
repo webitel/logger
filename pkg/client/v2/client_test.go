@@ -84,19 +84,19 @@ func Test_formatKey(t *testing.T) {
 func TestNewLoggerClient(t *testing.T) {
 	got, err := NewLoggerClient(WithGrpcConsulAddress(""), WithAmqpConnectionString(""))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error()
 		return
 	}
 
 	obj := got.GetObjectedLogger("chats")
 	mess, err := NewDeleteMessage(3, "", 1)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error()
 		return
 	}
 	err = obj.SendContext(context.Background(), 1, mess)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error()
 		return
 	}
 }

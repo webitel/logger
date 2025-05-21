@@ -71,10 +71,10 @@ func (l *LoginAttemptStore) Insert(ctx context.Context, attempt *model.LoginAtte
 	}
 	sql, params, _ := base.ToSql()
 	rows, err := db.QueryContext(ctx, sql, params...)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	response, err := utils.ScanRow(rows, l.GetScanPlan)
 	if err != nil {
 		return nil, err
@@ -104,10 +104,10 @@ func (l *LoginAttemptStore) Select(ctx context.Context, searchOpts *model.Search
 	}
 
 	rows, err := db.QueryContext(ctx, query, params...)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	res, err := utils.ScanRows(rows, l.GetScanPlan)
 	if err != nil {
 		return nil, err

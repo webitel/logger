@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -22,7 +21,7 @@ type InputRecord struct {
 func (r *InputRecord) TransformToOutput() (*Record, error) {
 	bytes, err := json.Marshal(r.Object)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("error marshalling record: %s", err.Error()))
+		return nil, fmt.Errorf("error marshalling record: %s", err.Error())
 	}
 	return &Record{
 		Id:       r.Id,
@@ -51,8 +50,8 @@ func (c *Message) checkRecordsValidity() error {
 	}
 	if !canNil {
 		for _, record := range c.Records {
-			if record.NewState == nil || len(record.NewState) == 0 {
-				return fmt.Errorf("logger: record has no data ( id: %s )", record.Id)
+			if len(record.NewState) == 0 {
+				return fmt.Errorf("logger: record has no data ( id: %d )", record.Id)
 			}
 		}
 	}

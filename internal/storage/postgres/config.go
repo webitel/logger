@@ -179,10 +179,10 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (
 		conf.Object.Id,
 		userId,
 		conf.Description)
-	defer row.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer row.Close()
 	return utils.ScanRow(row, c.GetScanPlan)
 }
 
@@ -206,10 +206,10 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 	// endregion
 	// region PREFORM
 	rows, err := base.RunWith(db).QueryContext(ctx)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	// endregion
 	// region SCAN
 	var res []*model.Lookup
@@ -295,10 +295,10 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objectId int) 
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId},
 	)
 	rows, err := base.RunWith(db).QueryContext(ctx)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	return utils.ScanRow(rows, c.GetScanPlan)
 }
 
@@ -309,10 +309,10 @@ func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, d
 	}
 	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId})
 	rows, err := base.RunWith(db).QueryContext(ctx)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	return utils.ScanRow(rows, c.GetScanPlan)
 }
 
@@ -336,10 +336,10 @@ func (c *Config) Select(ctx context.Context, opt *model.SearchOptions, rbac *mod
 		return nil, errors.New("wrong base type")
 	}
 	rows, err := db.QueryContext(ctx, sql, args...)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	return utils.ScanRows(rows, c.GetScanPlan)
 
 }

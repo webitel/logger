@@ -22,7 +22,6 @@ type AuthError interface {
 }
 
 type AuthorizationError struct {
-	params        map[string]interface{}
 	Id            string `json:"id"`
 	Where         string `json:"where,omitempty"`
 	Status        string `json:"status"`

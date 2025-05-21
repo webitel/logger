@@ -102,7 +102,7 @@ func (l *LogFilters) ExtractFilters() *FilterNode {
 }
 
 func GetOrFiltersFromArray[C any](in []C, fieldName string, comparison Comparison) any {
-	if in != nil && len(in) > 0 {
+	if len(in) > 0 {
 		if len(in) == 1 {
 			return &Filter{
 				Column:         fieldName,

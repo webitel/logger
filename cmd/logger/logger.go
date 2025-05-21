@@ -2,7 +2,6 @@ package logger
 
 import (
 	"context"
-	"fmt"
 	"github.com/BoRuDar/configuration/v4"
 	"github.com/webitel/logger/internal/app"
 	"github.com/webitel/logger/internal/model"
@@ -93,8 +92,8 @@ func initSignals(app *app.App) {
 
 func handleSignals(signal os.Signal, app *app.App) {
 	if signal == syscall.SIGTERM || signal == syscall.SIGINT || signal == syscall.SIGKILL {
-		app.Stop()
-		slog.Info(fmt.Sprintf("got kill signal, service gracefully stopped!"))
+		_ = app.Stop()
+		slog.Info("got kill signal, service gracefully stopped!")
 
 		os.Exit(0)
 	}

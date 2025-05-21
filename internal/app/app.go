@@ -46,7 +46,6 @@ type App struct {
 
 	logUploaders    map[string]*watcher.UploadWatcher
 	logCleaners     map[string]*watcher.Watcher
-	brokerConsumers map[string]broker.Consumer
 	brokerPublisher broker.Publisher
 
 	// active connections
@@ -148,7 +147,12 @@ func (a *App) Start() error {
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
+	defer func(listener net.Listener) {
+		err = listener.Close()
+		if err != nil {
+			slog.Error(err.Error())
+		}
+	}(listener)
 	go func() {
 		err = a.grpcServer.Serve(listener)
 		if err != nil {
@@ -164,15 +168,15 @@ func (a *App) Start() error {
 func (a *App) Stop() error {
 	// close massive modules
 	a.StopAllWatchers()
-	a.rabbitConn.Close()
+	_ = a.rabbitConn.Close()
 	a.grpcServer.GracefulStop()
 
 	// close db connection
-	a.storage.Close()
+	_ = a.storage.Close()
 
 	// close grpc connections
-	a.storageConn.Close()
-	a.webitelAppConn.Close()
+	_ = a.storageConn.Close()
+	_ = a.webitelAppConn.Close()
 
 	return nil
 }

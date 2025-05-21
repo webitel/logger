@@ -2,8 +2,6 @@ package postgres
 
 import (
 	"errors"
-	"fmt"
-	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
 	"github.com/webitel/logger/internal/model"
@@ -75,7 +73,7 @@ func (s *Store) Open() error {
 		return err
 	}
 	s.conn = sqlx.NewDb(db, driver)
-	slog.Debug(fmt.Sprintf("postgres: connection opened"))
+	slog.Debug("postgres: connection opened")
 	return nil
 }
 
@@ -85,38 +83,7 @@ func (s *Store) Close() error {
 		return err
 	}
 	s.conn = nil
-	slog.Debug(fmt.Sprintf("postgres: connection closed"))
+	slog.Debug("postgres: connection closed")
 	return nil
 
-}
-
-// Apply filter performs convertation between model.Filter and squirrel.Sqlizer.
-// columnAlias is additional parameter to determine if model.Filter in the Column property has alias of the column and NOT the real DB column name.
-func applyFilter(filter *model.Filter, columnsAlias map[string]string) squirrel.Sqlizer {
-	columnName := filter.Column
-	if columnsAlias != nil {
-		if alias, ok := columnsAlias[columnName]; ok {
-			columnName = alias
-		}
-	}
-	var result squirrel.Sqlizer
-	switch filter.ComparisonType {
-	case model.GreaterThan:
-		result = squirrel.Gt{columnName: filter.Value}
-	case model.GreaterThanOrEqual:
-		result = squirrel.GtOrEq{columnName: filter.Value}
-	case model.LessThan:
-		result = squirrel.Lt{columnName: filter.Value}
-	case model.LessThanOrEqual:
-		result = squirrel.LtOrEq{columnName: filter.Value}
-	case model.NotEqual:
-		result = squirrel.NotEq{columnName: filter.Value}
-	case model.Like:
-		result = squirrel.Like{columnName: filter.Value}
-	case model.ILike:
-		result = squirrel.ILike{columnName: filter.Value}
-	default:
-		result = squirrel.Eq{columnName: filter.Value}
-	}
-	return result
 }

@@ -95,7 +95,7 @@ func (c *Registry) Deregister() error {
 	return nil
 }
 
-func (c *Registry) RunServiceCheck() error {
+func (c *Registry) RunServiceCheck() {
 	defer slog.Info(fmtConsulLog("stopped service checker"))
 	slog.Info(fmtConsulLog("started service checker"))
 	ticker := time.NewTicker(registry.CheckInterval / 2)
@@ -103,7 +103,7 @@ func (c *Registry) RunServiceCheck() error {
 		select {
 		case <-c.stop:
 			// gracefull stop
-			return nil
+			return
 		case <-ticker.C:
 			err := c.client.Agent().UpdateTTL(c.checkId, "success", "pass")
 			if err != nil {

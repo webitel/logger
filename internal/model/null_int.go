@@ -18,10 +18,7 @@ func (t NullInt) Value() (driver.Value, error) {
 
 // IsZero value (?)
 func (t *NullInt) IsZero() bool {
-	if t != nil {
-		return false
-	}
-	return true
+	return t == nil
 }
 
 // IsZero value (?)

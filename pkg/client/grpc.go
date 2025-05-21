@@ -37,7 +37,7 @@ func (c *grpcClient) IsOpened() bool {
 }
 
 func (c *grpcClient) Start() error {
-	conn, err := grpc.Dial(fmt.Sprintf("consul://%s/logger?wait=14s", c.consulAddress),
+	conn, err := grpc.NewClient(fmt.Sprintf("consul://%s/logger?wait=14s", c.consulAddress),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {

@@ -45,7 +45,6 @@ func NewNullString(i string) *NullString {
 func (t *NullString) Scan(v interface{}) error {
 	// scan: nullable (!)
 	if v == nil {
-		(t) = nil // Zero(!)
 		return nil
 	}
 	switch v := v.(type) {

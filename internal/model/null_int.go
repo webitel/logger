@@ -74,7 +74,6 @@ func NewNullInt(i any) (*NullInt, error) {
 func (t *NullInt) Scan(v interface{}) error {
 	// scan: nullable (!)
 	if v == nil {
-		t = nil // Zero(!)
 		return nil
 	}
 

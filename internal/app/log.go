@@ -4,6 +4,7 @@ import (
 	"context"
 	storageModel "github.com/webitel/logger/api/storage"
 	"github.com/webitel/logger/internal/auth"
+	grpc "google.golang.org/grpc"
 	"io"
 
 	"github.com/webitel/logger/internal/model"
@@ -58,7 +59,9 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 		return nil, err
 	}
 
-	defer stream.CloseSend()
+	defer func(stream grpc.ClientStreamingClient[storageModel.UploadFileRequest, storageModel.UploadFileResponse]) {
+		_ = stream.CloseSend()
+	}(stream)
 
 	buf := make([]byte, 4*1024)
 	var n int

@@ -36,7 +36,9 @@ func Run() error {
 		return appErr
 	}
 	sd := SetupOtel(config.Consul.Id)
-	defer sd(context.Background())
+	defer func() {
+		_ = sd(context.Background())
+	}()
 	// * Create an application layer
 	app, err := app.New(config)
 	if err != nil {

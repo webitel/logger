@@ -17,9 +17,7 @@ import (
 	"time"
 )
 
-const (
-	RequestContextName = "grpc_ctx"
-)
+const ()
 
 type Handler interface {
 	LogManager
@@ -50,6 +48,8 @@ func unaryInterceptor(ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
+	var RequestContextName = "grpc_ctx"
+
 	start := time.Now()
 	var reqCtx context.Context
 	var ip string

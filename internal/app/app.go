@@ -65,7 +65,7 @@ func New(config *model.AppConfig) (*App, error) {
 	app := &App{config: config, emergencyStop: make(chan error)}
 	var err error
 	// init of database
-	if &config.Database == nil {
+	if config.Database == nil {
 		return nil, errors.New("error creating storage, config is nil")
 	}
 	app.storage = BuildDatabase(config.Database)
@@ -160,7 +160,7 @@ func (a *App) Start() error {
 		}
 	}()
 	err = <-a.emergencyStop
-	a.Stop()
+	_ = a.Stop()
 
 	return appErr
 }

@@ -1,8 +1,6 @@
 package client
 
 import (
-	loggerapi "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
-	loggerproto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +8,7 @@ import (
 	cache "github.com/hashicorp/golang-lru/v2/expirable"
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	amqp "github.com/rabbitmq/amqp091-go"
+	proto "github.com/webitel/logger/api/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,7 +40,7 @@ var (
 
 type LoggerClient struct {
 	grpcConnection  *grpc.ClientConn
-	grpcClient      loggerapi.ConfigServiceClient
+	grpcClient      proto.ConfigServiceClient
 	memoryCache     *cache.LRU[string, bool]
 	cacheTimeToLive time.Duration
 
@@ -155,7 +154,7 @@ func NewLoggerClient(opts ...LoggerClientOpts) (*LoggerClient, error) {
 		return nil, err
 	}
 
-	logger.grpcClient = loggerapi.NewConfigServiceClient(logger.grpcConnection)
+	logger.grpcClient = proto.NewConfigServiceClient(logger.grpcConnection)
 	return logger, nil
 }
 
@@ -192,7 +191,7 @@ func (l *LoggerClient) checkObjectConfig(ctx context.Context, domainId int64, ob
 	cacheKey := fmt.Sprintf("%d.%s", domainId, objclass)
 	enabled, found := l.memoryCache.Get(cacheKey)
 	if !found {
-		resp, err := l.grpcClient.CheckConfigStatus(ctx, &loggerproto.CheckConfigStatusRequest{
+		resp, err := l.grpcClient.CheckConfigStatus(ctx, &proto.CheckConfigStatusRequest{
 			ObjectName: objclass,
 			DomainId:   domainId,
 		})

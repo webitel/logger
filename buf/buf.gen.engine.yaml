@@ -1,0 +1,14 @@
+version: v2
+
+
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: api/engine
+    opt: paths=source_relative
+
+  - remote: buf.build/grpc/go
+    out: api/engine
+    opt: paths=source_relative
+
+inputs:
+  - directory: "../protos/engine"

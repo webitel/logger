@@ -1,10 +1,10 @@
 package client
 
 import (
-	"buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
 	"context"
 	cache "github.com/hashicorp/golang-lru/v2/expirable"
 	amqp "github.com/rabbitmq/amqp091-go"
+	proto "github.com/webitel/logger/api/logger"
 	"google.golang.org/grpc"
 	"testing"
 	"time"
@@ -13,7 +13,7 @@ import (
 func TestLoggerClient_GetObjectedLogger(t *testing.T) {
 	type fields struct {
 		grpcConnection   *grpc.ClientConn
-		grpcClient       _gogrpc.ConfigServiceClient
+		grpcClient       proto.ConfigServiceClient
 		memoryCache      *cache.LRU[string, bool]
 		cacheTimeToLive  time.Duration
 		rabbitConnection *amqp.Connection
@@ -84,19 +84,19 @@ func Test_formatKey(t *testing.T) {
 func TestNewLoggerClient(t *testing.T) {
 	got, err := NewLoggerClient(WithGrpcConsulAddress(""), WithAmqpConnectionString(""))
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error()
 		return
 	}
 
 	obj := got.GetObjectedLogger("chats")
 	mess, err := NewDeleteMessage(3, "", 1)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error()
 		return
 	}
 	err = obj.SendContext(context.Background(), 1, mess)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error()
 		return
 	}
 }

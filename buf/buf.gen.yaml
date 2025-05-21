@@ -1,0 +1,26 @@
+version: v2
+
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/webitel/logger/api/logger
+      module: buf.build/webitel/general
+
+
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    out: api/logger
+    opt: paths=source_relative
+    include_imports: true
+
+  - remote: buf.build/grpc/go
+    out: api/logger
+    opt: paths=source_relative
+
+  # Generate Webitel Service APIs specification (such as objclass, method permission access, ...)
+#  - local: [ "go", "run", "github.com/webitel/webitel-go-kit/cmd/protoc-gen-go-webitel@v0.0.18" ]
+#    out: api/cases
+
+inputs:
+  - directory: "../protos/logger"

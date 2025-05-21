@@ -241,6 +241,8 @@ github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1 h1:i4f4ey/v5x0zXurkqV/z
 github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1/go.mod h1:ZKgZNsGk5Y+uOxRHcYb4MKLVpmKYU4/u7BUtbStJm7w=
 github.com/webitel/webitel-go-kit v0.0.21-0.20250520121409-f650604d1463 h1:HpTt0oabVRDo/KrU8syqnczcT2/yc/AAHSd+JOgls9o=
 github.com/webitel/webitel-go-kit v0.0.21-0.20250520121409-f650604d1463/go.mod h1:m35vEcY7xr2y99I1TeZFR1mknEYLpddEWwq0cvbA/5E=
+github.com/webitel/webitel-go-kit v0.0.21-0.20250521181347-f6d3e4935826 h1:qV0CeNycVQ+R9h5/fKbi8pT9Ogjbz53o7BjkTu8LCp4=
+github.com/webitel/webitel-go-kit v0.0.21-0.20250521181347-f6d3e4935826/go.mod h1:m35vEcY7xr2y99I1TeZFR1mknEYLpddEWwq0cvbA/5E=
 github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20240807083813-0853fbc06218 h1:5Jn9KhUMjqAUdVMi7EvFJrJlJGrwndhKFbz7FZ7woL0=
 github.com/webitel/webitel-go-kit/logging/wlog v0.0.0-20240807083813-0853fbc06218/go.mod h1:mdwPNCv2dd7RIJ8euwVJGYf8AaVH2H7CVh8D/zyCTqA=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

@@ -11,7 +11,7 @@ const (
 	CheckInterval                  = 5 * time.Second
 )
 
-type ServiceRegistrator interface {
+type ServiceRegistrar interface {
 	Register() model.AppError
 	Deregister() model.AppError
 }

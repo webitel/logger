@@ -6,7 +6,6 @@ import (
 	"fmt"
 	authmodel "github.com/webitel/logger/internal/auth/model"
 	"github.com/webitel/logger/internal/watcher"
-	"go.opentelemetry.io/otel/attribute"
 	"log/slog"
 
 	proto "github.com/webitel/logger/api/logger"
@@ -29,7 +28,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config
 	accessMode := authmodel.Edit
 	scope := model.ScopeLog
 	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError(session, scope, accessMode)
+		return nil, a.MakeScopeError()
 	}
 
 	// RBAC check
@@ -39,7 +38,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config
 			return nil, err
 		}
 		if !access {
-			return nil, a.MakeScopeError(session, scope, accessMode)
+			return nil, a.MakeScopeError()
 		}
 	}
 	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id, session.GetDomainId())
@@ -66,7 +65,7 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 	accessMode := authmodel.Read
 	// OBAC check
 	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError(session, scope, authmodel.Read)
+		return nil, a.MakeScopeError()
 	}
 	var filters []string
 	for _, name := range proto.AvailableSystemObjects_name {
@@ -92,14 +91,10 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 }
 
 func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *model.Config) {
-	ctx, span := a.tracer.Start(ctx, "worker.UpdateConfigWatchers")
-	defer span.End()
 	configId := newConfig.Id
 	domainId := newConfig.DomainId
-	span.SetAttributes(attribute.Int("config.id", configId))
 	if !newConfig.Enabled && oldConfig.Enabled { // changed to disabled
 		a.DeleteWatchers(configId)
-		span.AddEvent("config workers deleted")
 		slog.InfoContext(ctx, fmt.Sprintf("config with id %d disabled... watchers have been deleted !", configId))
 	} else if newConfig.Enabled && oldConfig.Enabled || (newConfig.Enabled && !oldConfig.Enabled) { // status wasn't changed and it's still enabled OR changed to enabled
 		// if days to store changed, then we need to update cleaner worker
@@ -126,7 +121,6 @@ func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *mo
 				DomainId:     domainId,
 			})
 		}
-		span.AddEvent("config workers updated")
 	}
 	// else status still disabled
 }
@@ -146,7 +140,7 @@ func (a *App) InsertConfig(ctx context.Context, in *model.Config) (*model.Config
 	accessMode := authmodel.Add
 	scope := model.ScopeLog
 	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError(session, scope, accessMode)
+		return nil, a.MakeScopeError()
 	}
 	in.NextUploadOn = *model.NewNullTime(calculateNextPeriodFromNow(int32(in.Period)))
 	newModel, err = a.storage.Config().Insert(ctx, in, session.GetUserId())
@@ -210,7 +204,7 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 	accessMode := authmodel.Read
 	// OBAC check
 	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError(session, scope, accessMode)
+		return nil, a.MakeScopeError()
 	}
 	// RBAC check
 	if session.UseRbacAccess(scope, accessMode) {
@@ -234,7 +228,7 @@ func (a *App) DeleteConfig(ctx context.Context, ids []int32) error {
 	accessMode := authmodel.Delete
 	scope := model.ScopeLog
 	if !session.HasObacAccess(scope, accessMode) {
-		return a.MakeScopeError(session, scope, accessMode)
+		return a.MakeScopeError()
 	}
 	var rbac *model.RbacOptions
 	if session.UseRbacAccess(scope, accessMode) {
@@ -264,7 +258,7 @@ func (a *App) SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchO
 	accessMode := authmodel.Read
 	// OBAC check
 	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError(session, scope, accessMode)
+		return nil, a.MakeScopeError()
 	}
 	// RBAC check
 	if session.UseRbacAccess(scope, accessMode) {

@@ -1,10 +1,5 @@
 package model
 
-const (
-	AuthTokenName      = "X-Webitel-Access"
-	RequestContextName = "grpc_ctx"
-)
-
 type AccessMode uint8
 
 func (a AccessMode) Value() uint8 {

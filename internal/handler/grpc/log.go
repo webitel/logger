@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"github.com/webitel/logger/internal/handler/grpc/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -23,9 +24,9 @@ type LoggerService struct {
 	proto.UnimplementedLoggerServiceServer
 }
 
-func NewLoggerService(app LogManager) (*LoggerService, model.AppError) {
+func NewLoggerService(app LogManager) (*LoggerService, error) {
 	if app == nil {
-		return nil, model.NewInternalError("api.config.new_logger_service.args_check.app_nil", "app is nil")
+		return nil, errors.New("app is nil")
 	}
 	return &LoggerService{app: app}, nil
 }

@@ -17,7 +17,7 @@ require (
 	github.com/nicksnyder/go-i18n v1.10.1
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1
-	github.com/webitel/webitel-go-kit v0.0.21-0.20250520121409-f650604d1463
+	github.com/webitel/webitel-go-kit v0.0.21-0.20250521181347-f6d3e4935826
 	go.opentelemetry.io/contrib/bridges/otelslog v0.3.0
 	go.opentelemetry.io/otel v1.29.0
 	go.opentelemetry.io/otel/sdk v1.29.0

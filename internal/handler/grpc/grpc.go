@@ -1,102 +1,40 @@
-package app
+package grpc
 
 import (
 	"context"
 	"fmt"
 	proto "github.com/webitel/logger/api/logger"
-	"github.com/webitel/logger/internal/registry"
-	"github.com/webitel/logger/internal/registry/consul"
+	"github.com/webitel/logger/internal/model"
 	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"net"
-	"net/http"
-	"strings"
-	"time"
-
-	handlergrpc "github.com/webitel/logger/internal/handler/grpc"
-	"github.com/webitel/logger/internal/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"log/slog"
+	"net/http"
+	"strings"
+	"time"
 )
 
-var (
-	RequestContextName       = "grpc_ctx"
-	AppServiceTtl            = time.Second * 30
-	AppDeregesterCriticalTtl = time.Minute * 2
+const (
+	RequestContextName = "grpc_ctx"
 )
 
-type AppServer struct {
-	server   *grpc.Server
-	listener net.Listener
-	config   *model.ConsulConfig
-	exitChan chan model.AppError
-	registry registry.ServiceRegistrator
+type Handler interface {
+	LogManager
+	ConfigManager
 }
 
-func BuildServer(app *App, config *model.ConsulConfig, exitChan chan model.AppError) (*AppServer, model.AppError) {
-	// * Build grpc server
-	server, appErr := buildGrpc(app)
-	if appErr != nil {
-		return nil, appErr
-	}
-	//  * Open tcp connection
-	listener, err := net.Listen("tcp", config.PublicAddress)
-	if err != nil {
-		return nil, model.NewInternalError("api.grpc_server.serve_requests.listen.error", err.Error())
-	}
-	reg, appErr := consul.NewConsulRegistry(config)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return &AppServer{
-		server:   server,
-		listener: listener,
-		exitChan: exitChan,
-		config:   config,
-		registry: reg,
-	}, nil
-}
-
-func (a *AppServer) Start() {
-	appErr := a.registry.Register()
-	if appErr != nil {
-		a.exitChan <- appErr
-		return
-	}
-	err := a.server.Serve(a.listener)
-	if err != nil {
-		a.exitChan <- model.NewInternalError("api.grpc_server.serve_requests.serve.error", err.Error())
-		return
-	}
-}
-
-func (a *AppServer) Stop() model.AppError {
-	appErr := a.registry.Deregister()
-	if appErr != nil {
-		return appErr
-	}
-	a.stopGrpcServer()
-	return nil
-}
-
-func (a *AppServer) stopGrpcServer() model.AppError {
-	a.server.Stop()
-	slog.Info("grpc: server stopped")
-	return nil
-}
-
-func buildGrpc(app *App) (*grpc.Server, model.AppError) {
+func Build(app Handler) (*grpc.Server, error) {
 	grpcServer := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithMessageEvents(otelgrpc.SentEvents, otelgrpc.ReceivedEvents))), grpc.UnaryInterceptor(unaryInterceptor))
 	// * Creating services
-	l, appErr := handlergrpc.NewLoggerService(app)
+	l, appErr := NewLoggerService(app)
 	if appErr != nil {
 		return nil, appErr
 	}
-	c, appErr := handlergrpc.NewConfigService(app)
+	c, appErr := NewConfigService(app)
 	if appErr != nil {
 		return nil, appErr
 	}

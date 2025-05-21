@@ -23,7 +23,7 @@ func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, fi
 	accessMode := authmodel.Read
 	scope := model.ScopeLog
 	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError(session, scope, accessMode)
+		return nil, a.MakeScopeError()
 	}
 	// region PERFORM
 	modelLogs, err := a.storage.Log().Select(
@@ -114,7 +114,7 @@ func (a *App) DeleteLogs(ctx context.Context, configId int, earlierThan time.Tim
 	scope := model.ScopeLog
 	// Edit or Delete permissions allow this operation
 	if !session.HasObacAccess(scope, accessMode) && !session.HasObacAccess(scope, secondaryMode) {
-		return 0, a.MakeScopeError(session, scope, accessMode)
+		return 0, a.MakeScopeError()
 	}
 	// RBAC check
 	if session.UseRbacAccess(scope, accessMode) && session.UseRbacAccess(scope, secondaryMode) {
@@ -127,7 +127,7 @@ func (a *App) DeleteLogs(ctx context.Context, configId int, earlierThan time.Tim
 			return 0, err
 		}
 		if !rbacAccess && !secondaryRbacAccess {
-			return 0, a.MakeScopeError(session, scope, accessMode)
+			return 0, a.MakeScopeError()
 		}
 	}
 

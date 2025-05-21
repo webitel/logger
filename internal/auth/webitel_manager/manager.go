@@ -3,10 +3,15 @@ package webitel_manager
 import (
 	"context"
 	iface "github.com/webitel/logger/internal/auth"
-	model2 "github.com/webitel/logger/internal/auth/model"
+	authmodel "github.com/webitel/logger/internal/auth/model"
 	errors "github.com/webitel/logger/internal/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	RequestContextName = "grpc_ctx"
+	AuthTokenName      = "X-Webitel-Access"
 )
 
 var _ iface.AuthManager = &WebitelAppAuthManager{}
@@ -25,12 +30,12 @@ func NewWebitelAppAuthManager(conn *grpc.ClientConn) (iface.AuthManager, errors.
 	return manager, nil
 }
 
-func (i *WebitelAppAuthManager) AuthorizeFromContext(ctx context.Context) (*model2.Session, errors.AppError) {
+func (i *WebitelAppAuthManager) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, errors.AppError) {
 	var token []string
 	var info metadata.MD
 	var ok bool
 
-	v := ctx.Value(model2.RequestContextName)
+	v := ctx.Value(RequestContextName)
 	info, ok = v.(metadata.MD)
 
 	if !ok {
@@ -40,7 +45,7 @@ func (i *WebitelAppAuthManager) AuthorizeFromContext(ctx context.Context) (*mode
 	if !ok {
 		return nil, errors.NewForbiddenError("app.grpc.get_context", "Not found")
 	} else {
-		token = info.Get(model2.AuthTokenName)
+		token = info.Get(AuthTokenName)
 	}
 	newContext := metadata.NewOutgoingContext(ctx, info)
 	if len(token) < 1 {
@@ -50,6 +55,6 @@ func (i *WebitelAppAuthManager) AuthorizeFromContext(ctx context.Context) (*mode
 
 }
 
-func (i *WebitelAppAuthManager) Authorize(ctx context.Context, token string) (*model2.Session, errors.AppError) {
+func (i *WebitelAppAuthManager) Authorize(ctx context.Context, token string) (*authmodel.Session, errors.AppError) {
 	return i.client.UserInfo(ctx, token)
 }

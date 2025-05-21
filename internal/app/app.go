@@ -9,15 +9,18 @@ import (
 	"github.com/webitel/logger/internal/auth"
 	authmodel "github.com/webitel/logger/internal/auth/model"
 	"github.com/webitel/logger/internal/auth/webitel_manager"
+	handlergrpc "github.com/webitel/logger/internal/handler/grpc"
+	"github.com/webitel/logger/internal/registry"
+	"github.com/webitel/logger/internal/registry/consul"
 	"github.com/webitel/logger/internal/storage"
 	"github.com/webitel/logger/internal/storage/postgres"
 	"github.com/webitel/logger/internal/watcher"
 	broker "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
 	slogadapter "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -41,21 +44,30 @@ const (
 	MaxPageSize     = 40000
 )
 
+var (
+	PermissionError = errors.New("permission denied")
+	DatabaseError   = errors.New("database error")
+)
+
 type App struct {
-	config          *model.AppConfig
-	tracer          trace.Tracer
-	storage         storage.Storage
-	file            storagegrpc.FileServiceClient
+	config         *model.AppConfig
+	storage        storage.Storage
+	file           storagegrpc.FileServiceClient
+	grpcServer     *grpc.Server
+	registry       registry.ServiceRegistrar
+	sessionManager auth.AuthManager
+
 	logUploaders    map[string]*watcher.UploadWatcher
 	logCleaners     map[string]*watcher.Watcher
-	serverExitChan  chan model.AppError
-	rabbitConn      *broker.Connection
-	rabbitConsumers []broker.Consumer
+	brokerConsumers map[string]broker.Consumer
 
-	server         *AppServer
+	// active connections
+	rabbitConn     *broker.Connection
 	storageConn    *grpc.ClientConn
-	sessionManager auth.AuthManager
 	webitelAppConn *grpc.ClientConn
+
+	// emergency channel, error in this channel signals fatal application error
+	emergencyStop chan error
 }
 
 func (app *App) Database() storage.Storage {
@@ -63,11 +75,11 @@ func (app *App) Database() storage.Storage {
 }
 
 func New(config *model.AppConfig) (*App, error) {
-	app := &App{config: config, serverExitChan: make(chan model.AppError), tracer: otel.GetTracerProvider().Tracer("app_internal")}
+	app := &App{config: config, emergencyStop: make(chan error)}
 	var err error
 	// init of database
 	if &config.Database == nil {
-		return nil, model.NewInternalError("app.app.new.database_config.bad_arguments", "error creating storage, config is nil")
+		return nil, errors.New("error creating storage, config is nil")
 	}
 	app.storage = BuildDatabase(config.Database)
 
@@ -80,12 +92,17 @@ func New(config *model.AppConfig) (*App, error) {
 		return nil, err
 	}
 
-	// init of grpc server
-	s, appErr := BuildServer(app, app.config.Consul, app.serverExitChan)
-	if appErr != nil {
-		return nil, appErr
+	// registry
+	app.registry, err = consul.New(config.GrpcAddr, config.Consul)
+	if err != nil {
+		return nil, err
 	}
-	app.server = s
+
+	// GRPC handlers initialization
+	app.grpcServer, err = handlergrpc.Build(app)
+	if err != nil {
+		return nil, err
+	}
 
 	// init service connections
 	app.storageConn, err = grpc.NewClient(fmt.Sprintf("consul://%s/storage?wait=14s", config.Consul.Address),
@@ -93,7 +110,7 @@ func New(config *model.AppConfig) (*App, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, model.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
+		return nil, err
 	}
 
 	app.file = storagegrpc.NewFileServiceClient(app.storageConn)
@@ -103,12 +120,12 @@ func New(config *model.AppConfig) (*App, error) {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, model.NewInternalError("app.app.new_app.grpc_conn.error", err.Error())
+		return nil, err
 	}
 
-	app.sessionManager, appErr = webitel_manager.NewWebitelAppAuthManager(app.webitelAppConn)
-	if appErr != nil {
-		return nil, appErr
+	app.sessionManager, err = webitel_manager.NewWebitelAppAuthManager(app.webitelAppConn)
+	if err != nil {
+		return nil, err
 	}
 
 	return app, nil
@@ -129,32 +146,46 @@ func (a *App) Start() error {
 	if appErr != nil {
 		return appErr
 	}
-	err = a.BrokerListenNewRecordLogs()
+
+	err = a.initLogsConsumption()
 	if err != nil {
 		return err
 	}
-	err = a.BrokerListenLoginAttempts()
-	if err != nil {
-		return err
+
+	if a.config.Features.EnableLoginConsumption {
+		err = a.initLoginConsumption()
+		if err != nil {
+			return err
+		}
 	}
+
 	// * run grpc server
-	go a.server.Start()
-	err = <-a.serverExitChan
-	a.StopAllWatchers()
-	a.rabbitConn.Close()
-	err = a.storage.Close()
+	listener, err := net.Listen("tcp", a.config.GrpcAddr)
 	if err != nil {
-		slog.Error(err.Error())
+		return err
 	}
+	err = a.registry.Register()
+	if err != nil {
+		return err
+	}
+	defer listener.Close()
+	go func() {
+		err = a.grpcServer.Serve(listener)
+		if err != nil {
+			a.emergencyStop <- err
+		}
+	}()
+	err = <-a.emergencyStop
+	a.Stop()
 
 	return appErr
 }
 
-func (a *App) Stop() model.AppError {
+func (a *App) Stop() error {
 	// close massive modules
 	a.StopAllWatchers()
-	//a.rabbit.Stop()
-	a.server.Stop()
+	a.rabbitConn.Close()
+	a.grpcServer.GracefulStop()
 
 	// close db connection
 	a.storage.Close()
@@ -190,11 +221,8 @@ func (a *App) MakePermissionError(session *authmodel.Session) model.AppError {
 	return model.NewForbiddenError("app.permissions.check_access.denied", fmt.Sprintf("userId=%d, access denied", session.GetUserId()))
 }
 
-func (a *App) MakeScopeError(session *authmodel.Session, scope string, access authmodel.AccessMode) model.AppError {
-	if session == nil || session.GetUser() == nil || scope == "" {
-		return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied"))
-	}
-	return model.NewForbiddenError("app.scope.check_access.denied", fmt.Sprintf("access denied scope=%s access=%d for user %d", scope, access, session.GetUserId()))
+func (a *App) MakeScopeError() error {
+	return PermissionError
 }
 
 func (a *App) StopAllWatchers() {
@@ -206,7 +234,7 @@ func (a *App) StopAllWatchers() {
 	}
 }
 
-func (a *App) BrokerListenNewRecordLogs() error {
+func (a *App) initLogsConsumption() error {
 	exchangeConf, err := broker.NewExchangeConfig("logger", broker.ExchangeTypeTopic)
 	if err != nil {
 		return err
@@ -237,7 +265,7 @@ func (a *App) BrokerListenNewRecordLogs() error {
 	return consumer.Start(context.Background())
 }
 
-func (a *App) BrokerListenLoginAttempts() error {
+func (a *App) initLoginConsumption() error {
 	sourceExchangeName := "webitel"
 	// create or connect the logger exchange
 	exchangeConf, err := broker.NewExchangeConfig(sourceExchangeName, broker.ExchangeTypeTopic)

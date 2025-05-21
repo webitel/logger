@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"errors"
 	"fmt"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/webitel/logger/internal/model"
@@ -11,35 +12,35 @@ import (
 	"time"
 )
 
-type ConsulRegistry struct {
+type Registry struct {
 	registrationConfig *consulapi.AgentServiceRegistration
 	client             *consulapi.Client
 	stop               chan any
 	checkId            string
 }
 
-func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppError) {
+func New(grpcAddr string, config *model.ConsulConfig) (*Registry, error) {
 	var (
 		err error
 	)
-	entity := ConsulRegistry{}
+	entity := Registry{}
 	if config.Id == "" {
-		return nil, model.NewBadRequestError("consul.registry.new_consul.check_args.service_id", "service id is empty! (set it by '-id' flag)")
+		return nil, errors.New("service id is empty")
 	}
-	ip, port, err := net.SplitHostPort(config.PublicAddress)
+	ip, port, err := net.SplitHostPort(grpcAddr)
 	if err != nil {
-		return nil, model.NewBadRequestError("consul.registry.new_consul.parse_address.error", "unable to parse address")
+		return nil, errors.New("unable to parse address")
 	}
 	parsedPort, err := strconv.Atoi(port)
 	if err != nil {
-		return nil, model.NewBadRequestError("consul.registry.new_consul.parse_ip.error", "unable to parse ip")
+		return nil, errors.New("unable to parse ip")
 	}
 
 	consulConfig := consulapi.DefaultConfig()
 	consulConfig.Address = config.Address
 	entity.client, err = consulapi.NewClient(consulConfig)
 	if err != nil {
-		return nil, model.NewBadRequestError("consul.registry.new_consul_registry.consulapi_creation.error", err.Error())
+		return nil, err
 	}
 
 	entity.registrationConfig = &consulapi.AgentServiceRegistration{
@@ -49,7 +50,6 @@ func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppEr
 		Address: ip,
 		Check: &consulapi.AgentServiceCheck{
 			DeregisterCriticalServiceAfter: registry.DeregisterCriticalServiceAfter.String(),
-			CheckID:                        config.Id,
 			TTL:                            registry.CheckInterval.String(),
 		},
 	}
@@ -58,7 +58,7 @@ func NewConsulRegistry(config *model.ConsulConfig) (*ConsulRegistry, model.AppEr
 	return &entity, nil
 }
 
-func (c *ConsulRegistry) Register() model.AppError {
+func (c *Registry) Register() model.AppError {
 	agent := c.client.Agent()
 	err := agent.ServiceRegister(c.registrationConfig)
 	if err != nil {
@@ -85,7 +85,7 @@ func (c *ConsulRegistry) Register() model.AppError {
 	return nil
 }
 
-func (c *ConsulRegistry) Deregister() model.AppError {
+func (c *Registry) Deregister() model.AppError {
 	err := c.client.Agent().ServiceDeregister(c.registrationConfig.ID)
 	if err != nil {
 		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
@@ -95,7 +95,7 @@ func (c *ConsulRegistry) Deregister() model.AppError {
 	return nil
 }
 
-func (c *ConsulRegistry) RunServiceCheck() model.AppError {
+func (c *Registry) RunServiceCheck() model.AppError {
 	defer slog.Info(fmtConsulLog("stopped service checker"))
 	slog.Info(fmtConsulLog("started service checker"))
 	ticker := time.NewTicker(registry.CheckInterval / 2)

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/webitel/logger/internal/watcher"
-	"go.opentelemetry.io/otel/attribute"
 	"time"
 
 	"log/slog"
@@ -87,9 +86,6 @@ func (a *App) DeleteLogCleaner(configId ...int) {
 }
 
 func (a *App) UpdateLogCleanerWithNewInterval(ctx context.Context, configId, daysToStore int) {
-	ctx, span := a.tracer.Start(ctx, "app.UpdateLogCleaner")
-	defer span.End()
-	span.SetAttributes(attribute.Int("worker.interval", daysToStore))
 	name := FormatKey(DeleteWatcherPrefix, configId)
 	val, ok := a.logCleaners[name]
 	if !ok {

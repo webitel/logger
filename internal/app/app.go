@@ -7,8 +7,8 @@ import (
 	"fmt"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/webitel/logger/internal/auth"
-	authmodel "github.com/webitel/logger/internal/auth/model"
-	"github.com/webitel/logger/internal/auth/webitel_manager"
+	autherror "github.com/webitel/logger/internal/auth/errors"
+	"github.com/webitel/logger/internal/auth/manager/webitel_app"
 	handlergrpc "github.com/webitel/logger/internal/handler/grpc"
 	"github.com/webitel/logger/internal/registry"
 	"github.com/webitel/logger/internal/registry/consul"
@@ -17,8 +17,6 @@ import (
 	"github.com/webitel/logger/internal/watcher"
 	broker "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
 	slogadapter "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"net"
 	"strconv"
@@ -36,17 +34,6 @@ import (
 const (
 	DeleteWatcherPrefix = "config.delete.watcher"
 	UploadWatcherPrefix = "config.upload.watcher"
-	SessionCacheSize    = 35000
-	SessionCacheTime    = 60 * 5
-
-	DefaultPageSize = 40
-	DefaultPage     = 1
-	MaxPageSize     = 40000
-)
-
-var (
-	PermissionError = errors.New("permission denied")
-	DatabaseError   = errors.New("database error")
 )
 
 type App struct {
@@ -55,7 +42,7 @@ type App struct {
 	file           storagegrpc.FileServiceClient
 	grpcServer     *grpc.Server
 	registry       registry.ServiceRegistrar
-	sessionManager auth.AuthManager
+	sessionManager auth.Manager
 
 	logUploaders    map[string]*watcher.UploadWatcher
 	logCleaners     map[string]*watcher.Watcher
@@ -123,7 +110,7 @@ func New(config *model.AppConfig) (*App, error) {
 		return nil, err
 	}
 
-	app.sessionManager, err = webitel_manager.NewWebitelAppAuthManager(app.webitelAppConn)
+	app.sessionManager, err = webitel_app.New(app.webitelAppConn)
 	if err != nil {
 		return nil, err
 	}
@@ -201,28 +188,12 @@ func BuildDatabase(config *model.DatabaseConfig) storage.Storage {
 	return postgres.New(config)
 }
 
-func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, error) {
-	span := trace.SpanFromContext(ctx)
-	session, err := a.sessionManager.AuthorizeFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if session.IsExpired() {
-		return nil, model.NewUnauthorizedError("app.app.authorize_from_context.validate_session.expired", "session expired")
-	}
-	span.SetAttributes(attribute.Int64("caller_user.id", session.GetUserId()), attribute.Int64("caller_user.domain", session.GetDomainId()))
-	return session, nil
+func (a *App) AuthorizeFromContext(ctx context.Context, objclass string, accessMode auth.AccessMode) (auth.Auther, error) {
+	return a.sessionManager.AuthorizeFromContext(ctx, objclass, accessMode)
 }
 
-func (a *App) MakePermissionError(session *authmodel.Session) model.AppError {
-	if session == nil {
-		return model.NewForbiddenError("app.permissions.check_access.denied", "access denied")
-	}
-	return model.NewForbiddenError("app.permissions.check_access.denied", fmt.Sprintf("userId=%d, access denied", session.GetUserId()))
-}
-
-func (a *App) MakeScopeError() error {
-	return PermissionError
+func (a *App) MakeScopeError(objclass string) error {
+	return autherror.NewForbiddenError("application.objclass.access.denied", fmt.Sprintf("%s: access denied", objclass))
 }
 
 func (a *App) StopAllWatchers() {

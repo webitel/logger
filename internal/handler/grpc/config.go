@@ -9,7 +9,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"strings"
-	"time"
 )
 
 type ConfigManager interface {
@@ -42,8 +41,7 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
 	config, err := s.app.GetConfigById(ctx, rbac, int(in.GetConfigId()))
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	message, err := s.Marshal(config)
 	if err != nil {
@@ -65,8 +63,7 @@ func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.Read
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("object.id", int(in.GetObjectId())))
 	config, err := s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()), 0)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	message, err := s.Marshal(config)
 	if err != nil {
@@ -94,12 +91,10 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 		rbac *model.RbacOptions
 		res  proto.Configs
 	)
-	GroupIncomingAttributesAndBindToSpan(ctx, attribute.String("q", in.GetQ()))
 	searchOpts := ExtractSearchOptions(in)
 	configs, err := s.app.SearchConfig(ctx, rbac, searchOpts)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	messages, err := s.Marshal(configs...)
 	if err != nil {
@@ -123,8 +118,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	}
 	config, err := s.app.UpdateConfig(ctx, mod)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	message, err := s.Marshal(config)
 	if err != nil {
@@ -144,8 +138,7 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 	}
 	config, err := s.app.UpdateConfig(ctx, updatedConfigModel)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	message, err := s.Marshal(config)
 	if err != nil {
@@ -281,10 +274,6 @@ func (s *ConfigService) Marshal(models ...*model.Config) ([]*proto.Config, model
 	}
 
 	return res, nil
-}
-
-func calculateNextPeriodFromDate(period int, from time.Time) *model.NullTime {
-	return model.NewNullTime(from.Add(time.Hour * 24 * time.Duration(period)))
 }
 
 func ExtractSearchOptions(t model.Searcher) *model.SearchOptions {

@@ -1,6 +1,6 @@
-package model
+package user_session
 
 type Role struct {
-	Id   int64
 	Name string
+	Id   int64
 }

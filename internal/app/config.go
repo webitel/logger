@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	authmodel "github.com/webitel/logger/internal/auth/model"
+	"github.com/webitel/logger/internal/auth"
 	"github.com/webitel/logger/internal/watcher"
 	"log/slog"
 
@@ -13,34 +13,34 @@ import (
 )
 
 func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Edit)
+	if err != nil {
+		return nil, err
+	}
+
+	// OBAC check
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
+	}
+
+	// RBAC check
+	if session.IsRbacCheckRequired() {
+		access, err := a.ConfigCheckAccess(ctx, int64(in.Id), session.GetUserId(), session.GetRoles(), session.GetMainAccessMode())
+		if err != nil {
+			return nil, err
+		}
+		if !access {
+			return nil, a.MakeScopeError(session.GetMainObjClassName())
+		}
+	}
+
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
 		return nil, errors.New("config proto is nil")
 	}
-	session, err := a.AuthorizeFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
 
-	// OBAC check
-	accessMode := authmodel.Edit
-	scope := model.ScopeLog
-	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError()
-	}
-
-	// RBAC check
-	if session.UseRbacAccess(scope, accessMode) {
-		access, err := a.ConfigCheckAccess(ctx, int64(in.Id), session.GetUserId(), session.GetAclRoles(), accessMode)
-		if err != nil {
-			return nil, err
-		}
-		if !access {
-			return nil, a.MakeScopeError()
-		}
-	}
 	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id, session.GetDomainId())
 	if err != nil {
 		return nil, err
@@ -57,15 +57,13 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config
 }
 
 func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
-	session, err := a.AuthorizeFromContext(ctx)
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
 	if err != nil {
 		return nil, err
 	}
-	scope := model.ScopeLog
-	accessMode := authmodel.Read
 	// OBAC check
-	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError()
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
 	}
 	var filters []string
 	for _, name := range proto.AvailableSystemObjects_name {
@@ -126,22 +124,21 @@ func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *mo
 }
 
 func (a *App) InsertConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Add)
+	if err != nil {
+		return nil, err
+	}
+	// OBAC check
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
+	}
 	var (
 		newModel *model.Config
 	)
 	if in == nil {
 		return nil, errors.New("config is nil")
 	}
-	session, err := a.AuthorizeFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// OBAC check
-	accessMode := authmodel.Add
-	scope := model.ScopeLog
-	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError()
-	}
+
 	in.NextUploadOn = *model.NewNullTime(calculateNextPeriodFromNow(int32(in.Period)))
 	newModel, err = a.storage.Config().Insert(ctx, in, session.GetUserId())
 	if err != nil {
@@ -196,21 +193,19 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 }
 
 func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, error) {
-	session, err := a.AuthorizeFromContext(ctx)
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
 	if err != nil {
 		return nil, err
 	}
-	scope := model.ScopeLog
-	accessMode := authmodel.Read
 	// OBAC check
-	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError()
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
 	}
 	// RBAC check
-	if session.UseRbacAccess(scope, accessMode) {
+	if session.IsRbacCheckRequired() {
 		rbac = &model.RbacOptions{
-			Groups: session.GetAclRoles(),
-			Access: accessMode.Value(),
+			Groups: session.GetRoles(),
+			Access: session.GetMainAccessMode().Value(),
 		}
 	}
 	res, appErr := a.storage.Config().GetById(ctx, rbac, id, session.GetDomainId())
@@ -221,20 +216,18 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 }
 
 func (a *App) DeleteConfig(ctx context.Context, ids []int32) error {
-	session, err := a.AuthorizeFromContext(ctx)
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Delete)
 	if err != nil {
 		return err
 	}
-	accessMode := authmodel.Delete
-	scope := model.ScopeLog
-	if !session.HasObacAccess(scope, accessMode) {
-		return a.MakeScopeError()
+	if !session.CheckObacAccess() {
+		return a.MakeScopeError(session.GetMainObjClassName())
 	}
 	var rbac *model.RbacOptions
-	if session.UseRbacAccess(scope, accessMode) {
+	if session.IsRbacCheckRequired() {
 		rbac = &model.RbacOptions{
-			Groups: session.GetAclRoles(),
-			Access: accessMode.Value(),
+			Groups: session.GetRoles(),
+			Access: session.GetMainAccessMode().Value(),
 		}
 	}
 	_, appErr := a.storage.Config().DeleteMany(ctx, rbac, ids, session.GetDomainId())
@@ -244,27 +237,25 @@ func (a *App) DeleteConfig(ctx context.Context, ids []int32) error {
 	return nil
 }
 
-func (a *App) ConfigCheckAccess(ctx context.Context, id int64, domainId int64, groups []int64, access authmodel.AccessMode) (bool, error) {
+func (a *App) ConfigCheckAccess(ctx context.Context, id int64, domainId int64, groups []int64, access auth.AccessMode) (bool, error) {
 	return a.storage.Config().CheckAccess(ctx, domainId, id, groups, access.Value())
 
 }
 
 func (a *App) SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, error) {
-	session, err := a.AuthorizeFromContext(ctx)
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
 	if err != nil {
 		return nil, err
 	}
-	scope := model.ScopeLog
-	accessMode := authmodel.Read
 	// OBAC check
-	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError()
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
 	}
 	// RBAC check
-	if session.UseRbacAccess(scope, accessMode) {
+	if session.IsRbacCheckRequired() {
 		rbac = &model.RbacOptions{
-			Groups: session.GetAclRoles(),
-			Access: accessMode.Value(),
+			Groups: session.GetRoles(),
+			Access: session.GetMainAccessMode().Value(),
 		}
 	}
 	modelConfigs, err := a.storage.Config().Select(

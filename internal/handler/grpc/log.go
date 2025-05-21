@@ -51,8 +51,7 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	searchOpts := ExtractSearchOptions(in)
 	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	messages, err := s.Marshal(models...)
 	if err != nil {
@@ -119,8 +118,7 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	searchOpts := ExtractSearchOptions(in)
 	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return nil, InternalError
+		return nil, err
 	}
 	messages, err := s.Marshal(models...)
 	if err != nil {

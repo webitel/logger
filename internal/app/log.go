@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	storageModel "github.com/webitel/logger/api/storage"
-	authmodel "github.com/webitel/logger/internal/auth/model"
+	"github.com/webitel/logger/internal/auth"
 	"io"
 
 	"github.com/webitel/logger/internal/model"
@@ -15,15 +15,13 @@ import (
 
 func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, error) {
 
-	session, err := a.AuthorizeFromContext(ctx)
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
 	if err != nil {
 		return nil, err
 	}
 	// OBAC check
-	accessMode := authmodel.Read
-	scope := model.ScopeLog
-	if !session.HasObacAccess(scope, accessMode) {
-		return nil, a.MakeScopeError()
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
 	}
 	// region PERFORM
 	modelLogs, err := a.storage.Log().Select(
@@ -103,31 +101,24 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 }
 
 func (a *App) DeleteLogs(ctx context.Context, configId int, earlierThan time.Time) (int, error) {
-	session, err := a.AuthorizeFromContext(ctx)
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Edit)
 	if err != nil {
 		return 0, err
 	}
 
 	// OBAC check
-	accessMode := authmodel.Edit
-	secondaryMode := authmodel.Delete
-	scope := model.ScopeLog
 	// Edit or Delete permissions allow this operation
-	if !session.HasObacAccess(scope, accessMode) && !session.HasObacAccess(scope, secondaryMode) {
-		return 0, a.MakeScopeError()
+	if !session.CheckObacAccess() {
+		return 0, a.MakeScopeError(session.GetMainObjClassName())
 	}
 	// RBAC check
-	if session.UseRbacAccess(scope, accessMode) && session.UseRbacAccess(scope, secondaryMode) {
-		rbacAccess, err := a.storage.Config().CheckAccess(ctx, session.GetDomainId(), int64(configId), session.GetAclRoles(), uint8(accessMode))
+	if session.IsRbacCheckRequired() {
+		rbacAccess, err := a.storage.Config().CheckAccess(ctx, session.GetDomainId(), int64(configId), session.GetRoles(), session.GetMainAccessMode().Value())
 		if err != nil {
 			return 0, err
 		}
-		secondaryRbacAccess, err := a.storage.Config().CheckAccess(ctx, session.GetDomainId(), int64(configId), session.GetAclRoles(), uint8(secondaryMode))
-		if err != nil {
-			return 0, err
-		}
-		if !rbacAccess && !secondaryRbacAccess {
-			return 0, a.MakeScopeError()
+		if !rbacAccess {
+			return 0, a.MakeScopeError(session.GetMainObjClassName())
 		}
 	}
 

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	proto "github.com/webitel/logger/api/logger"
+	autherror "github.com/webitel/logger/internal/auth/errors"
+	"github.com/webitel/logger/internal/handler/grpc/errors"
 	"github.com/webitel/logger/internal/model"
 	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -52,7 +52,6 @@ func unaryInterceptor(ctx context.Context,
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
-	span := trace.SpanFromContext(ctx)
 	var reqCtx context.Context
 	var ip string
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
@@ -62,35 +61,52 @@ func unaryInterceptor(ctx context.Context,
 		ip = "<not found>"
 		reqCtx = context.WithValue(ctx, RequestContextName, nil)
 	}
-	span.SetAttributes(attribute.String("caller_user.ip", ip))
-	h, err := handler(reqCtx, req)
+	res, err := handler(reqCtx, req)
 	if err != nil {
-		slog.WarnContext(ctx, fmt.Sprintf("[%s] method %s duration %s, error: %v", ip, info.FullMethod, time.Since(start), err.Error()))
-		span.RecordError(err)
-		switch err.(type) {
+		switch typedErr := err.(type) {
 		case model.AppError:
-			e := err.(model.AppError)
-			return h, status.Error(httpCodeToGrpc(e.GetStatusCode()), e.ToJson())
+			return nil, status.Error(httpCodeToGrpc(typedErr.GetStatusCode()), typedErr.ToJson())
+		case *autherror.AuthorizationError:
+			return nil, status.Error(httpCodeToGrpc(typedErr.GetStatusCode()), typedErr.ToJson())
 		default:
-			return h, err
+			slog.ErrorContext(ctx, typedErr.Error())
+			return nil, errors.ErrInternal
 		}
 	}
 	slog.DebugContext(ctx, fmt.Sprintf("[%s] method %s duration %s", ip, info.FullMethod, time.Since(start)))
-	return h, err
+	return res, err
 }
 
 func httpCodeToGrpc(c int) codes.Code {
 	switch c {
+	case http.StatusOK:
+		return codes.OK
 	case http.StatusBadRequest:
 		return codes.InvalidArgument
-	case http.StatusAccepted:
-		return codes.ResourceExhausted
 	case http.StatusUnauthorized:
 		return codes.Unauthenticated
 	case http.StatusForbidden:
 		return codes.PermissionDenied
-	default:
+	case http.StatusNotFound:
+		return codes.NotFound
+	case http.StatusRequestTimeout:
+		return codes.DeadlineExceeded
+	case http.StatusConflict:
+		return codes.Aborted
+	case http.StatusGone:
+		return codes.NotFound
+	case http.StatusTooManyRequests:
+		return codes.ResourceExhausted
+	case http.StatusInternalServerError:
 		return codes.Internal
+	case http.StatusNotImplemented:
+		return codes.Unimplemented
+	case http.StatusServiceUnavailable:
+		return codes.Unavailable
+	case http.StatusGatewayTimeout:
+		return codes.DeadlineExceeded
+	default:
+		return codes.Unknown
 	}
 }
 

@@ -51,6 +51,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config
 	if err != nil {
 		return nil, err
 	}
+
 	a.UpdateConfigWatchers(ctx, oldConfig, newConfig)
 	return newConfig, nil
 

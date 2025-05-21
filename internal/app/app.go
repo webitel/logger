@@ -47,6 +47,7 @@ type App struct {
 	logUploaders    map[string]*watcher.UploadWatcher
 	logCleaners     map[string]*watcher.Watcher
 	brokerConsumers map[string]broker.Consumer
+	brokerPublisher broker.Publisher
 
 	// active connections
 	rabbitConn     *broker.Connection
@@ -78,7 +79,6 @@ func New(config *model.AppConfig) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	// registry
 	app.registry, err = consul.New(config.GrpcAddr, config.Consul)
 	if err != nil {
@@ -134,16 +134,9 @@ func (a *App) Start() error {
 		return appErr
 	}
 
-	err = a.initLogsConsumption()
+	err = a.initBroker()
 	if err != nil {
 		return err
-	}
-
-	if a.config.Features.EnableLoginConsumption {
-		err = a.initLoginConsumption()
-		if err != nil {
-			return err
-		}
 	}
 
 	// * run grpc server
@@ -205,17 +198,45 @@ func (a *App) StopAllWatchers() {
 	}
 }
 
-func (a *App) initLogsConsumption() error {
+func (a *App) initBroker() error {
 	exchangeConf, err := broker.NewExchangeConfig("logger", broker.ExchangeTypeTopic)
 	if err != nil {
 		return err
 	}
-	err = a.rabbitConn.DeclareExchange(context.Background(), exchangeConf)
+	err = a.initExchange(exchangeConf)
 	if err != nil {
 		return err
 	}
+
+	err = a.initLogsConsumption(exchangeConf)
+	if err != nil {
+		return err
+	}
+	if a.config.Features.EnableLoginConsumption {
+		err = a.initLoginConsumption()
+		if err != nil {
+			return err
+		}
+	}
+	pubConfig, err := broker.NewPublisherConfig()
+	if err != nil {
+		return err
+	}
+	a.brokerPublisher, err = broker.NewPublisher(a.rabbitConn, exchangeConf, pubConfig, slogadapter.NewSlogLogger(slog.Default()))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *App) initExchange(config *broker.ExchangeConfig) error {
+	return a.rabbitConn.DeclareExchange(context.Background(), config)
+}
+
+func (a *App) initLogsConsumption(exchangeConfig *broker.ExchangeConfig) error {
+
 	// bind all logs from webitel exchange to the logger exchange
-	err = a.rabbitConn.BindExchange(context.Background(), "webitel", "logger", "logger.#", true, nil)
+	err := a.rabbitConn.BindExchange(context.Background(), "webitel", "logger", "logger.#", true, nil)
 	if err != nil {
 		return err
 	}
@@ -224,7 +245,7 @@ func (a *App) initLogsConsumption() error {
 	if err != nil {
 		return err
 	}
-	err = a.rabbitConn.DeclareQueue(context.Background(), queueConfig, exchangeConf, "logger.#")
+	err = a.rabbitConn.DeclareQueue(context.Background(), queueConfig, exchangeConfig, "logger.#")
 	if err != nil {
 		return err
 	}

@@ -101,9 +101,9 @@ type Log struct {
 	storage storage.Storage
 }
 
-func newLogStore(store storage.Storage) (storage.LogStore, model.AppError) {
+func newLogStore(store storage.Storage) (storage.LogStore, error) {
 	if store == nil {
-		return nil, model.NewInternalError("postgres.log.new_log.check.bad_arguments", "error creating log interface to the log table, main store is nil")
+		return nil, errors.New("error creating log interface to the log table, main store is nil")
 	}
 	return &Log{storage: store}, nil
 }

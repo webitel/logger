@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/webitel/logger/internal/model"
 	"time"
 )
 
@@ -12,6 +11,6 @@ const (
 )
 
 type ServiceRegistrar interface {
-	Register() model.AppError
-	Deregister() model.AppError
+	Register() error
+	Deregister() error
 }

@@ -1,6 +1,6 @@
 package utils
 
-import "github.com/webitel/logger/internal/model"
+import "github.com/webitel/logger/internal/handler/grpc/errors"
 
 type Lister interface {
 	GetSize() int32
@@ -15,7 +15,7 @@ func GetListResult[C any](s Lister, items []C) (bool, []C) {
 }
 
 // C type of input, K type of output
-func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, model.AppError)) ([]K, model.AppError) {
+func ConvertToOutputBulk[C any, K any](items []C, convertFunc func(C) (K, errors.AppError)) ([]K, errors.AppError) {
 	var result []K
 	for _, item := range items {
 		out, err := convertFunc(item)

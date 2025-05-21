@@ -100,7 +100,7 @@ func handleSignals(signal os.Signal, app *app.App) {
 	}
 }
 
-func loadConfig() (*model.AppConfig, model.AppError) {
+func loadConfig() (*model.AppConfig, error) {
 	var appConfig model.AppConfig
 
 	configurator := configuration.New(
@@ -115,7 +115,7 @@ func loadConfig() (*model.AppConfig, model.AppError) {
 		}))
 
 	if err := configurator.InitValues(); err != nil {
-		return nil, model.NewInternalError("main.main.unmarshal_config.bad_arguments.parse_fail", err.Error())
+		return nil, err
 	}
 	return &appConfig, nil
 }

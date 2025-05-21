@@ -59,9 +59,9 @@ var (
 )
 
 // region CONSTRUCTOR
-func newConfigStore(store storage.Storage) (storage.ConfigStore, model.AppError) {
+func newConfigStore(store storage.Storage) (storage.ConfigStore, error) {
 	if store == nil {
-		return nil, model.NewInternalError("postgres.config.new_config.check.bad_arguments", "error creating config interface to the config table, main store is nil")
+		return nil, errors.New("error creating config interface to the config table, main store is nil")
 	}
 	return &Config{storage: store}, nil
 }

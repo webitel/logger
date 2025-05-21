@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
@@ -60,7 +61,7 @@ func (s *Store) LoginAttempt() storage.LoginAttemptStore {
 
 func (s *Store) Database() (*sqlx.DB, error) {
 	if s.conn == nil {
-		return nil, model.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")
+		return nil, errors.New("database connection is not opened")
 	}
 	return s.conn, nil
 }
@@ -71,7 +72,7 @@ func (s *Store) Open() error {
 		semconv.DBSystemPostgreSQL, attribute.String("driver", driver),
 	))
 	if err != nil {
-		return model.NewInternalError("postgres.storage.open.connect.fail", err.Error())
+		return err
 	}
 	s.conn = sqlx.NewDb(db, driver)
 	slog.Debug(fmt.Sprintf("postgres: connection opened"))
@@ -81,7 +82,7 @@ func (s *Store) Open() error {
 func (s *Store) Close() error {
 	err := s.conn.Close()
 	if err != nil {
-		return model.NewInternalError("postgres.storage.close.disconnect.fail", fmt.Sprintf("postgres: %s", err.Error()))
+		return err
 	}
 	s.conn = nil
 	slog.Debug(fmt.Sprintf("postgres: connection closed"))

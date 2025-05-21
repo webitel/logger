@@ -2,7 +2,8 @@ package grpc
 
 import (
 	"context"
-	"errors"
+	deferr "errors"
+	"github.com/webitel/logger/internal/handler/grpc/errors"
 	"github.com/webitel/logger/internal/handler/grpc/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -26,7 +27,7 @@ type LoggerService struct {
 
 func NewLoggerService(app LogManager) (*LoggerService, error) {
 	if app == nil {
-		return nil, errors.New("app is nil")
+		return nil, deferr.New("app is nil")
 	}
 	return &LoggerService{app: app}, nil
 }
@@ -39,7 +40,7 @@ func (s *LoggerService) SearchLogByRecordId(ctx context.Context, in *proto.Searc
 	if param := in.GetRecordId(); param != 0 {
 		filters.User = []int64{int64(param)}
 	} else {
-		return nil, model.NewBadRequestError("app.api_log.search_log_by_record.checks_args.error", "record id required")
+		return nil, errors.NewBadRequestError("app.api_log.search_log_by_record.checks_args.error", "record id required")
 	}
 	// specific filters
 	if param := in.GetUserId(); len(param) != 0 {
@@ -73,7 +74,7 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 	if param := in.GetUserId(); param != 0 {
 		filters.User = []int64{int64(param)}
 	} else {
-		return nil, model.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
+		return nil, errors.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
 	}
 	// specific filters
 	if param := in.GetObjectId(); len(param) != 0 {
@@ -108,7 +109,7 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	if param := in.GetConfigId(); param != 0 {
 		filters.ConfigId = []int64{int64(param)}
 	} else {
-		return nil, model.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
+		return nil, errors.NewBadRequestError("app.api_log.search_log_by_user.checks_args.error", "user id required")
 	}
 	// specific filters
 	if param := in.GetUserId(); len(param) != 0 {
@@ -171,7 +172,7 @@ func extractDefaultFiltersFromLogSearch(in LogSearcher) *model.LogFilters {
 	return filters
 }
 
-func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, model.AppError) {
+func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 
 	var res []*proto.Log
 	for _, m := range models {

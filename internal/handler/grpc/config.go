@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	proto "github.com/webitel/logger/api/logger"
 	"github.com/webitel/logger/internal/handler/grpc/utils"
 	"github.com/webitel/logger/internal/model"
@@ -28,9 +29,9 @@ type ConfigService struct {
 	proto.UnimplementedConfigServiceServer
 }
 
-func NewConfigService(app ConfigManager) (*ConfigService, model.AppError) {
+func NewConfigService(app ConfigManager) (*ConfigService, error) {
 	if app == nil {
-		return nil, model.NewInternalError("api.config.new_config_service.args_check.app_nil", "app is nil")
+		return nil, errors.New("app is nil")
 	}
 	return &ConfigService{app: app}, nil
 }
@@ -191,7 +192,7 @@ func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest) (*model.Co
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
-			return nil, model.NewInternalError("app.config.convert_update_config_message.convert_storage_id.fail", err.Error())
+			return nil, err
 		}
 		config.Storage.Id = storageId
 	}
@@ -210,7 +211,7 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Conf
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
-			return nil, model.NewInternalError("app.config.convert_patch_config_message.convert_storage_id.fail", err.Error())
+			return nil, err
 		}
 		config.Storage.Id = storageId
 	}
@@ -221,7 +222,7 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Conf
 func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Config, error) {
 
 	if in.GetDaysToStore() <= 0 {
-		return nil, model.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
+		return nil, errors.New("days to store should be greater than one")
 	}
 	config := &model.Config{
 		Enabled:     in.GetEnabled(),
@@ -231,14 +232,14 @@ func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfig
 	}
 	objectId, err := model.NewNullInt(in.GetObject().GetId())
 	if err != nil {
-		return nil, model.NewInternalError("app.config.convert_create_config_message.convert_object_id.fail", err.Error())
+		return nil, err
 	}
 	config.Object.Id = objectId
 
 	if v := in.GetStorage().GetId(); v != 0 {
 		storageId, err := model.NewNullInt(in.GetStorage().GetId())
 		if err != nil {
-			return nil, model.NewInternalError("app.config.convert_create_config_message.convert_storage_id.fail", err.Error())
+			return nil, err
 		}
 		config.Storage.Id = storageId
 	}
@@ -246,7 +247,7 @@ func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfig
 	return config, nil
 }
 
-func (s *ConfigService) Marshal(models ...*model.Config) ([]*proto.Config, model.AppError) {
+func (s *ConfigService) Marshal(models ...*model.Config) ([]*proto.Config, error) {
 	var res []*proto.Config
 	for _, in := range models {
 		conf := &proto.Config{

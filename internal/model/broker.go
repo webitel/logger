@@ -45,7 +45,7 @@ type BrokerLoginMessage struct {
 	Status   *Status `json:"status,omitempty"` // Login operation status
 }
 
-func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, AppError) {
+func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, error) {
 	var (
 		success       bool
 		databaseModel LoginAttempt
@@ -61,7 +61,7 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, AppError) 
 		if user.Id != 0 {
 			id, err := NewNullInt(user.Id)
 			if err != nil {
-				return nil, NewInternalError("app.log.handle_rabbit_login_message.parse_user_id.error", err.Error())
+				return nil, err
 			}
 			databaseModel.UserId = id
 		}
@@ -72,7 +72,7 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, AppError) 
 		if domain.Id != 0 {
 			id, err := NewNullInt(domain.Id)
 			if err != nil {
-				return nil, NewInternalError("app.log.handle_rabbit_login_message.parse_domain_id.error", err.Error())
+				return nil, err
 			}
 			databaseModel.DomainId = id
 		}

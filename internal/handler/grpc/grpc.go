@@ -4,9 +4,8 @@ import (
 	"context"
 	"fmt"
 	proto "github.com/webitel/logger/api/logger"
-	autherror "github.com/webitel/logger/internal/auth/errors"
+	autherrors "github.com/webitel/logger/internal/auth/errors"
 	"github.com/webitel/logger/internal/handler/grpc/errors"
-	"github.com/webitel/logger/internal/model"
 	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -64,9 +63,9 @@ func unaryInterceptor(ctx context.Context,
 	res, err := handler(reqCtx, req)
 	if err != nil {
 		switch typedErr := err.(type) {
-		case model.AppError:
+		case errors.AppError:
 			return nil, status.Error(httpCodeToGrpc(typedErr.GetStatusCode()), typedErr.ToJson())
-		case *autherror.AuthorizationError:
+		case *autherrors.AuthorizationError:
 			return nil, status.Error(httpCodeToGrpc(typedErr.GetStatusCode()), typedErr.ToJson())
 		default:
 			slog.ErrorContext(ctx, typedErr.Error())

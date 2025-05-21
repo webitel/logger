@@ -58,15 +58,15 @@ func New(grpcAddr string, config *model.ConsulConfig) (*Registry, error) {
 	return &entity, nil
 }
 
-func (c *Registry) Register() model.AppError {
+func (c *Registry) Register() error {
 	agent := c.client.Agent()
 	err := agent.ServiceRegister(c.registrationConfig)
 	if err != nil {
-		return model.NewInternalError("consul.registry.consul.call_register.error", err.Error())
+		return err
 	}
 	var checks map[string]*consulapi.AgentCheck
 	if checks, err = agent.Checks(); err != nil {
-		return model.NewInternalError("consul.registry.consul.register.get_checks.error", err.Error())
+		return err
 	}
 
 	var serviceCheck *consulapi.AgentCheck
@@ -77,7 +77,7 @@ func (c *Registry) Register() model.AppError {
 	}
 
 	if serviceCheck == nil {
-		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
+		return err
 	}
 	c.checkId = serviceCheck.CheckID
 	go c.RunServiceCheck()
@@ -85,17 +85,17 @@ func (c *Registry) Register() model.AppError {
 	return nil
 }
 
-func (c *Registry) Deregister() model.AppError {
+func (c *Registry) Deregister() error {
 	err := c.client.Agent().ServiceDeregister(c.registrationConfig.ID)
 	if err != nil {
-		return model.NewInternalError("consul.registry.consul.register.error", err.Error())
+		return err
 	}
 	c.stop <- true
 	slog.Info(fmtConsulLog("service was deregistered"))
 	return nil
 }
 
-func (c *Registry) RunServiceCheck() model.AppError {
+func (c *Registry) RunServiceCheck() error {
 	defer slog.Info(fmtConsulLog("stopped service checker"))
 	slog.Info(fmtConsulLog("started service checker"))
 	ticker := time.NewTicker(registry.CheckInterval / 2)

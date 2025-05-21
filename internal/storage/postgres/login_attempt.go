@@ -53,9 +53,9 @@ const (
 )
 
 // region CONSTRUCTOR
-func newLoginAttemptStore(store storage.Storage) (storage.LoginAttemptStore, model.AppError) {
+func newLoginAttemptStore(store storage.Storage) (storage.LoginAttemptStore, error) {
 	if store == nil {
-		return nil, model.NewInternalError("postgres.login_attempt.new_config.check.bad_arguments", "error creating login attempt store interface, main store is nil")
+		return nil, errors.New("error creating login attempt store interface, main store is nil")
 	}
 	return &LoginAttemptStore{storage: store}, nil
 }

@@ -3,7 +3,9 @@ package app
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/webitel/logger/internal/watcher"
 	"go.opentelemetry.io/otel/attribute"
@@ -15,8 +17,8 @@ import (
 )
 
 // region COMMON
-func (a *App) initializeWatchers() model.AppError {
-	configs, appErr := a.storage.Config().Select(
+func (a *App) initializeWatchers() error {
+	configs, err := a.storage.Config().Select(
 		context.Background(),
 		nil,
 		nil,
@@ -26,9 +28,9 @@ func (a *App) initializeWatchers() model.AppError {
 			ComparisonType: model.Equal,
 		},
 	)
-	if appErr != nil {
-		if !IsErrNoRows(appErr) {
-			return appErr
+	if err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
 		}
 	}
 	a.logUploaders, a.logCleaners = make(map[string]*watcher.UploadWatcher), make(map[string]*watcher.Watcher)
@@ -186,35 +188,35 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 					ComparisonType: model.GreaterThan,
 				})
 			}
-			logs, appErr := a.storage.Log().Select(context.Background(), &model.SearchOptions{
+			logs, err := a.storage.Log().Select(context.Background(), &model.SearchOptions{
 				Sort: "-id",
 			}, &model.FilterNode{
 				Nodes:      filters,
 				Connection: model.AND,
 			})
-			if appErr != nil {
-				if !IsErrNoRows(appErr) {
-					slog.Warn(format(appErr.Error()), logAttr)
-					return
-				}
-				slog.Info(format("no new logs..."))
+			if err != nil {
+				slog.Error(format(err.Error()), logAttr)
+				return
+			}
+			if len(logs) == 0 {
+				slog.Info(format("no new logs to upload"), logAttr)
 				return
 			}
 			buf := &bytes.Buffer{}
 			encodeResult, err := json.Marshal(logs)
 			if err != nil {
-				slog.Warn(format(err.Error()), logAttr)
+				slog.Error(format(err.Error()), logAttr)
 				return
 			}
 			_, err = buf.Write(encodeResult)
 			if err != nil {
-				slog.Warn(format(err.Error()), logAttr)
+				slog.Error(format(err.Error()), logAttr)
 				return
 			}
 			year, month, day := time.Now().Date()
 			fileName := fmt.Sprintf("log_%d_%d_%s_%d.json", configId, year, month, day)
 			uuid := fmt.Sprintf("%s-%d", logs[0].Object.Name, configId)
-			_, err = a.UploadFile(context.Background(), int64(params.DomainId), uuid, params.StorageId, buf, model.File{
+			_, err = a.UploadFile(context.Background(), params.DomainId, uuid, params.StorageId, buf, model.File{
 				Name:     fileName,
 				MimeType: "application/json",
 				ViewName: &fileName,
@@ -234,7 +236,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 				slog.Warn(format(err.Error()), logAttr)
 				return
 			}
-			_, appErr = a.storage.Config().Update(
+			_, err = a.storage.Config().Update(
 				context.Background(),
 				&model.Config{
 					Id:              configId,
@@ -244,8 +246,8 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 				[]string{"next_upload_on", "last_uploaded_log_id"},
 				params.UserId,
 			)
-			if appErr != nil {
-				slog.Warn(format(appErr.Error()), logAttr)
+			if err != nil {
+				slog.Warn(format(err.Error()), logAttr)
 				return
 			}
 			slog.Info(format("logs successfully uploaded to the storage!"), logAttr)

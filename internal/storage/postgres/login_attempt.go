@@ -2,11 +2,12 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/Masterminds/squirrel"
 	"github.com/webitel/logger/internal/model"
 	"github.com/webitel/logger/internal/storage"
+	"github.com/webitel/logger/internal/storage/postgres/utils"
 	"strings"
 )
 
@@ -61,28 +62,28 @@ func newLoginAttemptStore(store storage.Storage) (storage.LoginAttemptStore, mod
 
 // endregion
 
-func (l *LoginAttemptStore) Insert(ctx context.Context, attempt *model.LoginAttempt) (*model.LoginAttempt, model.AppError) {
+func (l *LoginAttemptStore) Insert(ctx context.Context, attempt *model.LoginAttempt) (*model.LoginAttempt, error) {
 	base := squirrel.Insert(loginAttemptTable).Columns("date", "domain_id", "domain_name", "success", "auth_type", "user_id", "user_name", "user_ip", "user_agent", "details").
 		Values(attempt.Date, squirrel.Expr("coalesce(?, (select dc from directory.wbt_domain where name = ? limit 1))", attempt.DomainId, attempt.DomainName), attempt.DomainName, attempt.Success, attempt.AuthType, squirrel.Expr("coalesce(?, (select id from directory.wbt_user where username = ? limit 1))", attempt.UserId, attempt.UserName), attempt.UserName, attempt.UserIp, attempt.UserAgent, attempt.Details).Suffix("returning *").PlaceholderFormat(squirrel.Dollar)
-
-	db, appErr := l.storage.Database()
-	if appErr != nil {
-		return nil, appErr
+	db, err := l.storage.Database()
+	if err != nil {
+		return nil, err
 	}
 	sql, params, _ := base.ToSql()
-	res, err := db.QueryContext(ctx, sql, params...)
+	rows, err := db.QueryContext(ctx, sql, params...)
+	defer rows.Close()
 	if err != nil {
-		return nil, model.NewInternalError("postgres.login_attempt.insert.execute.error", err.Error())
+		return nil, err
 	}
-	response, appErr := l.ScanRows(res)
-	if appErr != nil {
-		return nil, appErr
+	response, err := utils.ScanRow(rows, l.GetScanPlan)
+	if err != nil {
+		return nil, err
 	}
-	return response[0], nil
+	return response, nil
 
 }
 
-func (l *LoginAttemptStore) Select(ctx context.Context, searchOpts *model.SearchOptions, filters any) ([]*model.LoginAttempt, model.AppError) {
+func (l *LoginAttemptStore) Select(ctx context.Context, searchOpts *model.SearchOptions, filters any) ([]*model.LoginAttempt, error) {
 	var (
 		query  string
 		params []any
@@ -99,76 +100,19 @@ func (l *LoginAttemptStore) Select(ctx context.Context, searchOpts *model.Search
 	case squirrel.SelectBuilder:
 		query, params, _ = req.ToSql()
 	default:
-		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
+		return nil, errors.New("invalid search options")
 	}
 
-	rows, defErr := db.QueryContext(ctx, query, params...)
-	if defErr != nil {
-		return nil, model.NewInternalError("postgres.login_attempt.select.execute_query.error", defErr.Error())
-	}
-	return l.ScanRows(rows)
-}
-
-func (c *LoginAttemptStore) ScanRows(rows *sql.Rows) ([]*model.LoginAttempt, model.AppError) {
-	if rows == nil {
-		return nil, model.NewInternalError("postgres.login_attempt.scan.check_args.rows_nil", "rows are nil")
-	}
-	cols, err := rows.Columns()
+	rows, err := db.QueryContext(ctx, query, params...)
+	defer rows.Close()
 	if err != nil {
-		return nil, model.NewInternalError("postgres.login_attempt.scan.get_columns.error", err.Error())
+		return nil, err
 	}
-	var logs []*model.LoginAttempt
-
-	for rows.Next() {
-		var log model.LoginAttempt
-		binds := make([]func(dst *model.LoginAttempt) interface{}, 0, 0)
-		for _, v := range cols {
-
-			switch v {
-			case "id":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.Id })
-			case "date":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.Date })
-			case "domain_id":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.DomainId })
-			case "domain_name":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.DomainName })
-			case "success":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.Success })
-			case "auth_type":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.AuthType })
-			case "user_id":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.UserId })
-			case "user_name":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.UserName })
-			case "user_ip":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.UserIp })
-			case "user_agent":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.UserAgent })
-			case "details":
-				binds = append(binds, func(dst *model.LoginAttempt) interface{} { return &dst.Details })
-			default:
-				panic("postgres.login_attempt.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
-			}
-
-		}
-		bindFunc := func(binds []func(*model.LoginAttempt) any) []any {
-			var fields []any
-			for _, v := range binds {
-				fields = append(fields, v(&log))
-			}
-			return fields
-		}
-		err = rows.Scan(bindFunc(binds)...)
-		if err != nil {
-			return nil, model.NewInternalError("postgres.login_attempt.scan.scan.error", err.Error())
-		}
-		logs = append(logs, &log)
+	res, err := utils.ScanRows(rows, l.GetScanPlan)
+	if err != nil {
+		return nil, err
 	}
-	if len(logs) == 0 {
-		return nil, model.NewBadRequestError("postgres.login_attempt.scan.check_no_rows.error", sql.ErrNoRows.Error())
-	}
-	return logs, nil
+	return res, nil
 }
 
 func (c *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) squirrel.SelectBuilder {
@@ -232,4 +176,39 @@ func (c *LoginAttemptStore) getFields() []string {
 		fields = append(fields, value)
 	}
 	return fields
+}
+
+func (c *LoginAttemptStore) GetScanPlan(columns []string) []func(*model.LoginAttempt) any {
+	var binds []func(*model.LoginAttempt) any
+	for _, v := range columns {
+		var bind func(*model.LoginAttempt) any
+		switch v {
+		case "id":
+			bind = func(dst *model.LoginAttempt) any { return &dst.Id }
+		case "date":
+			bind = func(dst *model.LoginAttempt) any { return &dst.Date }
+		case "domain_id":
+			bind = func(dst *model.LoginAttempt) any { return &dst.DomainId }
+		case "domain_name":
+			bind = func(dst *model.LoginAttempt) any { return &dst.DomainName }
+		case "success":
+			bind = func(dst *model.LoginAttempt) any { return &dst.Success }
+		case "auth_type":
+			bind = func(dst *model.LoginAttempt) any { return &dst.AuthType }
+		case "user_id":
+			bind = func(dst *model.LoginAttempt) any { return &dst.UserId }
+		case "user_name":
+			bind = func(dst *model.LoginAttempt) any { return &dst.UserName }
+		case "user_ip":
+			bind = func(dst *model.LoginAttempt) any { return &dst.UserIp }
+		case "user_agent":
+			bind = func(dst *model.LoginAttempt) any { return &dst.UserAgent }
+		case "details":
+			bind = func(dst *model.LoginAttempt) any { return &dst.Details }
+		default:
+			continue
+		}
+		binds = append(binds, bind)
+	}
+	return binds
 }

@@ -58,14 +58,14 @@ func (s *Store) LoginAttempt() storage.LoginAttemptStore {
 	return s.loginAttemptStore
 }
 
-func (s *Store) Database() (*sqlx.DB, model.AppError) {
+func (s *Store) Database() (*sqlx.DB, error) {
 	if s.conn == nil {
 		return nil, model.NewInternalError("postgres.storage.database.check.bad_arguments", "database connection is not opened")
 	}
 	return s.conn, nil
 }
 
-func (s *Store) Open() model.AppError {
+func (s *Store) Open() error {
 	driver := "pgx"
 	db, err := otelsql.Open(driver, s.config.Url, otelsql.WithAttributes(
 		semconv.DBSystemPostgreSQL, attribute.String("driver", driver),
@@ -78,7 +78,7 @@ func (s *Store) Open() model.AppError {
 	return nil
 }
 
-func (s *Store) Close() model.AppError {
+func (s *Store) Close() error {
 	err := s.conn.Close()
 	if err != nil {
 		return model.NewInternalError("postgres.storage.close.disconnect.fail", fmt.Sprintf("postgres: %s", err.Error()))

@@ -8,9 +8,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	proto_grpc "buf.build/gen/go/webitel/logger/grpc/go/_gogrpc"
-	proto "buf.build/gen/go/webitel/logger/protocolbuffers/go"
 	cache "github.com/hashicorp/golang-lru/v2/expirable"
+	proto "github.com/webitel/logger/api/logger"
 )
 
 const (
@@ -27,7 +26,7 @@ type GrpcClient interface {
 type grpcClient struct {
 	consulAddress string
 	connection    *grpc.ClientConn
-	configClient  proto_grpc.ConfigServiceClient
+	configClient  proto.ConfigServiceClient
 	isOpened      bool
 	memoryCache   *cache.LRU[string, bool]
 	config        ConfigApi
@@ -44,7 +43,7 @@ func (c *grpcClient) Start() error {
 	if err != nil {
 		return err
 	}
-	client := proto_grpc.NewConfigServiceClient(conn)
+	client := proto.NewConfigServiceClient(conn)
 	c.configClient = client
 	c.isOpened = true
 	c.connection = conn

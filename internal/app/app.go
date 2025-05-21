@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,10 +9,11 @@ import (
 	"github.com/webitel/logger/internal/auth"
 	authmodel "github.com/webitel/logger/internal/auth/model"
 	"github.com/webitel/logger/internal/auth/webitel_manager"
-	"github.com/webitel/logger/internal/broker/rabbit"
 	"github.com/webitel/logger/internal/storage"
 	"github.com/webitel/logger/internal/storage/postgres"
 	"github.com/webitel/logger/internal/watcher"
+	broker "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
+	slogadapter "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -42,15 +42,16 @@ const (
 )
 
 type App struct {
-	config         *model.AppConfig
-	tracer         trace.Tracer
-	storage        storage.Storage
-	file           storagegrpc.FileServiceClient
-	logUploaders   map[string]*watcher.UploadWatcher
-	logCleaners    map[string]*watcher.Watcher
-	rabbitExitChan chan model.AppError
-	serverExitChan chan model.AppError
-	rabbit         *rabbit.RabbitBroker
+	config          *model.AppConfig
+	tracer          trace.Tracer
+	storage         storage.Storage
+	file            storagegrpc.FileServiceClient
+	logUploaders    map[string]*watcher.UploadWatcher
+	logCleaners     map[string]*watcher.Watcher
+	serverExitChan  chan model.AppError
+	rabbitConn      *broker.Connection
+	rabbitConsumers []broker.Consumer
+
 	server         *AppServer
 	storageConn    *grpc.ClientConn
 	sessionManager auth.AuthManager
@@ -61,8 +62,8 @@ func (app *App) Database() storage.Storage {
 	return app.storage
 }
 
-func New(config *model.AppConfig) (*App, model.AppError) {
-	app := &App{config: config, rabbitExitChan: make(chan model.AppError), serverExitChan: make(chan model.AppError), tracer: otel.GetTracerProvider().Tracer("app_internal")}
+func New(config *model.AppConfig) (*App, error) {
+	app := &App{config: config, serverExitChan: make(chan model.AppError), tracer: otel.GetTracerProvider().Tracer("app_internal")}
 	var err error
 	// init of database
 	if &config.Database == nil {
@@ -71,11 +72,13 @@ func New(config *model.AppConfig) (*App, model.AppError) {
 	app.storage = BuildDatabase(config.Database)
 
 	// init of rabbit
-	r, appErr := rabbit.BuildRabbit(app.config.Rabbit, app.rabbitExitChan)
-	if appErr != nil {
-		return nil, appErr
+	app.rabbitConn, err = broker.NewConnection(&broker.Config{
+		URL:            config.Rabbit.Url,
+		ConnectTimeout: 1 * time.Minute,
+	}, slogadapter.NewSlogLogger(slog.Default()))
+	if err != nil {
+		return nil, err
 	}
-	app.rabbit = r
 
 	// init of grpc server
 	s, appErr := BuildServer(app, app.config.Consul, app.serverExitChan)
@@ -115,11 +118,7 @@ func (a *App) GetConfig() *model.AppConfig {
 	return a.config
 }
 
-func IsErrNoRows(err model.AppError) bool {
-	return errors.Is(err, sql.ErrNoRows)
-}
-
-func (a *App) Start() model.AppError {
+func (a *App) Start() error {
 
 	err := a.storage.Open()
 	if err != nil {
@@ -130,32 +129,22 @@ func (a *App) Start() model.AppError {
 	if appErr != nil {
 		return appErr
 	}
-	// * run rabbit listener
-	appErr = a.rabbit.Start()
-	if appErr != nil {
-		return appErr
+	err = a.BrokerListenNewRecordLogs()
+	if err != nil {
+		return err
 	}
-	appErr = a.BrokerListenNewRecordLogs()
-	if appErr != nil {
-		return appErr
-	}
-	appErr = a.BrokerListenLoginAttempts()
-	if appErr != nil {
-		return appErr
+	err = a.BrokerListenLoginAttempts()
+	if err != nil {
+		return err
 	}
 	// * run grpc server
 	go a.server.Start()
-	//go ServeRequests(a, a.config.Consul, a.exitChan)
-	select {
-	case appErr = <-a.rabbitExitChan:
-		a.server.Stop()
-	case appErr = <-a.serverExitChan:
-		a.rabbit.Stop()
-	}
+	err = <-a.serverExitChan
 	a.StopAllWatchers()
-	appErr = a.storage.Close()
-	if appErr != nil {
-		slog.Error(appErr.Error())
+	a.rabbitConn.Close()
+	err = a.storage.Close()
+	if err != nil {
+		slog.Error(err.Error())
 	}
 
 	return appErr
@@ -164,7 +153,7 @@ func (a *App) Start() model.AppError {
 func (a *App) Stop() model.AppError {
 	// close massive modules
 	a.StopAllWatchers()
-	a.rabbit.Stop()
+	//a.rabbit.Stop()
 	a.server.Stop()
 
 	// close db connection
@@ -181,7 +170,7 @@ func BuildDatabase(config *model.DatabaseConfig) storage.Storage {
 	return postgres.New(config)
 }
 
-func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, model.AppError) {
+func (a *App) AuthorizeFromContext(ctx context.Context) (*authmodel.Session, error) {
 	span := trace.SpanFromContext(ctx)
 	session, err := a.sessionManager.AuthorizeFromContext(ctx)
 	if err != nil {
@@ -217,183 +206,88 @@ func (a *App) StopAllWatchers() {
 	}
 }
 
-func (a *App) BrokerListenNewRecordLogs() model.AppError {
-	formatLog := func(s string) string {
-		return fmt.Sprintf("[broker.record_logs.listener]: %s", s)
+func (a *App) BrokerListenNewRecordLogs() error {
+	exchangeConf, err := broker.NewExchangeConfig("logger", broker.ExchangeTypeTopic)
+	if err != nil {
+		return err
 	}
-	// create or connect the logger exchange
-	appErr := a.rabbit.ExchangeDeclare("logger", "topic", rabbit.ExchangeEnableDurable)
-	if appErr != nil {
-		return appErr
+	err = a.rabbitConn.DeclareExchange(context.Background(), exchangeConf)
+	if err != nil {
+		return err
 	}
 	// bind all logs from webitel exchange to the logger exchange
-	appErr = a.rabbit.ExchangeBind("logger", "logger.#", "webitel", true, nil)
-	if appErr != nil {
-		return appErr
+	err = a.rabbitConn.BindExchange(context.Background(), "webitel", "logger", "logger.#", true, nil)
+	if err != nil {
+		return err
 	}
 	// declare new queue logger.service
-	queueName, appErr := a.rabbit.QueueDeclare("logger.service", rabbit.QueueEnableDurable)
-	if appErr != nil {
-		return appErr
-	}
-	err := a.rabbit.QueueBind(
-		"logger",
-		queueName,
-		"logger.#",
-		false,
-		nil,
-	)
+	queueConfig, err := broker.NewQueueConfig("logger.service", broker.WithQueueDurable(true))
 	if err != nil {
 		return err
 	}
-	handler := func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any) {
-		var (
-			appErr model.AppError
-			err    error
-		)
-		for {
-			select {
-			case message, closed := <-del:
-				logAttr := slog.Group("message", slog.String("routing", message.RoutingKey), slog.String("body", string(message.Body)))
-				//logAttr := []any{"routing", message.RoutingKey, "body", string(message.Body)}
-				if !closed {
-					slog.Warn(formatLog("channel closed, ending listening"), logAttr)
-					return
-				}
-				// adding timeout on each handle
-				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
-
-				// try to handle the message
-				appErr = a.HandleRabbitRecordLogMessage(ctx, &message)
-				cancelContext()
-				if appErr != nil {
-					if errors.Is(appErr, sql.ErrNoRows) { // TODO: real foreign key check by postgres model
-						message.Nack(false, false)
-					} else {
-						message.Nack(false, true)
-					}
-					slog.Warn(formatLog(appErr.Error()), logAttr)
-					continue
-				}
-				err = message.Ack(false)
-				if err != nil {
-					appErr = model.NewInternalError("rabbit.listener.listen.acknowledge.fail", err.Error())
-					err = nil
-				}
-				if appErr != nil {
-					slog.Warn(appErr.Error(), logAttr)
-				}
-				slog.Info(formatLog("message processed"), logAttr)
-			case <-stopper:
-				slog.Info(formatLog(fmt.Sprintf("consuming stopped")))
-				return
-			}
-		}
-
-	}
-	err = a.rabbit.QueueStartConsume(queueName, "", handler, 5*time.Second)
+	err = a.rabbitConn.DeclareQueue(context.Background(), queueConfig, exchangeConf, "logger.#")
 	if err != nil {
 		return err
 	}
-	return nil
+	consumerConf, err := broker.NewConsumerConfig(a.config.Consul.Id)
+	if err != nil {
+		return err
+	}
+	consumer := broker.NewConsumer(a.rabbitConn, queueConfig, consumerConf, a.HandleRabbitRecordLogMessage, slogadapter.NewSlogLogger(slog.Default()))
+	return consumer.Start(context.Background())
 }
 
-func (a *App) BrokerListenLoginAttempts() model.AppError {
-	formatLog := func(s string) string {
-		return fmt.Sprintf("[broker.login_attempts.listener]: %s", s)
-	}
+func (a *App) BrokerListenLoginAttempts() error {
 	sourceExchangeName := "webitel"
-	sourceExchangeKind := "topic"
 	// create or connect the logger exchange
-	appErr := a.rabbit.ExchangeDeclare(sourceExchangeName, sourceExchangeKind, rabbit.ExchangeEnableDurable)
-	if appErr != nil {
-		return appErr
+	exchangeConf, err := broker.NewExchangeConfig(sourceExchangeName, broker.ExchangeTypeTopic)
+	if err != nil {
+		return err
 	}
-	// declare new queue logger.service
-	queueName, appErr := a.rabbit.QueueDeclare("logger.login", rabbit.QueueEnableDurable)
-	if appErr != nil {
-		return appErr
+	queueConf, err := broker.NewQueueConfig("logger.login", broker.WithQueueDurable(true))
+	if err != nil {
+		return err
 	}
-	err := a.rabbit.QueueBind(
-		sourceExchangeName,
-		queueName,
-		"login.#",
-		false,
-		nil,
-	)
+	consConfig, err := broker.NewConsumerConfig("logger.login")
+	if err != nil {
+		return err
+	}
+	err = a.rabbitConn.DeclareQueue(context.Background(), queueConf, exchangeConf, "login.#")
 	if err != nil {
 		return err
 	}
 
-	handler := func(timeout time.Duration, del <-chan amqp.Delivery, stopper chan any) {
-		var (
-			//message amqp.Delivery
-			appErr model.AppError
-		)
-		for {
-			select {
-			case message, closed := <-del:
-
-				logAttr := slog.Group("message", slog.String("routing", message.RoutingKey), slog.String("body", string(message.Body)))
-				if !closed {
-					slog.Warn(formatLog("channel closed, ending listening"), logAttr)
-					return
-				}
-				// adding timeout on each handle
-				ctx, cancelContext := context.WithTimeout(context.Background(), timeout)
-
-				// try to handle the message
-				appErr = a.HandleRabbitLoginMessage(ctx, &message)
-				cancelContext()
-				if appErr != nil {
-					slog.Warn(formatLog(appErr.Error()), logAttr)
-				}
-				slog.Info(formatLog("message processed"), logAttr)
-			case <-stopper:
-				slog.Info(formatLog(fmt.Sprintf("consuming stopped")))
-				return
-			}
-		}
-	}
-	err = a.rabbit.QueueStartConsume(queueName, "", handler, 5*time.Second)
-	if err != nil {
-		return err
-	}
-	return nil
+	cons := broker.NewConsumer(a.rabbitConn, queueConf, consConfig, a.HandleRabbitLoginMessage, slogadapter.NewSlogLogger(slog.Default()))
+	return cons.Start(context.Background())
 }
 
-func (a *App) HandleRabbitLoginMessage(ctx context.Context, message *amqp.Delivery) model.AppError {
+func (a *App) HandleRabbitLoginMessage(ctx context.Context, message amqp.Delivery) error {
 	var (
 		m model.BrokerLoginMessage
 	)
 	err := json.Unmarshal(message.Body, &m)
 	if err != nil {
-		message.Nack(false, false)
-		return model.NewInternalError("app.app.handle_rabbit_login_message.unmarshal.error", err.Error())
+		return err
 	}
 
 	splittedKey := strings.Split(message.RoutingKey, ".")
 	if len(splittedKey) < 4 {
-		message.Nack(false, true)
-		return model.NewInternalError("app.app.handle_rabbit_login_message.key.error", "provided routing key is not matching with this handler")
+		return errors.New("provided routing key is not matching with this handler")
 	}
 
 	databaseModel, appErr := m.ConvertToDatabaseModel()
 	if appErr != nil {
-		message.Nack(false, false)
 		return appErr
 	}
 
 	_, err = a.storage.LoginAttempt().Insert(ctx, databaseModel)
 	if err != nil {
-		message.Nack(false, false)
-		return model.NewInternalError("app.app.handle_rabbit_login_message.insert.error", err.Error())
+		return err
 	}
-	message.Ack(false)
 	return nil
 }
 
-func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message *amqp.Delivery) model.AppError {
+func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message amqp.Delivery) error {
 	var (
 		m      model.BrokerRecordLogMessage
 		domain int64
@@ -414,7 +308,6 @@ func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message *amqp.De
 		var rabbitMessages []*model.RabbitMessage
 		for _, v := range m.Records {
 			rabbitMessage := &model.RabbitMessage{
-				//ObjectId: object,
 				NewState: v.NewState.GetBody(),
 				UserId:   m.UserId,
 				UserIp:   m.UserIp,
@@ -425,9 +318,9 @@ func (a *App) HandleRabbitRecordLogMessage(ctx context.Context, message *amqp.De
 			}
 			rabbitMessages = append(rabbitMessages, rabbitMessage)
 		}
-		appErr := a.InsertLogByRabbitMessageBulk(ctx, rabbitMessages, domain)
-		if appErr != nil {
-			return appErr
+		err = a.InsertLogByRabbitMessageBulk(ctx, rabbitMessages, domain)
+		if err != nil {
+			return err
 		}
 	}
 

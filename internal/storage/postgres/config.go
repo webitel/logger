@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/webitel/logger/internal/storage"
-	"log/slog"
+	"github.com/webitel/logger/internal/storage/postgres/utils"
 	"strings"
 	"time"
 
@@ -69,13 +69,13 @@ func newConfigStore(store storage.Storage) (storage.ConfigStore, model.AppError)
 // endregion
 
 // region CONFIG STORAGE
-func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, model.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
+func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return nil, err
 	}
 	if userId < 0 {
-		return nil, model.NewBadRequestError("postgres.config.update.invalid_args.user_id", "user id is invalid !")
+		return nil, errors.New("user id is invalid")
 	}
 
 	base := sq.Update("logger.object_config").
@@ -112,7 +112,6 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		}
 	}
 	query, args, _ := base.ToSql()
-	slog.Debug(query)
 	query = fmt.Sprintf(
 		`with p as (%s RETURNING *)
 		select p.id,
@@ -136,22 +135,18 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
 	res, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, model.NewInternalError("postgres.config.update.query.fail", err.Error())
+		return nil, err
 	}
 	defer res.Close()
-	row, appErr := c.ScanRow(res)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return row, nil
+	return utils.ScanRow(res, c.GetScanPlan)
 }
 
-func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, model.AppError) {
+func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	res, err := db.QueryContext(ctx,
+	row, err := db.QueryContext(ctx,
 		`with p as (INSERT INTO
 					logger.object_config (enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by, description)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -184,18 +179,14 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (
 		conf.Object.Id,
 		userId,
 		conf.Description)
+	defer row.Close()
 	if err != nil {
-		return nil, model.NewInternalError("postgres.config.insert.query.error", err.Error())
+		return nil, err
 	}
-	defer res.Close()
-	row, appErr := c.ScanRow(res)
-	if appErr != nil {
-		return nil, appErr
-	}
-	return row, nil
+	return utils.ScanRow(row, c.GetScanPlan)
 }
 
-func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, model.AppError) {
+func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, error) {
 	// region CREATING QUERY
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -215,31 +206,26 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 	// endregion
 	// region PREFORM
 	rows, err := base.RunWith(db).QueryContext(ctx)
-	slog.Debug(base.ToSql())
-
-	if err != nil {
-		return nil, model.NewInternalError("postgres.config.get_available_objects.query.fail", err.Error())
-	}
 	defer rows.Close()
+	if err != nil {
+		return nil, err
+	}
 	// endregion
 	// region SCAN
 	var res []*model.Lookup
 	for rows.Next() {
 		var obj model.Lookup
-		r := rows.Scan(&obj.Id, &obj.Name)
-		if r != nil {
-			return nil, model.NewInternalError("postgres.config.get_available_objects.scan.fail", r.Error())
+		err := rows.Scan(&obj.Id, &obj.Name)
+		if err != nil {
+			return nil, err
 		}
 		res = append(res, &obj)
-	}
-	if appErr != nil {
-		return nil, appErr
 	}
 	// endregion
 	return res, nil
 }
 
-func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, model.AppError) {
+func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return false, appErr
@@ -251,39 +237,35 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 		Where("acl.access & ? = ?", access, access).PlaceholderFormat(sq.Dollar)
 	base := sq.Select("1").Where(sq.Expr("exists(?)", subquery))
 	res := base.RunWith(db).QueryRowContext(ctx)
-	slog.Debug(base.ToSql())
 	var ac bool
 	err := res.Scan(&ac)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
-		return false, model.NewInternalError("postgres.config.check_access.scan.error", err.Error())
+		return false, err
 	}
 	return ac, nil
 }
 
-func (c *Config) Delete(ctx context.Context, id int32, domainId int64) model.AppError {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return appErr
+func (c *Config) Delete(ctx context.Context, id int32, domainId int64) (int, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return 0, err
 	}
 	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}).PlaceholderFormat(sq.Dollar)
 	res, err := base.RunWith(db).ExecContext(ctx)
-	slog.Debug(base.ToSql())
 	if err != nil {
-		return model.NewInternalError("postgres.config.delete.query.error", err.Error())
+		return 0, err
 	}
-	if i, err := res.RowsAffected(); err != nil || i == 0 {
-		return model.NewBadRequestError("postgres.config.delete.result.no_rows_for_delete", "no rows were affected by deletion")
-	}
-	return nil
+	affected, err := res.RowsAffected()
+	return int(affected), err
 }
 
-func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) model.AppError {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return appErr
+func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) (int, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return 0, err
 	}
 	base := sq.Delete("logger.object_config").Where(sq.Expr(configFieldsFilterMap[model.ConfigFields.Id]+" = any(?::int[])", pq.Array(ids))).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}).PlaceholderFormat(sq.Dollar)
 	if rbac != nil {
@@ -296,174 +278,75 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 		base = base.Where(sq.Expr("exists(?)", subquery))
 	}
 	res, err := base.RunWith(db).ExecContext(ctx)
-	slog.Debug(base.ToSql())
 	if err != nil {
-		return model.NewInternalError("postgres.config.delete_many.query.error", err.Error())
+		return 0, err
 	}
-	if i, err := res.RowsAffected(); err == nil && i == 0 {
-		return model.NewBadRequestError("postgres.config.delete_many.result.no_rows_for_delete", "no rows were affected while deleting")
-	}
-	return nil
+	i, err := res.RowsAffected()
+	return int(i), err
 }
 
-func (c *Config) GetByObjectId(ctx context.Context, domainId int, objId int) (*model.Config, model.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
+func (c *Config) GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return nil, err
 	}
 	base := c.GetQueryBase(c.getFields(), nil).Where(
-		sq.Eq{configFieldsFilterMap[model.ConfigFields.Object]: objId},
+		sq.Eq{configFieldsFilterMap[model.ConfigFields.Object]: objectId},
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId},
 	)
 	rows, err := base.RunWith(db).QueryContext(ctx)
-	slog.Debug(base.ToSql())
-	if err != nil {
-		return nil, model.NewInternalError("postgres.config.get_by_object.query.fail", err.Error())
-	}
 	defer rows.Close()
-	configs, appErr := c.ScanRow(rows)
-	if appErr != nil {
-		return nil, appErr
+	if err != nil {
+		return nil, err
 	}
-	return configs, nil
+	return utils.ScanRow(rows, c.GetScanPlan)
 }
 
-func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, model.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
+func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return nil, err
 	}
 	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId})
 	rows, err := base.RunWith(db).QueryContext(ctx)
-	slog.Debug(base.ToSql())
-	if err != nil {
-		return nil, model.NewInternalError("postgres.config.get_by_id.query.fail", err.Error())
-	}
 	defer rows.Close()
-	config, appErr := c.ScanRow(rows)
-	if appErr != nil {
-		return nil, appErr
+	if err != nil {
+		return nil, err
 	}
-	return config, nil
+	return utils.ScanRow(rows, c.GetScanPlan)
 }
 
-func (c *Config) Select(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, model.AppError) {
+func (c *Config) Select(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, error) {
 	var (
 		sql  string
 		args []any
 	)
-
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
+	db, err := c.storage.Database()
+	if err != nil {
+		return nil, err
 	}
-	base, appErr := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt, rbac), configFieldsFilterMap, filters)
-	if appErr != nil {
-		return nil, appErr
+	base, err := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt, rbac), configFieldsFilterMap, filters)
+	if err != nil {
+		return nil, err
 	}
 	switch req := base.(type) {
 	case sq.SelectBuilder:
 		sql, args, _ = req.ToSql()
 	default:
-		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
+		return nil, errors.New("wrong base type")
 	}
 	rows, err := db.QueryContext(ctx, sql, args...)
-	slog.Debug(sql, args)
-	if err != nil {
-		return nil, model.NewInternalError("postgres.config.get.query_execute.fail", err.Error())
-	}
 	defer rows.Close()
-	res, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
+	if err != nil {
+		return nil, err
 	}
-	return res, nil
+	return utils.ScanRows(rows, c.GetScanPlan)
+
 }
 
 // endregion
 
 // region SYSTEM FUNCTIONS
-
-func (c *Config) ScanRow(rows *sql.Rows) (*model.Config, model.AppError) {
-	res, err := c.ScanRows(rows)
-	if err != nil {
-		return nil, err
-	}
-	return res[0], nil
-}
-
-func (c *Config) ScanRows(rows *sql.Rows) ([]*model.Config, model.AppError) {
-	if rows == nil {
-		return nil, model.NewInternalError("postgres.config.scan.check_args.rows_nil", "rows are nil")
-	}
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, model.NewInternalError("postgres.config.scan.get_columns.error", err.Error())
-	}
-	var configs []*model.Config
-
-	for rows.Next() {
-		var config model.Config
-		binds := make([]func(dst *model.Config) interface{}, 0, 0)
-		for _, v := range cols {
-
-			switch v {
-			case "id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Id })
-			case "enabled":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Enabled })
-			case "days_to_store":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.DaysToStore })
-			case "period":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Period })
-			case "next_upload_on":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.NextUploadOn })
-			case "object_id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Object.Id })
-			case "object_name":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Object.Name })
-			case "storage_id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Storage.Id })
-			case "storage_name":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Storage.Name })
-			case "domain_id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.DomainId })
-			case "created_at":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.CreatedAt })
-			case "created_by":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.CreatedBy })
-			case "updated_at":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedAt })
-			case "updated_by":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.UpdatedBy })
-			case "description":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.Description })
-			case "last_uploaded_log_id":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LastUploadedLog })
-			case "logs_count":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LogsCount })
-			case "logs_size":
-				binds = append(binds, func(dst *model.Config) interface{} { return &dst.LogsSize })
-			default:
-				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
-			}
-
-		}
-		bindFunc := func(binds []func(config *model.Config) any) []any {
-			var fields []any
-			for _, v := range binds {
-				fields = append(fields, v(&config))
-			}
-			return fields
-		}
-		err = rows.Scan(bindFunc(binds)...)
-		if err != nil {
-			return nil, model.NewInternalError("postgres.config.scan.scan.error", err.Error())
-		}
-		configs = append(configs, &config)
-	}
-	return configs, nil
-}
 
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
@@ -535,6 +418,55 @@ func (c *Config) getFields() []string {
 		fields = append(fields, value)
 	}
 	return fields
+}
+
+func (c *Config) GetScanPlan(columns []string) []func(*model.Config) any {
+	var binds []func(*model.Config) any
+	for _, v := range columns {
+		var bind func(*model.Config) any
+		switch v {
+		case "id":
+			bind = func(dst *model.Config) interface{} { return &dst.Id }
+		case "enabled":
+			bind = func(dst *model.Config) interface{} { return &dst.Enabled }
+		case "days_to_store":
+			bind = func(dst *model.Config) interface{} { return &dst.DaysToStore }
+		case "period":
+			bind = func(dst *model.Config) interface{} { return &dst.Period }
+		case "next_upload_on":
+			bind = func(dst *model.Config) interface{} { return &dst.NextUploadOn }
+		case "object_id":
+			bind = func(dst *model.Config) interface{} { return &dst.Object.Id }
+		case "object_name":
+			bind = func(dst *model.Config) interface{} { return &dst.Object.Name }
+		case "storage_id":
+			bind = func(dst *model.Config) interface{} { return &dst.Storage.Id }
+		case "storage_name":
+			bind = func(dst *model.Config) interface{} { return &dst.Storage.Name }
+		case "domain_id":
+			bind = func(dst *model.Config) interface{} { return &dst.DomainId }
+		case "created_at":
+			bind = func(dst *model.Config) interface{} { return &dst.CreatedAt }
+		case "created_by":
+			bind = func(dst *model.Config) interface{} { return &dst.CreatedBy }
+		case "updated_at":
+			bind = func(dst *model.Config) interface{} { return &dst.UpdatedAt }
+		case "updated_by":
+			bind = func(dst *model.Config) interface{} { return &dst.UpdatedBy }
+		case "description":
+			bind = func(dst *model.Config) interface{} { return &dst.Description }
+		case "last_uploaded_log_id":
+			bind = func(dst *model.Config) interface{} { return &dst.LastUploadedLog }
+		case "logs_count":
+			bind = func(dst *model.Config) interface{} { return &dst.LogsCount }
+		case "logs_size":
+			bind = func(dst *model.Config) interface{} { return &dst.LogsSize }
+		default:
+			bind = func(dst *model.Config) any { return nil }
+		}
+		binds = append(binds, bind)
+	}
+	return binds
 }
 
 // endregion

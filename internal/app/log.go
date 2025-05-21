@@ -13,7 +13,7 @@ import (
 
 // region PERFORM ACTIONS
 
-func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, model.AppError) {
+func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, error) {
 
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
@@ -26,26 +26,22 @@ func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, fi
 		return nil, a.MakeScopeError(session, scope, accessMode)
 	}
 	// region PERFORM
-	modelLogs, appErr := a.storage.Log().Select(
+	modelLogs, err := a.storage.Log().Select(
 		ctx,
 		searchOpt,
 		filters.ExtractFilters(),
 	)
-	if appErr != nil {
-		if IsErrNoRows(appErr) {
-			return modelLogs, nil
-		} else {
-			return nil, appErr
-		}
+	if err != nil {
+		return nil, err
 	}
 	// endregion
 	return modelLogs, nil
 }
 
-func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, storageId int, sFile io.Reader, metadata model.File) (*model.File, model.AppError) {
+func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, storageId int, sFile io.Reader, metadata model.File) (*model.File, error) {
 	stream, err := a.file.UploadFile(ctx)
 	if err != nil {
-		return nil, model.NewInternalError("app.log.upload_file.request_stream.error", err.Error())
+		return nil, err
 	}
 
 	err = stream.Send(&storageModel.UploadFileRequest{
@@ -61,7 +57,7 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	})
 
 	if err != nil {
-		return nil, model.NewInternalError("app.log.upload_file.send_metadata.error", err.Error())
+		return nil, err
 	}
 
 	defer stream.CloseSend()
@@ -89,13 +85,13 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	}
 
 	if err != nil {
-		return nil, model.NewInternalError("app.log.upload_file.send_stream.error", err.Error())
+		return nil, err
 	}
 
 	var res *storageModel.UploadFileResponse
 	res, err = stream.CloseAndRecv()
 	if err != nil {
-		return nil, model.NewInternalError("app.log.upload_file.close_stream.error", err.Error())
+		return nil, err
 	}
 
 	metadata.Id = int(res.FileId)
@@ -106,7 +102,7 @@ func (a *App) UploadFile(ctx context.Context, domainId int64, uuid string, stora
 	return &metadata, nil
 }
 
-func (a *App) DeleteLogs(ctx context.Context, configId int, olderThan time.Time) (int, model.AppError) {
+func (a *App) DeleteLogs(ctx context.Context, configId int, earlierThan time.Time) (int, error) {
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
 		return 0, err
@@ -135,13 +131,13 @@ func (a *App) DeleteLogs(ctx context.Context, configId int, olderThan time.Time)
 		}
 	}
 
-	if olderThan.IsZero() {
-		olderThan = time.Now()
+	if earlierThan.IsZero() {
+		earlierThan = time.Now()
 	}
-	return a.storage.Log().Delete(ctx, olderThan, configId)
+	return a.storage.Log().Delete(ctx, earlierThan, configId)
 }
 
-func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) model.AppError {
+func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model.RabbitMessage, domainId, objectId int) error {
 
 	model, err := convertRabbitMessageToModel(rabbitMessage)
 	if err != nil {
@@ -156,12 +152,12 @@ func (a *App) InsertLogByRabbitMessage(ctx context.Context, rabbitMessage *model
 
 }
 
-func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64) model.AppError {
+func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages []*model.RabbitMessage, domainId int64) error {
 	logs, err := convertRabbitMessageToModelBulk(rabbitMessages)
 	if err != nil {
 		return err
 	}
-	err = a.storage.Log().InsertBulk(ctx, logs, int(domainId))
+	_, err = a.storage.Log().InsertBulk(ctx, logs, int(domainId))
 	if err != nil {
 		return err
 	}
@@ -173,7 +169,7 @@ func (a *App) InsertLogByRabbitMessageBulk(ctx context.Context, rabbitMessages [
 
 // region UTIL FUNCTIONS
 
-func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, model.AppError) {
+func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, error) {
 	log := &model.Log{
 		Action:   m.Action,
 		Date:     (model.NullTime)(time.Unix(m.Date, 0)),
@@ -183,19 +179,19 @@ func convertRabbitMessageToModel(m *model.RabbitMessage) (*model.Log, model.AppE
 	}
 	userId, err := model.NewNullInt(m.UserId)
 	if err != nil {
-		return nil, model.NewInternalError("app.log.convert_rabbit_message.convert_to_null_user.error", err.Error())
+		return nil, err
 	}
 	log.User = model.Lookup{Id: userId}
 	recordId, err := model.NewNullInt(m.RecordId)
 	if err != nil {
-		return nil, model.NewInternalError("app.log.convert_rabbit_message.convert_to_null_record.error", err.Error())
+		return nil, err
 	}
 	log.Record = model.Lookup{Id: recordId}
 
 	return log, nil
 }
 
-func convertRabbitMessageToModelBulk(m []*model.RabbitMessage) ([]*model.Log, model.AppError) {
+func convertRabbitMessageToModelBulk(m []*model.RabbitMessage) ([]*model.Log, error) {
 	var logs []*model.Log
 	for _, v := range m {
 		log, err := convertRabbitMessageToModel(v)

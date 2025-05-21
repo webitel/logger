@@ -13,14 +13,14 @@ import (
 )
 
 type ConfigManager interface {
-	SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, model.AppError)
-	UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, model.AppError)
-	InsertConfig(ctx context.Context, in *model.Config) (*model.Config, model.AppError)
-	DeleteConfig(ctx context.Context, ids []int32) model.AppError
+	SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, error)
+	UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error)
+	InsertConfig(ctx context.Context, in *model.Config) (*model.Config, error)
+	DeleteConfig(ctx context.Context, ids []int32) error
 
-	GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError)
-	GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, model.AppError)
-	CheckConfigStatus(ctx context.Context, objectName string, domainId int) (bool, model.AppError)
+	GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, error)
+	GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, error)
+	CheckConfigStatus(ctx context.Context, objectName string, domainId int) (bool, error)
 	GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error)
 }
 
@@ -81,7 +81,7 @@ func (s *ConfigService) CheckConfigStatus(ctx context.Context, in *proto.CheckCo
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Int("domain.id", int(in.GetDomainId())))
 	GroupAttributesAndBindToSpan(ctx, "in", attribute.String("object.name", in.GetObjectName()))
-	isEnabled, err := s.app.CheckConfigStatus(ctx, in.GetObjectName(), 0)
+	isEnabled, err := s.app.CheckConfigStatus(ctx, in.GetObjectName(), int(in.GetDomainId()))
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfig
 	return &proto.Empty{}, nil
 }
 
-func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest) (*model.Config, model.AppError) {
+func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest) (*model.Config, error) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
@@ -206,7 +206,7 @@ func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest) (*model.Co
 	return config, nil
 }
 
-func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Config, model.AppError) {
+func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Config, error) {
 	config := &model.Config{
 		Id:          int(in.GetConfigId()),
 		Enabled:     in.GetEnabled(),
@@ -225,7 +225,7 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Conf
 	return config, nil
 }
 
-func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Config, model.AppError) {
+func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Config, error) {
 
 	if in.GetDaysToStore() <= 0 {
 		return nil, model.NewBadRequestError("app.config.convert_create_config_message.bad_args", "days to store should be greater than one")
@@ -285,7 +285,6 @@ func (s *ConfigService) Marshal(models ...*model.Config) ([]*proto.Config, model
 
 func calculateNextPeriodFromDate(period int, from time.Time) *model.NullTime {
 	return model.NewNullTime(from.Add(time.Hour * 24 * time.Duration(period)))
-
 }
 
 func ExtractSearchOptions(t model.Searcher) *model.SearchOptions {

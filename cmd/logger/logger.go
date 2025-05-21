@@ -8,7 +8,6 @@ import (
 	"github.com/webitel/logger/internal/model"
 	otelsdk "github.com/webitel/webitel-go-kit/otel/sdk"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
-	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"log/slog"
@@ -37,45 +36,20 @@ func Run() error {
 	if appErr != nil {
 		return appErr
 	}
-	var addSource bool
-
-	if config.Log.SdkExport {
-		sd := SetupOtel(config.Log.LogLevel, config.Consul.Id)
-		defer sd(context.Background())
-	} else {
-		var lvl slog.Level
-		switch config.Log.LogLevel {
-		case "info":
-			lvl = slog.LevelInfo
-		case "warn":
-			lvl = slog.LevelWarn
-		case "error":
-			lvl = slog.LevelError
-		default:
-			addSource = true
-			lvl = slog.LevelDebug
-		}
-		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			AddSource:   addSource,
-			Level:       lvl,
-			ReplaceAttr: nil,
-		})
-		logger := slog.New(handler)
-		slog.SetDefault(logger)
-	}
-
+	sd := SetupOtel(config.Consul.Id)
+	defer sd(context.Background())
 	// * Create an application layer
-	app, appErr := app.New(config)
-	if appErr != nil {
-		return appErr
+	app, err := app.New(config)
+	if err != nil {
+		return err
 	}
 	initSignals(app)
-	appErr = app.Start()
-	return appErr
+	err = app.Start()
+	return err
 
 }
 
-func SetupOtel(severity string, serviceId string) (shutdown otelsdk.ShutdownFunc) {
+func SetupOtel(serviceId string) (shutdown otelsdk.ShutdownFunc) {
 
 	service := resource.NewSchemaless(
 		semconv.ServiceName(name),
@@ -83,24 +57,17 @@ func SetupOtel(severity string, serviceId string) (shutdown otelsdk.ShutdownFunc
 		semconv.ServiceInstanceID(serviceId),
 		semconv.ServiceNamespace(namespace),
 	)
-	ctx := context.Background()
-
-	var lvl log.Severity
-
-	switch severity {
-	case "info":
-		lvl = log.SeverityInfo
-	case "warn":
-		lvl = log.SeverityWarn
-	case "error":
-		lvl = log.SeverityError
-	case "debug":
-		lvl = log.SeverityDebug
-	default:
-		slog.Info("unable to determine log level, setting debug")
-		lvl = log.SeverityDebug
-	}
-	shutdown, err := otelsdk.Setup(ctx, otelsdk.WithResource(service), otelsdk.WithLogLevel(lvl))
+	shutdown, err := otelsdk.Configure(context.Background(), otelsdk.WithResource(service),
+		otelsdk.WithLogBridge(
+			func() {
+				// Create new slog logger with otel custom log level and handler
+				logger := slog.New(
+					otelslog.NewHandler("slog"),
+				)
+				slog.SetDefault(logger)
+			},
+		),
+	)
 	if err != nil {
 		slog.Error(err.Error())
 		return

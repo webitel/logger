@@ -1,22 +1,21 @@
 package model
 
 import (
-	authmodel "buf.build/gen/go/webitel/webitel-go/protocolbuffers/go"
 	"strings"
 	"time"
 )
 
 type Session struct {
-	user        *AuthorizedUser
-	permissions []*Permission
-	scope       []*Scope
-	roles       []*Role
-	domainId    int64
-	expiresAt   int64
+	User        *AuthorizedUser
+	Permissions []*Permission
+	Scope       []*Scope
+	Roles       []*Role
+	DomainId    int64
+	ExpiresAt   int64
 }
 
 func (s *Session) HasScope(scopeName string) bool {
-	for _, scope := range s.scope {
+	for _, scope := range s.Scope {
 		if scope.Name == scopeName {
 			return true
 		}
@@ -25,7 +24,7 @@ func (s *Session) HasScope(scopeName string) bool {
 }
 
 func (s *Session) GetScope(scopeName string) *Scope {
-	for _, scope := range s.scope {
+	for _, scope := range s.Scope {
 		if scope.Class == scopeName {
 			return scope
 		}
@@ -34,27 +33,27 @@ func (s *Session) GetScope(scopeName string) *Scope {
 }
 
 func (s *Session) GetUserId() int64 {
-	if s.user == nil {
+	if s.User == nil {
 		return 0
 	}
-	return s.user.Id
+	return s.User.Id
 }
 
 func (s *Session) GetUser() *AuthorizedUser {
-	if s.user == nil {
+	if s.User == nil {
 		return nil
 	}
-	clone := *s.user
+	clone := *s.User
 	return &clone
 }
 
 func (s *Session) GetDomainId() int64 {
-	return s.domainId
+	return s.DomainId
 }
 
 func (s *Session) GetAclRoles() []int64 {
 	roles := []int64{s.GetUserId()}
-	for _, role := range s.roles {
+	for _, role := range s.Roles {
 		roles = append(
 			roles,
 			role.Id,
@@ -64,11 +63,11 @@ func (s *Session) GetAclRoles() []int64 {
 }
 
 func (s *Session) IsExpired() bool {
-	return time.Now().Unix() > s.expiresAt
+	return time.Now().Unix() > s.ExpiresAt
 }
 
 func (s *Session) HasPermission(permissionName string) bool {
-	for _, permission := range s.permissions {
+	for _, permission := range s.Permissions {
 		if permission.Id == permissionName {
 			return true
 		}
@@ -134,51 +133,4 @@ func (s *Session) UseRbacAccess(scopeName string, accessType AccessMode) bool {
 	}
 
 	return true
-}
-
-func ConstructSessionFromUserInfo(userinfo *authmodel.Userinfo) *Session {
-	session := &Session{
-		user: &AuthorizedUser{
-			Id:        userinfo.UserId,
-			Name:      userinfo.Name,
-			Username:  userinfo.Username,
-			Extension: userinfo.Extension,
-		},
-		expiresAt: userinfo.ExpiresAt,
-		domainId:  userinfo.Dc,
-	}
-	for i, permission := range userinfo.Permissions {
-		if i == 0 {
-			session.permissions = make([]*Permission, 0)
-		}
-		session.permissions = append(session.permissions, &Permission{
-			Id:   permission.GetId(),
-			Name: permission.GetName(),
-		})
-	}
-	for i, scope := range userinfo.Scope {
-		if i == 0 {
-			session.scope = make([]*Scope, 0)
-		}
-		session.scope = append(session.scope, &Scope{
-			Id:     scope.GetId(),
-			Name:   scope.GetName(),
-			Abac:   scope.Abac,
-			Obac:   scope.Obac,
-			Rbac:   scope.Rbac,
-			Class:  scope.Class,
-			Access: scope.Access,
-		})
-	}
-
-	for i, role := range userinfo.Roles {
-		if i == 0 {
-			session.roles = make([]*Role, 0)
-		}
-		session.roles = append(session.roles, &Role{
-			Id:   role.GetId(),
-			Name: role.GetName(),
-		})
-	}
-	return session
 }

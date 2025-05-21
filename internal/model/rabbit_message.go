@@ -8,6 +8,6 @@ type RabbitMessage struct {
 	Action   string `json:"action,omitempty"`
 	Date     int64  `json:"date,omitempty"`
 	//DomainId int    `json:"domainId,omitempty"`
-	RecordId string `json:"recordId,omitempty"`
+	RecordId int `json:"recordId,omitempty"`
 	Schema   string
 }

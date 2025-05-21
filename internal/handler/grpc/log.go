@@ -14,8 +14,8 @@ import (
 )
 
 type LogManager interface {
-	SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, model.AppError)
-	DeleteLogs(ctx context.Context, configId int, earlierThan time.Time) (int, model.AppError)
+	SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, error)
+	DeleteLogs(ctx context.Context, configId int, earlierThan time.Time) (int, error)
 }
 
 type LoggerService struct {

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -18,40 +19,40 @@ type Storage interface {
 	// Interface to the config table
 	LoginAttempt() LoginAttemptStore
 	// Database connection
-	Database() (*sqlx.DB, model.AppError)
+	Database() (*sqlx.DB, error)
 	// Opens connection to the storage
-	Open() model.AppError
+	Open() error
 	// Closes connection to the storage
-	Close() model.AppError
+	Close() error
 }
 
 type LogStore interface {
-	Insert(ctx context.Context, log *model.Log, domainId int) model.AppError
-	Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, model.AppError)
-	InsertBulk(ctx context.Context, log []*model.Log, domainId int) model.AppError
-	Delete(ctx context.Context, earlierThan time.Time, configId int) (int, model.AppError)
+	Insert(ctx context.Context, log *model.Log, domainId int) error
+	Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, error)
+	InsertBulk(ctx context.Context, log []*model.Log, domainId int) (int, error)
+	Delete(ctx context.Context, earlierThan time.Time, configId int) (int, error)
 
-	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, model.AppError)
+	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, error)
 }
 
 type ConfigStore interface {
 	// GetAvailableSystemObjects - get all available objects from domain which are named as [filters]
-	Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, model.AppError)
-	Select(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, model.AppError)
-	Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, model.AppError)
-	Delete(ctx context.Context, id int32, domainId int64) model.AppError
+	Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, error)
+	Select(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, error)
+	Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, error)
+	Delete(ctx context.Context, id int32, domainId int64) (int, error)
 
-	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, model.AppError)
-	CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, model.AppError)
+	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, error)
+	CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, error)
 
-	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, model.AppError)
-	GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, model.AppError)
-	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) model.AppError
+	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, error)
+	GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, error)
+	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) (int, error)
 }
 
 type LoginAttemptStore interface {
-	Insert(ctx context.Context, m *model.LoginAttempt) (*model.LoginAttempt, model.AppError)
-	Select(ctx context.Context, searchOpts *model.SearchOptions, filters any) ([]*model.LoginAttempt, model.AppError)
+	Insert(ctx context.Context, m *model.LoginAttempt) (*model.LoginAttempt, error)
+	Select(ctx context.Context, searchOpts *model.SearchOptions, filters any) ([]*model.LoginAttempt, error)
 }
 
 type Table struct {
@@ -61,7 +62,7 @@ type Table struct {
 
 // ApplyFiltersToBuilder determines type of filters parameter and applies filters to the base according to the determined type.
 // columnAlias is additional parameter applied to every model.Filter existing in filters and checks if model.Filter.Column has alias in the {columnAlias}
-func ApplyFiltersToBuilderBulk(base any, columnAlias map[string]string, filters any) (any, model.AppError) {
+func ApplyFiltersToBuilderBulk(base any, columnAlias map[string]string, filters any) (any, error) {
 	if filters == nil {
 		return base, nil
 	}
@@ -132,7 +133,7 @@ func ApplyFiltersToBuilderBulk(base any, columnAlias map[string]string, filters 
 			base = baseType.Where(applyFilter(data, columnAlias))
 		}
 	default:
-		return nil, model.NewInternalError("storage.storage.apply_filters_to_builder_bulk.switch_filter.unknown", "invalid filter type")
+		return nil, errors.New("invalid filter type")
 	}
 
 	return base, nil

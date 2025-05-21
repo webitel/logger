@@ -2,10 +2,10 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
+	"errors"
 	"fmt"
 	"github.com/webitel/logger/internal/storage"
-	"log/slog"
+	"github.com/webitel/logger/internal/storage/postgres/utils"
 	"strings"
 	"time"
 
@@ -108,175 +108,102 @@ func newLogStore(store storage.Storage) (storage.LogStore, model.AppError) {
 	return &Log{storage: store}, nil
 }
 
-func (c *Log) Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, model.AppError) {
+func (c *Log) Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, error) {
 	var (
 		query string
 		args  []any
 	)
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return nil, appErr
+	db, err := c.storage.Database()
+	if err != nil {
+		return nil, err
 	}
-	base, appErr := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt), logFieldsFilterMap, filters)
-	if appErr != nil {
-		return nil, appErr
+	base, err := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt), logFieldsFilterMap, filters)
+	if err != nil {
+		return nil, err
 	}
 	switch req := base.(type) {
 	case sq.SelectBuilder:
 		query, args, _ = req.ToSql()
 	default:
-		return nil, model.NewInternalError("store.sql_scheme_variable.get.base_type.wrong", "base of query is of wrong type")
+		return nil, errors.New("base of query is of wrong type")
 	}
 	rows, err := db.QueryContext(ctx, query, args...)
-	slog.Debug(query, args)
 	if err != nil {
-		return nil, model.NewInternalError("postgres.log.get_by_object_id.query_execute.fail", err.Error())
+		return nil, err
 	}
 	defer rows.Close()
-	res, appErr := c.ScanRows(rows)
-	if appErr != nil {
-		return nil, appErr
+	res, err := utils.ScanRows(rows, c.GetScanPlan)
+	if err != nil {
+		return nil, err
 	}
 	return res, nil
 }
 
-func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) model.AppError {
-	err := c.InsertBulk(ctx, []*model.Log{log}, domainId)
+func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) error {
+	_, err := c.InsertBulk(ctx, []*model.Log{log}, domainId)
 	if err != nil {
-		return model.NewInternalError("postgres.log.insert.scan.error", err.Error())
+		return err
 	}
 	return nil
 }
 
-func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, model.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return false, appErr
+func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return false, err
 	}
 	table, ok := recordTableMap[objectName]
 	if !ok {
-		return false, model.NewBadRequestError("postgres.log.check_record.invalid_args.error", "object does not exist")
+		return false, errors.New("object does not exist")
 	}
 	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
 	res, err := base.RunWith(db).ExecContext(ctx)
-	slog.Debug(base.ToSql())
 	if err != nil {
-		return false, model.NewInternalError("postgres.log.check_record.query_execute.fail", err.Error())
+		return false, err
 	}
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, model.NewBadRequestError("postgres.log.check_record.get_res.fail", err.Error())
+		return false, err
 	}
-	if rowsAffected <= 0 {
-		return false, nil
-	}
-	return true, nil
+	return rowsAffected >= 0, nil
 }
 
-func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) model.AppError {
+func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) (int, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
-		return appErr
+		return 0, appErr
 	}
 	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id", "object_name").PlaceholderFormat(sq.Dollar)
 	for _, log := range logs {
 		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, sq.Expr("(SELECT object_config.id FROM logger.object_config INNER JOIN directory.wbt_class ON object_config.object_id = wbt_class.id WHERE object_config.domain_id = ? AND wbt_class.name = ?)", domainId, log.Object.Name), log.Object.Name)
 	}
-
-	_, err := base.RunWith(db).ExecContext(ctx)
-	slog.Debug(base.ToSql())
+	res, err := base.RunWith(db).ExecContext(ctx)
 	if err != nil {
-		return model.NewInternalError("postgres.log.insert.query.error", err.Error())
+		return 0, err
 	}
-	return nil
+	affected, err := res.RowsAffected()
+	return int(affected), err
+
 }
 
-func (c *Log) Delete(ctx context.Context, date time.Time, configId int) (int, model.AppError) {
-	db, appErr := c.storage.Database()
-	if appErr != nil {
-		return 0, appErr
+func (c *Log) Delete(ctx context.Context, earlierThan time.Time, configId int) (int, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return 0, err
 	}
 
 	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
-	slog.Debug(query)
 	rows, err := db.ExecContext(
 		ctx,
 		query,
-		date,
+		earlierThan,
 		configId,
 	)
 	if err != nil {
-		return 0, model.NewInternalError("postgres.log.delete_by_lowe_that_date.query.error", err.Error())
+		return 0, err
 	}
 	affected, err := rows.RowsAffected()
-	if err != nil {
-		return 0, model.NewInternalError("postgres.log.delete_by_lowe_that_date.result.error", err.Error())
-	}
-	return int(affected), nil
-}
-
-func (c *Log) ScanRows(rows *sql.Rows) ([]*model.Log, model.AppError) {
-	if rows == nil {
-		return nil, model.NewInternalError("postgres.log.scan.check_args.rows_nil", "rows are nil")
-	}
-	cols, err := rows.Columns()
-	if err != nil {
-		return nil, model.NewInternalError("postgres.log.scan.get_columns.error", err.Error())
-	}
-	var logs []*model.Log
-
-	for rows.Next() {
-		var log model.Log
-		binds := make([]func(dst *model.Log) interface{}, 0, 0)
-		for _, v := range cols {
-
-			switch v {
-			case "id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Id })
-			case "date":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Date })
-			case "user_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.User.Id })
-			case "user_name":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.User.Name })
-			case "user_ip":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.UserIp })
-			case "new_state":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.NewState })
-			case "record_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Record.Id })
-			case "record_name":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Record.Name })
-			case "action":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Action })
-			case "config_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.ConfigId })
-			case "object_id":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Object.Id })
-			case "object_name":
-				binds = append(binds, func(dst *model.Log) interface{} { return &dst.Object.Name })
-			default:
-				panic("postgres.log.scan.get_columns.error: columns gotten from sql don't respond to model columns. Unknown column: " + v)
-			}
-
-		}
-		bindFunc := func(binds []func(*model.Log) any) []any {
-			var fields []any
-			for _, v := range binds {
-				fields = append(fields, v(&log))
-			}
-			return fields
-		}
-		err = rows.Scan(bindFunc(binds)...)
-		if err != nil {
-			return nil, model.NewInternalError("postgres.log.scan.scan.error", err.Error())
-		}
-		logs = append(logs, &log)
-	}
-	if len(logs) == 0 {
-		return nil, model.NewBadRequestError("postgres.log.scan.check_no_rows.error", sql.ErrNoRows.Error())
-	}
-	return logs, nil
+	return int(affected), err
 }
 
 func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectBuilder {
@@ -343,4 +270,41 @@ func (c *Log) getFields() []string {
 		fields = append(fields, value)
 	}
 	return fields
+}
+
+func (c *Log) GetScanPlan(columns []string) []func(*model.Log) any {
+	var binds []func(*model.Log) any
+	for _, v := range columns {
+		var bind func(*model.Log) any
+		switch v {
+		case "id":
+			bind = func(dst *model.Log) any { return &dst.Id }
+		case "date":
+			bind = func(dst *model.Log) any { return &dst.Date }
+		case "user_id":
+			bind = func(dst *model.Log) any { return &dst.User.Id }
+		case "user_name":
+			bind = func(dst *model.Log) any { return &dst.User.Name }
+		case "user_ip":
+			bind = func(dst *model.Log) any { return &dst.UserIp }
+		case "new_state":
+			bind = func(dst *model.Log) any { return &dst.NewState }
+		case "record_id":
+			bind = func(dst *model.Log) any { return &dst.Record.Id }
+		case "record_name":
+			bind = func(dst *model.Log) any { return &dst.Record.Name }
+		case "action":
+			bind = func(dst *model.Log) any { return &dst.Action }
+		case "config_id":
+			bind = func(dst *model.Log) any { return &dst.ConfigId }
+		case "object_id":
+			bind = func(dst *model.Log) any { return &dst.Object.Id }
+		case "object_name":
+			bind = func(dst *model.Log) any { return &dst.Object.Name }
+		default:
+			bind = func(dst *model.Log) any { return nil }
+		}
+		binds = append(binds, bind)
+	}
+	return binds
 }

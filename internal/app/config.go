@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	authmodel "github.com/webitel/logger/internal/auth/model"
 	"github.com/webitel/logger/internal/watcher"
@@ -12,12 +13,12 @@ import (
 	"github.com/webitel/logger/internal/model"
 )
 
-func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, model.AppError) {
+func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
 	var (
 		newConfig *model.Config
 	)
 	if in == nil {
-		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		return nil, errors.New("config proto is nil")
 	}
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
@@ -130,12 +131,12 @@ func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *mo
 	// else status still disabled
 }
 
-func (a *App) InsertConfig(ctx context.Context, in *model.Config) (*model.Config, model.AppError) {
+func (a *App) InsertConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
 	var (
 		newModel *model.Config
 	)
 	if in == nil {
-		return nil, model.NewInternalError("app.app.update_config.check_arguments.fail", "config proto is nil")
+		return nil, errors.New("config is nil")
 	}
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
@@ -166,7 +167,7 @@ func (a *App) InsertConfig(ctx context.Context, in *model.Config) (*model.Config
 	return newModel, nil
 }
 
-func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, model.AppError) {
+func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, error) {
 	res, appErr := a.storage.Config().GetByObjectId(ctx, domainId, objectId)
 	if appErr != nil {
 		return nil, appErr
@@ -174,8 +175,8 @@ func (a *App) GetConfigByObjectId(ctx context.Context, objectId int, domainId in
 	return res, nil
 }
 
-func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int) (bool, model.AppError) {
-	searchResult, appErr := a.storage.Config().Select(ctx, nil, nil, &model.FilterNode{
+func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId int) (bool, error) {
+	searchResult, err := a.storage.Config().Select(ctx, nil, nil, &model.FilterNode{
 		Nodes: []any{
 			&model.Filter{
 				Column:         "wbt_class.name",
@@ -189,20 +190,18 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 			}},
 		Connection: model.AND,
 	})
-	if appErr != nil {
-		if IsErrNoRows(appErr) {
-			return false, nil
-		}
-
-		return false, appErr
+	if err != nil {
+		return false, err
+	}
+	if len(searchResult) == 0 {
+		return false, nil
 	}
 	enabled := searchResult[0].Enabled
-
 	return enabled, nil
 
 }
 
-func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, model.AppError) {
+func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, error) {
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
@@ -227,12 +226,12 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 	return res, nil
 }
 
-func (a *App) DeleteConfig(ctx context.Context, ids []int32) model.AppError {
+func (a *App) DeleteConfig(ctx context.Context, ids []int32) error {
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
 		return err
 	}
-	accessMode := authmodel.Edit
+	accessMode := authmodel.Delete
 	scope := model.ScopeLog
 	if !session.HasObacAccess(scope, accessMode) {
 		return a.MakeScopeError(session, scope, accessMode)
@@ -244,24 +243,23 @@ func (a *App) DeleteConfig(ctx context.Context, ids []int32) model.AppError {
 			Access: accessMode.Value(),
 		}
 	}
-	appErr := a.storage.Config().DeleteMany(ctx, rbac, ids, session.GetDomainId())
+	_, appErr := a.storage.Config().DeleteMany(ctx, rbac, ids, session.GetDomainId())
 	if appErr != nil {
 		return appErr
 	}
 	return nil
 }
 
-func (a *App) ConfigCheckAccess(ctx context.Context, id int64, domainId int64, groups []int64, access authmodel.AccessMode) (bool, model.AppError) {
+func (a *App) ConfigCheckAccess(ctx context.Context, id int64, domainId int64, groups []int64, access authmodel.AccessMode) (bool, error) {
 	return a.storage.Config().CheckAccess(ctx, domainId, id, groups, access.Value())
 
 }
 
-func (a *App) SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, model.AppError) {
+func (a *App) SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, error) {
 	session, err := a.AuthorizeFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	scope := model.ScopeLog
 	accessMode := authmodel.Read
 	// OBAC check

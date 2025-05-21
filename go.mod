@@ -16,7 +16,6 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/mbobakov/grpc-consul-resolver v1.5.3
-	github.com/nicksnyder/go-i18n v1.10.3
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1
 	github.com/webitel/webitel-go-kit v0.0.21-0.20250521181347-f6d3e4935826
@@ -61,7 +60,6 @@ require (
 	github.com/miekg/dns v1.1.43 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
@@ -90,5 +88,4 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

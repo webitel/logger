@@ -23,4 +23,5 @@ type ConsulConfig struct {
 
 type FeaturesConfig struct {
 	EnableLoginConsumption bool `json:"loginConsumption" flag:"login_consumption|true| Enables login consumption" env:"LOGIN_CONSUMPTION"`
+	EnableSagaEvents       bool `json:"sagaEvents" flag:"saga_events|false| Enable saga events" env:"SAGA_EVENTS"`
 }

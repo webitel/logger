@@ -7,23 +7,22 @@ toolchain go1.23.9
 require (
 	github.com/BoRuDar/configuration/v4 v4.2.2
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1
 	github.com/hashicorp/consul/api v1.31.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx v3.6.2+incompatible
-	github.com/jackc/pgx/v5 v5.7.2
-	github.com/jmoiron/sqlx v1.4.0
+	github.com/jackc/pgx/v5 v5.7.5
 	github.com/lib/pq v1.10.9
 	github.com/mbobakov/grpc-consul-resolver v1.5.3
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.1
-	github.com/webitel/webitel-go-kit v0.0.21-0.20250521181347-f6d3e4935826
+	github.com/webitel/webitel-go-kit v0.0.21-0.20250522135015-f06df723e5dc
 	go.opentelemetry.io/contrib/bridges/otelslog v0.3.0
 	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
-	golang.org/x/sync v0.12.0
+	golang.org/x/sync v0.13.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a
 	google.golang.org/grpc v1.72.1
@@ -52,6 +51,7 @@ require (
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
@@ -83,10 +83,10 @@ require (
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )

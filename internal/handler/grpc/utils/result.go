@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/webitel/logger/internal/handler/grpc/errors"
+import (
+	proto "github.com/webitel/logger/api/logger"
+	"github.com/webitel/logger/internal/handler/grpc/errors"
+	"github.com/webitel/logger/internal/model"
+)
 
 type Lister interface {
 	GetSize() int32
@@ -32,4 +36,18 @@ func ResolvePaging[C any](size int, items []C) (result []C, next bool) {
 		return items[0:size], true
 	}
 	return items, false
+}
+
+func MarshalLookup(lookup model.Lookup) *proto.Lookup {
+	if lookup == nil {
+		return nil
+	}
+	m := &proto.Lookup{}
+	if id := lookup.GetId(); id != nil {
+		m.Id = int32(*id)
+	}
+	if name := lookup.GetName(); name != nil {
+		m.Name = *name
+	}
+	return m
 }

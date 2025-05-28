@@ -64,13 +64,13 @@ func (i *Manager) AuthorizeFromContext(ctx context.Context, mainObjClassName str
 func ConstructSessionFromUserInfo(userinfo *proto.Userinfo, mainObjClass string, mainAccess auth.AccessMode, ip string) *session.UserAuthSession {
 	sess := &session.UserAuthSession{
 		User: &session.User{
-			Id:        userinfo.UserId,
+			Id:        int(userinfo.UserId),
 			Name:      userinfo.Name,
 			Username:  userinfo.Username,
 			Extension: userinfo.Extension,
 		},
 		ExpiresAt:        userinfo.ExpiresAt,
-		DomainId:         userinfo.Dc,
+		DomainId:         int(userinfo.Dc),
 		Permissions:      make([]string, 0),
 		License:          map[string]bool{},
 		Scopes:           map[string]*session.Scope{},

@@ -2,11 +2,10 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/webitel/logger/internal/storage"
-	"github.com/webitel/logger/internal/storage/postgres/utils"
 	"strings"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 )
 
 type Config struct {
-	storage storage.Storage
+	storage *Store
 }
 
 var (
@@ -28,17 +27,17 @@ var (
 		model.ConfigFields.NextUploadOn:    "object_config.next_upload_on",
 		model.ConfigFields.DomainId:        "object_config.domain_id",
 		model.ConfigFields.CreatedAt:       "object_config.created_at",
-		model.ConfigFields.CreatedBy:       "object_config.created_by",
+		model.ConfigFields.CreatedBy:       "author.id created_by_id, author.name created_by_name",
 		model.ConfigFields.UpdatedAt:       "object_config.updated_at",
-		model.ConfigFields.UpdatedBy:       "object_config.updated_by",
+		model.ConfigFields.UpdatedBy:       "editor.id updated_by_id, editor.name updated_by_name",
 		model.ConfigFields.Description:     "object_config.description",
 		model.ConfigFields.LastUploadedLog: "object_config.last_uploaded_log_id",
 		model.ConfigFields.LogsCount:       "(select count(l.*) from logger.log l where l.config_id = object_config.id) logs_count",
 		model.ConfigFields.LogsSize:        "(select pg_size_pretty(sum(pg_column_size(l))) from logger.log l where l.config_id = object_config.id) logs_size",
 
 		// [alias]
-		model.ConfigFields.Storage: "object_config.storage_id, file_backend_profiles.name as storage_name",
-		model.ConfigFields.Object:  "object_config.object_id, wbt_class.name as object_name",
+		model.ConfigFields.Storage: "storage.id storage_id, storage.name storage_name",
+		model.ConfigFields.Object:  "object.id object_id, object.name object_name",
 	}
 	configFieldsFilterMap = map[string]string{
 		model.ConfigFields.Id:              "object_config.id",
@@ -59,7 +58,7 @@ var (
 )
 
 // region CONSTRUCTOR
-func newConfigStore(store storage.Storage) (storage.ConfigStore, error) {
+func newConfigStore(store *Store) (storage.ConfigStore, error) {
 	if store == nil {
 		return nil, errors.New("error creating config interface to the config table, main store is nil")
 	}
@@ -69,7 +68,7 @@ func newConfigStore(store storage.Storage) (storage.ConfigStore, error) {
 // endregion
 
 // region CONFIG STORAGE
-func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, error) {
+func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, error) {
 	db, err := c.storage.Database()
 	if err != nil {
 		return nil, err
@@ -108,7 +107,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		case model.ConfigFields.Description:
 			base = base.Set("description", conf.Description)
 		case model.ConfigFields.LastUploadedLog:
-			base = base.Set("last_uploaded_log_id", conf.LastUploadedLog)
+			base = base.Set("last_uploaded_log_id", conf.LastUploadedLogId)
 		}
 	}
 	query, args, _ := base.ToSql()
@@ -119,9 +118,9 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 			   wbt_class.name             as object_name,
 			   file_backend_profiles.name as storage_name,
 			   p.created_at,
-			   p.created_by,
+			   p.created_by created_by_id,
 			   p.updated_at,
-			   p.updated_by,
+			   p.updated_by updated_by_id,
 			   p.days_to_store,
 			   p.period,
 			   p.next_upload_on,
@@ -133,20 +132,21 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		from p
 				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
-	res, err := db.QueryContext(ctx, query, args...)
+	res, err := db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Close()
-	return utils.ScanRow(res, c.GetScanPlan)
+	return nil, nil
 }
 
-func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, error) {
+func (c *Config) Insert(ctx context.Context, conf *model.Config) (*model.Config, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	row, err := db.QueryContext(ctx,
+	var config model.Config
+	err := pgxscan.Get(ctx, db, &config,
 		`with p as (INSERT INTO
 					logger.object_config (enabled, days_to_store, period, next_upload_on, storage_id, domain_id, object_id, created_by, description)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -156,9 +156,9 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (
 					   wbt_class.name             as object_name,
 					   file_backend_profiles.name as storage_name,
 					   p.created_at,
-					   p.created_by,
+					   p.created_by created_by_id,
 					   p.updated_at,
-					   p.updated_by,
+					   p.updated_by updated_by_id,
 					   p.days_to_store,
 					   p.period,
 					   p.next_upload_on,
@@ -174,25 +174,24 @@ func (c *Config) Insert(ctx context.Context, conf *model.Config, userId int64) (
 		conf.DaysToStore,
 		conf.Period,
 		conf.NextUploadOn,
-		conf.Storage.Id,
+		conf.Storage.GetId(),
 		conf.DomainId,
-		conf.Object.Id,
-		userId,
+		conf.Object.GetId(),
+		conf.Author.GetId(),
 		conf.Description)
 	if err != nil {
 		return nil, err
 	}
-	defer row.Close()
-	return utils.ScanRow(row, c.GetScanPlan)
+	return &config, nil
+
 }
 
-func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, error) {
-	// region CREATING QUERY
+func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.SystemObject, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return nil, appErr
 	}
-	base := sq.Select("wbt_class.id", "wbt_class.name").
+	base := sq.Select("wbt_class.id id", "wbt_class.name name").
 		From("directory.wbt_class").
 		Where(sq.Expr("name = any(?)", pq.Array(filters))).
 		Where(sq.Eq{"dc": domainId}).
@@ -203,29 +202,19 @@ func (c *Config) GetAvailableSystemObjects(ctx context.Context, domainId int, in
 			sq.Select("object_id").From("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}),
 		))
 	}
-	// endregion
-	// region PREFORM
-	rows, err := base.RunWith(db).QueryContext(ctx)
+	query, args, err := base.ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	// endregion
-	// region SCAN
-	var res []*model.Lookup
-	for rows.Next() {
-		var obj model.Lookup
-		err := rows.Scan(&obj.Id, &obj.Name)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, &obj)
+	var objects []*model.SystemObject
+	err = pgxscan.Select(ctx, db, &objects, query, args...)
+	if err != nil {
+		return nil, err
 	}
-	// endregion
-	return res, nil
+	return objects, nil
 }
 
-func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, error) {
+func (c *Config) CheckAccess(ctx context.Context, domainId, id int, groups []int, access uint8) (bool, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
 		return false, appErr
@@ -236,33 +225,36 @@ func (c *Config) CheckAccess(ctx context.Context, domainId, id int64, groups []i
 		Where("acl.subject = any( ?::int[])", pq.Array(groups)).
 		Where("acl.access & ? = ?", access, access).PlaceholderFormat(sq.Dollar)
 	base := sq.Select("1").Where(sq.Expr("exists(?)", subquery))
-	res := base.RunWith(db).QueryRowContext(ctx)
-	var ac bool
-	err := res.Scan(&ac)
+	query, args, err := base.ToSql()
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
 		return false, err
 	}
-	return ac, nil
+	var permission bool
+	err = pgxscan.Get(ctx, db, &permission, query, args...)
+	if err != nil {
+		return false, err
+	}
+	return permission, nil
 }
 
-func (c *Config) Delete(ctx context.Context, id int32, domainId int64) (int, error) {
+func (c *Config) Delete(ctx context.Context, id int, domainId int) (int, error) {
 	db, err := c.storage.Database()
 	if err != nil {
 		return 0, err
 	}
 	base := sq.Delete("logger.object_config").Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId}).PlaceholderFormat(sq.Dollar)
-	res, err := base.RunWith(db).ExecContext(ctx)
+	query, args, err := base.ToSql()
 	if err != nil {
 		return 0, err
 	}
-	affected, err := res.RowsAffected()
-	return int(affected), err
+	tag, err := db.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), err
 }
 
-func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) (int, error) {
+func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int, domainId int) (int, error) {
 	db, err := c.storage.Database()
 	if err != nil {
 		return 0, err
@@ -277,12 +269,15 @@ func (c *Config) DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []
 			Limit(1)
 		base = base.Where(sq.Expr("exists(?)", subquery))
 	}
-	res, err := base.RunWith(db).ExecContext(ctx)
+	query, args, err := base.ToSql()
 	if err != nil {
 		return 0, err
 	}
-	i, err := res.RowsAffected()
-	return int(i), err
+	tag, err := db.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), err
 }
 
 func (c *Config) GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, error) {
@@ -294,26 +289,34 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objectId int) 
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.Object]: objectId},
 		sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId},
 	)
-	rows, err := base.RunWith(db).QueryContext(ctx)
+	var config model.Config
+	query, args, err := base.ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return utils.ScanRow(rows, c.GetScanPlan)
+	err = pgxscan.Get(ctx, db, &config, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
-func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, error) {
+func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error) {
 	db, err := c.storage.Database()
 	if err != nil {
 		return nil, err
 	}
 	base := c.GetQueryBase(c.getFields(), rbac).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.Id]: id}).Where(sq.Eq{configFieldsFilterMap[model.ConfigFields.DomainId]: domainId})
-	rows, err := base.RunWith(db).QueryContext(ctx)
+	var config model.Config
+	query, args, err := base.ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return utils.ScanRow(rows, c.GetScanPlan)
+	err = pgxscan.Get(ctx, db, &config, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
 func (c *Config) Select(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, error) {
@@ -335,12 +338,12 @@ func (c *Config) Select(ctx context.Context, opt *model.SearchOptions, rbac *mod
 	default:
 		return nil, errors.New("wrong base type")
 	}
-	rows, err := db.QueryContext(ctx, sql, args...)
+	var configs []*model.Config
+	err = pgxscan.Select(ctx, db, &configs, sql, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	return utils.ScanRows(rows, c.GetScanPlan)
+	return configs, nil
 
 }
 
@@ -367,7 +370,7 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 	}
 	base := c.GetQueryBase(fields, rbac)
 	if opt.Search != "" {
-		base = base.Where(sq.ILike{"wbt_class.name": opt.Search + "%"})
+		base = base.Where(sq.ILike{"object.name": opt.Search + "%"})
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
@@ -393,8 +396,10 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 
 func (c *Config) GetQueryBase(fields []string, rbac *model.RbacOptions) sq.SelectBuilder {
 	base := sq.Select(fields...).From("logger.object_config").
-		JoinClause("LEFT JOIN directory.wbt_class ON wbt_class.id = object_config.object_id").
-		JoinClause("LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = object_config.storage_id").
+		LeftJoin("directory.wbt_class object ON object.id = object_config.object_id").
+		LeftJoin("storage.file_backend_profiles storage ON storage.id = object_config.storage_id").
+		LeftJoin("directory.wbt_user author ON author.id = object_config.created_by").
+		LeftJoin("directory.wbt_user editor ON editor.id = object_config.updated_by").
 		PlaceholderFormat(sq.Dollar)
 	return c.insertRbacCondition(base, rbac)
 }
@@ -418,55 +423,6 @@ func (c *Config) getFields() []string {
 		fields = append(fields, value)
 	}
 	return fields
-}
-
-func (c *Config) GetScanPlan(columns []string) []func(*model.Config) any {
-	var binds []func(*model.Config) any
-	for _, v := range columns {
-		var bind func(*model.Config) any
-		switch v {
-		case "id":
-			bind = func(dst *model.Config) interface{} { return &dst.Id }
-		case "enabled":
-			bind = func(dst *model.Config) interface{} { return &dst.Enabled }
-		case "days_to_store":
-			bind = func(dst *model.Config) interface{} { return &dst.DaysToStore }
-		case "period":
-			bind = func(dst *model.Config) interface{} { return &dst.Period }
-		case "next_upload_on":
-			bind = func(dst *model.Config) interface{} { return &dst.NextUploadOn }
-		case "object_id":
-			bind = func(dst *model.Config) interface{} { return &dst.Object.Id }
-		case "object_name":
-			bind = func(dst *model.Config) interface{} { return &dst.Object.Name }
-		case "storage_id":
-			bind = func(dst *model.Config) interface{} { return &dst.Storage.Id }
-		case "storage_name":
-			bind = func(dst *model.Config) interface{} { return &dst.Storage.Name }
-		case "domain_id":
-			bind = func(dst *model.Config) interface{} { return &dst.DomainId }
-		case "created_at":
-			bind = func(dst *model.Config) interface{} { return &dst.CreatedAt }
-		case "created_by":
-			bind = func(dst *model.Config) interface{} { return &dst.CreatedBy }
-		case "updated_at":
-			bind = func(dst *model.Config) interface{} { return &dst.UpdatedAt }
-		case "updated_by":
-			bind = func(dst *model.Config) interface{} { return &dst.UpdatedBy }
-		case "description":
-			bind = func(dst *model.Config) interface{} { return &dst.Description }
-		case "last_uploaded_log_id":
-			bind = func(dst *model.Config) interface{} { return &dst.LastUploadedLog }
-		case "logs_count":
-			bind = func(dst *model.Config) interface{} { return &dst.LogsCount }
-		case "logs_size":
-			bind = func(dst *model.Config) interface{} { return &dst.LogsSize }
-		default:
-			bind = func(dst *model.Config) any { return nil }
-		}
-		binds = append(binds, bind)
-	}
-	return binds
 }
 
 // endregion

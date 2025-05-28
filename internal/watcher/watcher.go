@@ -36,10 +36,10 @@ type UploadWatcher struct {
 type UploadWatcherParams struct {
 	StorageId    int
 	Period       int
-	NextUploadOn time.Time
-	LastLogId    int
-	DomainId     int64
-	UserId       int64
+	NextUploadOn *time.Time
+	LastLogId    *int
+	DomainId     int
+	UserId       *int
 }
 
 // StarterParams represents attributes to customize Watcher start

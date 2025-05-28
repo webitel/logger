@@ -6,26 +6,44 @@ import (
 	"fmt"
 	"github.com/webitel/logger/internal/auth"
 	"github.com/webitel/logger/internal/watcher"
+	notifier "github.com/webitel/webitel-go-kit/pkg/watcher"
 	"log/slog"
 
 	proto "github.com/webitel/logger/api/logger"
 	"github.com/webitel/logger/internal/model"
 )
 
+const (
+	ConfigNotifierObject = "config"
+)
+
 func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
+	var (
+		err       error
+		newConfig *model.Config
+	)
+	defer func() {
+		notifyErr := a.watcherManager.Notify(ConfigNotifierObject, notifier.EventTypeUpdate, NewNotifierConfigArgs(err == nil, newConfig))
+		if notifyErr != nil {
+			slog.ErrorContext(ctx, notifyErr.Error())
+		}
+	}()
 	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Edit)
 	if err != nil {
 		return nil, err
 	}
-
 	// OBAC check
 	if !session.CheckObacAccess() {
-		return nil, a.MakeScopeError(session.GetMainObjClassName())
+		err = a.MakeScopeError(session.GetMainObjClassName())
+		return nil, err
 	}
-
+	if in == nil {
+		err = errors.New("config is nil")
+		return nil, err
+	}
 	// RBAC check
 	if session.IsRbacCheckRequired() {
-		access, err := a.ConfigCheckAccess(ctx, int64(in.Id), session.GetUserId(), session.GetRoles(), session.GetMainAccessMode())
+		access, err := a.ConfigCheckAccess(ctx, in.Id, session.GetUserId(), session.GetRoles(), session.GetMainAccessMode())
 		if err != nil {
 			return nil, err
 		}
@@ -34,30 +52,21 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config
 		}
 	}
 
-	var (
-		newConfig *model.Config
-	)
-	if in == nil {
-		return nil, errors.New("config proto is nil")
-	}
-
 	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
-
-	in.NextUploadOn = model.NullTime(calculateNextPeriodFromNow(int32(in.Period)))
+	in.NextUploadOn = calculateNextPeriodFromNow(int32(in.Period))
 	newConfig, err = a.storage.Config().Update(ctx, in, []string{}, session.GetUserId())
 	if err != nil {
 		return nil, err
 	}
-
 	a.UpdateConfigWatchers(ctx, oldConfig, newConfig)
 	return newConfig, nil
 
 }
 
-func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
+func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) ([]*model.SystemObject, error) {
 	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
 	if err != nil {
 		return nil, err
@@ -70,22 +79,8 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 	for _, name := range proto.AvailableSystemObjects_name {
 		filters = append(filters, name)
 	}
-	objects, err := a.storage.Config().GetAvailableSystemObjects(ctx, int(session.GetDomainId()), in.GetIncludeExisting(),
+	return a.storage.Config().GetAvailableSystemObjects(ctx, session.GetDomainId(), in.GetIncludeExisting(),
 		filters...)
-	if err != nil {
-		return nil, err
-	}
-	var r []*proto.Lookup
-	for _, v := range objects {
-		r = append(r, &proto.Lookup{
-			Id:   v.Id.Int32(),
-			Name: v.Name.String(),
-		})
-	}
-
-	return &proto.SystemObjects{
-		Items: r,
-	}, nil
 
 }
 
@@ -107,16 +102,15 @@ func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *mo
 		}
 		// find uploader params, if exists then update params otherwise insert new
 		if params := a.GetLogUploaderParams(configId); params != nil {
-			params.UserId = newConfig.UpdatedBy.Int64()
-			params.StorageId = newConfig.Storage.Id.Int()
+			params.UserId = newConfig.Editor.GetId()
+			params.StorageId = *newConfig.Storage.Id
 			params.Period = newConfig.Period
-			params.NextUploadOn = newConfig.NextUploadOn.Time()
 		} else {
 			a.InsertLogUploader(configId, nil, &watcher.UploadWatcherParams{
-				StorageId:    newConfig.Storage.Id.Int(),
+				StorageId:    *newConfig.Storage.Id,
 				Period:       newConfig.Period,
-				NextUploadOn: newConfig.NextUploadOn.Time(),
-				LastLogId:    newConfig.LastUploadedLog.Int(),
+				NextUploadOn: newConfig.NextUploadOn,
+				LastLogId:    newConfig.LastUploadedLogId,
 				DomainId:     domainId,
 			})
 		}
@@ -124,34 +118,46 @@ func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *mo
 	// else status still disabled
 }
 
-func (a *App) InsertConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
+func (a *App) CreateConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
+	var (
+		err      error
+		newModel *model.Config
+	)
+	defer func() {
+		notifyErr := a.watcherManager.Notify(ConfigNotifierObject, notifier.EventTypeCreate, NewNotifierConfigArgs(err == nil, newModel))
+		if notifyErr != nil {
+			slog.ErrorContext(ctx, notifyErr.Error())
+		}
+	}()
 	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Add)
 	if err != nil {
 		return nil, err
 	}
 	// OBAC check
 	if !session.CheckObacAccess() {
-		return nil, a.MakeScopeError(session.GetMainObjClassName())
+		err = a.MakeScopeError(session.GetMainObjClassName())
+		return nil, err
 	}
-	var (
-		newModel *model.Config
-	)
 	if in == nil {
-		return nil, errors.New("config is nil")
+		err = errors.New("config is nil")
+		return nil, err
 	}
-
-	in.NextUploadOn = *model.NewNullTime(calculateNextPeriodFromNow(int32(in.Period)))
-	newModel, err = a.storage.Config().Insert(ctx, in, session.GetUserId())
+	userId := session.GetUserId()
+	domainId := session.GetDomainId()
+	in.Author = &model.Author{Id: &userId}
+	in.DomainId = domainId
+	in.NextUploadOn = calculateNextPeriodFromNow(int32(in.Period))
+	newModel, err = a.storage.Config().Insert(ctx, in)
 	if err != nil {
 		return nil, err
 	}
 	if newModel.Enabled {
 		a.InsertLogCleaner(newModel.Id, nil, newModel.DaysToStore)
 		a.InsertLogUploader(newModel.Id, nil, &watcher.UploadWatcherParams{
-			StorageId:    newModel.Storage.Id.Int(),
+			StorageId:    *newModel.Storage.Id,
 			Period:       newModel.Period,
-			NextUploadOn: newModel.NextUploadOn.Time(),
-			LastLogId:    0,
+			NextUploadOn: newModel.NextUploadOn,
+			LastLogId:    nil,
 			DomainId:     in.DomainId,
 		})
 	}
@@ -216,13 +222,21 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 	return res, nil
 }
 
-func (a *App) DeleteConfig(ctx context.Context, ids []int32) error {
+func (a *App) DeleteConfig(ctx context.Context, ids []int) error {
+	var err error
+	defer func() {
+		notifyErr := a.watcherManager.Notify(ConfigNotifierObject, notifier.EventTypeDelete, NewNotifierConfigArgs(err == nil, nil))
+		if notifyErr != nil {
+			slog.ErrorContext(ctx, notifyErr.Error())
+		}
+	}()
 	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Delete)
 	if err != nil {
 		return err
 	}
 	if !session.CheckObacAccess() {
-		return a.MakeScopeError(session.GetMainObjClassName())
+		err = a.MakeScopeError(session.GetMainObjClassName())
+		return err
 	}
 	var rbac *model.RbacOptions
 	if session.IsRbacCheckRequired() {
@@ -231,14 +245,14 @@ func (a *App) DeleteConfig(ctx context.Context, ids []int32) error {
 			Access: session.GetMainAccessMode().Value(),
 		}
 	}
-	_, appErr := a.storage.Config().DeleteMany(ctx, rbac, ids, session.GetDomainId())
-	if appErr != nil {
-		return appErr
+	_, err = a.storage.Config().DeleteMany(ctx, rbac, ids, session.GetDomainId())
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
-func (a *App) ConfigCheckAccess(ctx context.Context, id int64, domainId int64, groups []int64, access auth.AccessMode) (bool, error) {
+func (a *App) ConfigCheckAccess(ctx context.Context, id int, domainId int, groups []int, access auth.AccessMode) (bool, error) {
 	return a.storage.Config().CheckAccess(ctx, domainId, id, groups, access.Value())
 
 }
@@ -275,4 +289,21 @@ func (a *App) SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchO
 
 	return modelConfigs, nil
 
+}
+
+type NotifierConfigArgs struct {
+	Config             *model.Config
+	OperationSucceeded bool
+}
+
+func (n *NotifierConfigArgs) GetArgs() map[string]any {
+	return map[string]any{
+		"object":    n.Config,
+		"objclass":  ConfigNotifierObject,
+		"succeeded": n.OperationSucceeded,
+	}
+}
+
+func NewNotifierConfigArgs(success bool, config *model.Config) *NotifierConfigArgs {
+	return &NotifierConfigArgs{Config: config, OperationSucceeded: success}
 }

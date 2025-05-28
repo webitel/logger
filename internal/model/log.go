@@ -5,15 +5,48 @@ import (
 )
 
 type Log struct {
-	Id       int      `json:"id,omitempty"`
-	Action   string   `json:"action,omitempty"`
-	Date     NullTime `json:"date,omitempty"`
-	User     Lookup   `json:"user,omitempty"`
-	Object   Lookup   `json:"object,omitempty"`
-	UserIp   string   `json:"user_ip,omitempty"`
-	Record   Lookup   `json:"record,omitempty"`
-	NewState []byte   `json:"new_state,omitempty"`
-	ConfigId int      `json:"config_id,omitempty"`
+	*Object
+	*Author
+	*Record
+	Id       int        `json:"id,omitempty"`
+	Action   string     `json:"action,omitempty"`
+	Date     *time.Time `json:"date,omitempty"`
+	UserIp   *string    `json:"user_ip,omitempty"`
+	NewState []byte     `json:"new_state,omitempty"`
+	ConfigId int        `json:"config_id,omitempty"`
+}
+
+type Record struct {
+	Id   *int    `db:"record_id"`
+	Name *string `db:"record_name"`
+}
+
+func (r *Record) GetId() *int {
+	if r == nil {
+		return nil
+	}
+	return r.Id
+}
+
+func (r *Record) GetName() *string {
+	if r == nil {
+		return nil
+	}
+	return r.Name
+}
+
+func (r *Record) SetId(id int) {
+	if r == nil {
+		return
+	}
+	r.Id = &id
+}
+
+func (r *Record) SetName(name string) {
+	if r == nil {
+		return
+	}
+	r.Name = &name
 }
 
 // Front-end fields

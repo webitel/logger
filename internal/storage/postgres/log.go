@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/webitel/logger/internal/storage"
-	"github.com/webitel/logger/internal/storage/postgres/utils"
 	"strings"
 	"time"
 
@@ -24,7 +24,7 @@ var (
 
 		// [combined alias]
 		model.LogFields.Object: "log.object_name, object_config.object_id",
-		model.LogFields.User:   "log.user_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as user_name",
+		model.LogFields.User:   "log.user_id created_by_id, coalesce(wbt_user.name::varchar, wbt_user.username::varchar) as created_by_name",
 		model.LogFields.Record: "log.record_id",
 	}
 	logFieldsFilterMap = map[string]string{
@@ -98,10 +98,10 @@ func init() {
 }
 
 type Log struct {
-	storage storage.Storage
+	storage *Store
 }
 
-func newLogStore(store storage.Storage) (storage.LogStore, error) {
+func newLogStore(store *Store) (storage.LogStore, error) {
 	if store == nil {
 		return nil, errors.New("error creating log interface to the log table, main store is nil")
 	}
@@ -127,16 +127,12 @@ func (c *Log) Select(ctx context.Context, opt *model.SearchOptions, filters any)
 	default:
 		return nil, errors.New("base of query is of wrong type")
 	}
-	rows, err := db.QueryContext(ctx, query, args...)
+	var logs []*model.Log
+	err = pgxscan.Select(ctx, db, &logs, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	res, err := utils.ScanRows(rows, c.GetScanPlan)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return logs, nil
 }
 
 func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) error {
@@ -147,27 +143,6 @@ func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) error {
 	return nil
 }
 
-func (c *Log) CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, error) {
-	db, err := c.storage.Database()
-	if err != nil {
-		return false, err
-	}
-	table, ok := recordTableMap[objectName]
-	if !ok {
-		return false, errors.New("object does not exist")
-	}
-	base := sq.Select("id").From(table.Path).Where(sq.Eq{"id": recordId}).PlaceholderFormat(sq.Dollar)
-	res, err := base.RunWith(db).ExecContext(ctx)
-	if err != nil {
-		return false, err
-	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		return false, err
-	}
-	return rowsAffected >= 0, nil
-}
-
 func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) (int, error) {
 	db, appErr := c.storage.Database()
 	if appErr != nil {
@@ -175,14 +150,17 @@ func (c *Log) InsertBulk(ctx context.Context, logs []*model.Log, domainId int) (
 	}
 	base := sq.Insert("logger.log").Columns("date", "action", "user_id", "user_ip", "new_state", "record_id", "config_id", "object_name").PlaceholderFormat(sq.Dollar)
 	for _, log := range logs {
-		base = base.Values(log.Date, log.Action, log.User.Id, log.UserIp, log.NewState, log.Record.Id, sq.Expr("(SELECT object_config.id FROM logger.object_config INNER JOIN directory.wbt_class ON object_config.object_id = wbt_class.id WHERE object_config.domain_id = ? AND wbt_class.name = ?)", domainId, log.Object.Name), log.Object.Name)
+		base = base.Values(log.Date, log.Action, log.Author.GetId(), log.UserIp, log.NewState, log.Record.GetId(), sq.Expr("(SELECT object_config.id FROM logger.object_config INNER JOIN directory.wbt_class ON object_config.object_id = wbt_class.id WHERE object_config.domain_id = ? AND wbt_class.name = ?)", domainId, log.Object.GetName()), log.Object.GetName())
 	}
-	res, err := base.RunWith(db).ExecContext(ctx)
+	query, args, err := base.ToSql()
 	if err != nil {
 		return 0, err
 	}
-	affected, err := res.RowsAffected()
-	return int(affected), err
+	tag, err := db.Exec(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
 
 }
 
@@ -193,7 +171,7 @@ func (c *Log) Delete(ctx context.Context, earlierThan time.Time, configId int) (
 	}
 
 	query := `DELETE FROM logger.log WHERE log.date < $1 AND log.config_id = $2 `
-	rows, err := db.ExecContext(
+	tag, err := db.Exec(
 		ctx,
 		query,
 		earlierThan,
@@ -202,8 +180,7 @@ func (c *Log) Delete(ctx context.Context, earlierThan time.Time, configId int) (
 	if err != nil {
 		return 0, err
 	}
-	affected, err := rows.RowsAffected()
-	return int(affected), err
+	return int(tag.RowsAffected()), err
 }
 
 func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectBuilder {
@@ -270,41 +247,4 @@ func (c *Log) getFields() []string {
 		fields = append(fields, value)
 	}
 	return fields
-}
-
-func (c *Log) GetScanPlan(columns []string) []func(*model.Log) any {
-	var binds []func(*model.Log) any
-	for _, v := range columns {
-		var bind func(*model.Log) any
-		switch v {
-		case "id":
-			bind = func(dst *model.Log) any { return &dst.Id }
-		case "date":
-			bind = func(dst *model.Log) any { return &dst.Date }
-		case "user_id":
-			bind = func(dst *model.Log) any { return &dst.User.Id }
-		case "user_name":
-			bind = func(dst *model.Log) any { return &dst.User.Name }
-		case "user_ip":
-			bind = func(dst *model.Log) any { return &dst.UserIp }
-		case "new_state":
-			bind = func(dst *model.Log) any { return &dst.NewState }
-		case "record_id":
-			bind = func(dst *model.Log) any { return &dst.Record.Id }
-		case "record_name":
-			bind = func(dst *model.Log) any { return &dst.Record.Name }
-		case "action":
-			bind = func(dst *model.Log) any { return &dst.Action }
-		case "config_id":
-			bind = func(dst *model.Log) any { return &dst.ConfigId }
-		case "object_id":
-			bind = func(dst *model.Log) any { return &dst.Object.Id }
-		case "object_name":
-			bind = func(dst *model.Log) any { return &dst.Object.Name }
-		default:
-			bind = func(dst *model.Log) any { return nil }
-		}
-		binds = append(binds, bind)
-	}
-	return binds
 }

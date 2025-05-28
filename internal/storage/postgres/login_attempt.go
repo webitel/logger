@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Masterminds/squirrel"
+	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/webitel/logger/internal/model"
 	"github.com/webitel/logger/internal/storage"
-	"github.com/webitel/logger/internal/storage/postgres/utils"
 	"strings"
 )
 
@@ -45,7 +45,7 @@ var (
 )
 
 type LoginAttemptStore struct {
-	storage storage.Storage
+	storage *Store
 }
 
 const (
@@ -53,7 +53,7 @@ const (
 )
 
 // region CONSTRUCTOR
-func newLoginAttemptStore(store storage.Storage) (storage.LoginAttemptStore, error) {
+func newLoginAttemptStore(store *Store) (storage.LoginAttemptStore, error) {
 	if store == nil {
 		return nil, errors.New("error creating login attempt store interface, main store is nil")
 	}
@@ -69,17 +69,16 @@ func (l *LoginAttemptStore) Insert(ctx context.Context, attempt *model.LoginAtte
 	if err != nil {
 		return nil, err
 	}
-	sql, params, _ := base.ToSql()
-	rows, err := db.QueryContext(ctx, sql, params...)
+	sql, params, err := base.ToSql()
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	response, err := utils.ScanRow(rows, l.GetScanPlan)
+	var res model.LoginAttempt
+	err = pgxscan.Get(ctx, db, &res, sql, params...)
 	if err != nil {
 		return nil, err
 	}
-	return response, nil
+	return &res, nil
 
 }
 
@@ -102,17 +101,12 @@ func (l *LoginAttemptStore) Select(ctx context.Context, searchOpts *model.Search
 	default:
 		return nil, errors.New("invalid search options")
 	}
-
-	rows, err := db.QueryContext(ctx, query, params...)
+	var attempts []*model.LoginAttempt
+	err = pgxscan.Select(ctx, db, &attempts, query, params...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	res, err := utils.ScanRows(rows, l.GetScanPlan)
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	return attempts, nil
 }
 
 func (c *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) squirrel.SelectBuilder {

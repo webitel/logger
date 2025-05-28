@@ -107,8 +107,8 @@ func loadConfig() (*model.AppConfig, error) {
 	configurator := configuration.New(
 		&appConfig,
 		// order of execution will be preserved:
-		configuration.NewFlagProvider(),
 		configuration.NewEnvProvider(),
+		configuration.NewFlagProvider(),
 		configuration.NewDefaultProvider(),
 	).SetOptions(
 		configuration.OnFailFnOpt(func(err error) {

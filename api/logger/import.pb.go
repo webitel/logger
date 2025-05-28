@@ -38,6 +38,7 @@ const (
 	AvailableSystemObjects_cases             AvailableSystemObjects = 11
 	AvailableSystemObjects_contacts          AvailableSystemObjects = 12
 	AvailableSystemObjects_cc_list_number    AvailableSystemObjects = 13
+	AvailableSystemObjects_case_comments     AvailableSystemObjects = 14
 )
 
 // Enum value maps for AvailableSystemObjects.
@@ -57,6 +58,7 @@ var (
 		11: "cases",
 		12: "contacts",
 		13: "cc_list_number",
+		14: "case_comments",
 	}
 	AvailableSystemObjects_value = map[string]int32{
 		"cc_queue":          0,
@@ -73,6 +75,7 @@ var (
 		"cases":             11,
 		"contacts":          12,
 		"cc_list_number":    13,
+		"case_comments":     14,
 	}
 )
 
@@ -162,7 +165,7 @@ const file_import_proto_rawDesc = "" +
 	"\fimport.proto\x12\x06logger\",\n" +
 	"\x06Lookup\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name*\xe5\x01\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name*\xf8\x01\n" +
 	"\x16AvailableSystemObjects\x12\f\n" +
 	"\bcc_queue\x10\x00\x12\n" +
 	"\n" +
@@ -179,7 +182,8 @@ const file_import_proto_rawDesc = "" +
 	"\x12\t\n" +
 	"\x05cases\x10\v\x12\f\n" +
 	"\bcontacts\x10\f\x12\x12\n" +
-	"\x0ecc_list_number\x10\rBw\n" +
+	"\x0ecc_list_number\x10\r\x12\x11\n" +
+	"\rcase_comments\x10\x0eBw\n" +
 	"\n" +
 	"com.loggerB\vImportProtoP\x01Z$github.com/webitel/api/logger;logger\xa2\x02\x03LXX\xaa\x02\x06Logger\xca\x02\x06Logger\xe2\x02\x12Logger\\GPBMetadata\xea\x02\x06Loggerb\x06proto3"
 

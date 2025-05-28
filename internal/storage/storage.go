@@ -7,7 +7,6 @@ import (
 
 	"github.com/Masterminds/squirrel"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/webitel/logger/internal/model"
 )
 
@@ -18,8 +17,6 @@ type Storage interface {
 	Config() ConfigStore
 	// Interface to the config table
 	LoginAttempt() LoginAttemptStore
-	// Database connection
-	Database() (*sqlx.DB, error)
 	// Opens connection to the storage
 	Open() error
 	// Closes connection to the storage
@@ -31,23 +28,21 @@ type LogStore interface {
 	Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, error)
 	InsertBulk(ctx context.Context, log []*model.Log, domainId int) (int, error)
 	Delete(ctx context.Context, earlierThan time.Time, configId int) (int, error)
-
-	CheckRecordExist(ctx context.Context, objectName string, recordId int32) (bool, error)
 }
 
 type ConfigStore interface {
 	// GetAvailableSystemObjects - get all available objects from domain which are named as [filters]
-	Insert(ctx context.Context, conf *model.Config, userId int64) (*model.Config, error)
+	Insert(ctx context.Context, conf *model.Config) (*model.Config, error)
 	Select(ctx context.Context, opt *model.SearchOptions, rbac *model.RbacOptions, filters any) ([]*model.Config, error)
-	Update(ctx context.Context, conf *model.Config, fields []string, userId int64) (*model.Config, error)
-	Delete(ctx context.Context, id int32, domainId int64) (int, error)
+	Update(ctx context.Context, conf *model.Config, fields []string, userId int) (*model.Config, error)
+	Delete(ctx context.Context, id int, domainId int) (int, error)
 
-	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.Lookup, error)
-	CheckAccess(ctx context.Context, domainId, id int64, groups []int64, access uint8) (bool, error)
+	GetAvailableSystemObjects(ctx context.Context, domainId int, includeExisting bool, filters ...string) ([]*model.SystemObject, error)
+	CheckAccess(ctx context.Context, domainId, id int, groups []int, access uint8) (bool, error)
 
 	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, error)
-	GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int64) (*model.Config, error)
-	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int32, domainId int64) (int, error)
+	GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error)
+	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int, domainId int) (int, error)
 }
 
 type LoginAttemptStore interface {

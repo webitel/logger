@@ -1,19 +1,22 @@
 package model
 
-import "time"
+import (
+	"net"
+	"time"
+)
 
 type LoginAttempt struct {
 	Id         int64
 	Success    bool
 	AuthType   string
-	UserIp     string
+	UserIp     *net.IPNet
 	Date       time.Time
-	UserId     *NullInt
+	UserId     *int
 	UserName   string
 	UserAgent  string
-	DomainId   *NullInt
+	DomainId   *int
 	DomainName string
-	Details    *NullString
+	Details    *string
 }
 
 var (

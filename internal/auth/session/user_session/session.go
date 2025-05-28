@@ -12,7 +12,7 @@ type UserAuthSession struct {
 	Scopes           map[string]*Scope
 	License          map[string]bool
 	Roles            []*Role
-	DomainId         int64
+	DomainId         int
 	ExpiresAt        int64
 	SuperCreate      bool
 	SuperEdit        bool
@@ -25,7 +25,7 @@ type UserAuthSession struct {
 
 // region Auther interface implementation
 
-func (s *UserAuthSession) GetUserId() int64 {
+func (s *UserAuthSession) GetUserId() int {
 	if s.User == nil || s.User.Id <= 0 {
 		return 0
 	}
@@ -36,16 +36,16 @@ func (s *UserAuthSession) GetUserIp() string {
 	return s.UserIp
 }
 
-func (s *UserAuthSession) GetDomainId() int64 {
+func (s *UserAuthSession) GetDomainId() int {
 	return s.DomainId
 }
 
-func (s *UserAuthSession) GetRoles() []int64 {
-	roles := []int64{s.GetUserId()}
+func (s *UserAuthSession) GetRoles() []int {
+	roles := []int{s.GetUserId()}
 	for _, role := range s.Roles {
 		roles = append(
 			roles,
-			role.Id,
+			int(role.Id),
 		)
 	}
 	return roles
@@ -155,7 +155,7 @@ func (s *UserAuthSession) IsRbacCheckRequired() bool {
 // endregion
 
 func (s *UserAuthSession) IsExpired() bool {
-	return time.Now().Unix() > s.ExpiresAt
+	return time.Now().UnixMilli() > s.ExpiresAt
 }
 
 func (s *UserAuthSession) HasSuperPermission(permission auth.SuperPermission) bool {

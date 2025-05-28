@@ -5,10 +5,11 @@ import (
 )
 
 type RequiredFields struct {
-	UserId int    `json:"userId,omitempty"`
-	UserIp string `json:"userIp,omitempty"`
-	Date   int64  `json:"date,omitempty"`
-	Action string `json:"action,omitempty"`
+	UserId      int    `json:"userId"`
+	UserIp      string `json:"userIp"`
+	Date        int64  `json:"date"`
+	Action      string `json:"action"`
+	OperationId string `json:"operationId"`
 }
 
 type Record struct {

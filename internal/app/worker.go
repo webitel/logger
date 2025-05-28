@@ -35,15 +35,18 @@ func (a *App) initializeWatchers() error {
 	a.logUploaders, a.logCleaners = make(map[string]*watcher.UploadWatcher), make(map[string]*watcher.Watcher)
 	for _, config := range configs {
 		a.InsertLogCleaner(config.Id, nil, config.DaysToStore)
-		params := &watcher.UploadWatcherParams{
-			StorageId:    config.Storage.Id.Int(),
-			Period:       config.Period,
-			NextUploadOn: config.NextUploadOn.Time(),
-			LastLogId:    config.LastUploadedLog.Int(),
-			UserId:       config.UpdatedBy.Int64(),
-			DomainId:     config.DomainId,
+		if config.Storage.Id != nil {
+			params := &watcher.UploadWatcherParams{
+				StorageId:    *config.Storage.Id,
+				Period:       config.Period,
+				NextUploadOn: config.NextUploadOn,
+				LastLogId:    config.LastUploadedLogId,
+				UserId:       config.Editor.GetId(),
+				DomainId:     config.DomainId,
+			}
+			a.InsertLogUploader(config.Id, nil, params)
 		}
-		a.InsertLogUploader(config.Id, nil, params)
+
 	}
 	return nil
 }
@@ -167,7 +170,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 				"worker",
 				slog.String("name", name),
 				slog.Int("config_id", configId),
-				slog.Int64("domain", params.DomainId),
+				slog.Int("domain", params.DomainId),
 				slog.Int("period", params.Period),
 				slog.Int("storage", params.StorageId),
 			)
@@ -177,7 +180,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 					Value:          configId,
 					ComparisonType: model.Equal,
 				}}
-			if v := params.LastLogId; v != 0 {
+			if v := params.LastLogId; v != nil {
 				filters = append(filters, &model.Filter{
 					Column:         "id",
 					Value:          v,
@@ -223,24 +226,17 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 			}
 			lastLogId := logs[0].Id
 			nextUpload := calculateNextPeriodFromNow(int32(params.Period))
-
 			params.NextUploadOn = calculateNextPeriodFromNow(int32(params.Period))
-			params.LastLogId = lastLogId
-
-			nullLogId, err := model.NewNullInt(logs[0].Id)
-			if err != nil {
-				slog.Warn(format(err.Error()), logAttr)
-				return
-			}
+			params.LastLogId = &lastLogId
 			_, err = a.storage.Config().Update(
 				context.Background(),
 				&model.Config{
-					Id:              configId,
-					NextUploadOn:    *model.NewNullTime(nextUpload),
-					LastUploadedLog: *nullLogId,
+					Id:                configId,
+					NextUploadOn:      nextUpload,
+					LastUploadedLogId: &lastLogId,
 				},
 				[]string{"next_upload_on", "last_uploaded_log_id"},
-				params.UserId,
+				*params.UserId,
 			)
 			if err != nil {
 				slog.Warn(format(err.Error()), logAttr)
@@ -262,9 +258,9 @@ func FormatKey(prefix string, args ...any) string {
 	return base
 }
 
-func calculateNextPeriodFromNow(period int32) time.Time {
+func calculateNextPeriodFromNow(period int32) *time.Time {
 	now := time.Now().Add(time.Hour * 24 * time.Duration(period))
-	return now
+	return &now
 }
 
 // endregion

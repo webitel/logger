@@ -128,6 +128,7 @@ type FilePolicy struct {
 	RetentionDays int32                  `protobuf:"varint,13,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
 	Position      int32                  `protobuf:"varint,14,opt,name=position,proto3" json:"position,omitempty"`
 	MaxUploadSize int64                  `protobuf:"varint,15,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
+	Encrypt       bool                   `protobuf:"varint,16,opt,name=encrypt,proto3" json:"encrypt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,6 +268,13 @@ func (x *FilePolicy) GetMaxUploadSize() int64 {
 	return 0
 }
 
+func (x *FilePolicy) GetEncrypt() bool {
+	if x != nil {
+		return x.Encrypt
+	}
+	return false
+}
+
 type CreateFilePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -278,6 +286,7 @@ type CreateFilePolicyRequest struct {
 	Channels      []UploadFileChannel    `protobuf:"varint,7,rep,packed,name=channels,proto3,enum=storage.UploadFileChannel" json:"channels,omitempty"`
 	RetentionDays int32                  `protobuf:"varint,8,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
 	MaxUploadSize int64                  `protobuf:"varint,9,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
+	Encrypt       bool                   `protobuf:"varint,10,opt,name=encrypt,proto3" json:"encrypt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -373,6 +382,13 @@ func (x *CreateFilePolicyRequest) GetMaxUploadSize() int64 {
 		return x.MaxUploadSize
 	}
 	return 0
+}
+
+func (x *CreateFilePolicyRequest) GetEncrypt() bool {
+	if x != nil {
+		return x.Encrypt
+	}
+	return false
 }
 
 type ListFilePolicies struct {
@@ -567,6 +583,7 @@ type UpdateFilePolicyRequest struct {
 	Channels      []UploadFileChannel    `protobuf:"varint,8,rep,packed,name=channels,proto3,enum=storage.UploadFileChannel" json:"channels,omitempty"`
 	RetentionDays int32                  `protobuf:"varint,9,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
 	MaxUploadSize int64                  `protobuf:"varint,10,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
+	Encrypt       bool                   `protobuf:"varint,11,opt,name=encrypt,proto3" json:"encrypt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -671,6 +688,13 @@ func (x *UpdateFilePolicyRequest) GetMaxUploadSize() int64 {
 	return 0
 }
 
+func (x *UpdateFilePolicyRequest) GetEncrypt() bool {
+	if x != nil {
+		return x.Encrypt
+	}
+	return false
+}
+
 type PatchFilePolicyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Fields        []string               `protobuf:"bytes,1,rep,name=fields,proto3" json:"fields,omitempty"`
@@ -684,6 +708,7 @@ type PatchFilePolicyRequest struct {
 	Channels      []UploadFileChannel    `protobuf:"varint,9,rep,packed,name=channels,proto3,enum=storage.UploadFileChannel" json:"channels,omitempty"`
 	RetentionDays int32                  `protobuf:"varint,10,opt,name=retention_days,json=retentionDays,proto3" json:"retention_days,omitempty"`
 	MaxUploadSize int64                  `protobuf:"varint,11,opt,name=max_upload_size,json=maxUploadSize,proto3" json:"max_upload_size,omitempty"`
+	Encrypt       bool                   `protobuf:"varint,12,opt,name=encrypt,proto3" json:"encrypt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -793,6 +818,13 @@ func (x *PatchFilePolicyRequest) GetMaxUploadSize() int64 {
 		return x.MaxUploadSize
 	}
 	return 0
+}
+
+func (x *PatchFilePolicyRequest) GetEncrypt() bool {
+	if x != nil {
+		return x.Encrypt
+	}
+	return false
 }
 
 type DeleteFilePolicyRequest struct {
@@ -944,7 +976,7 @@ const file_file_policies_proto_rawDesc = "" +
 	"\x16FilePolicyApplyRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\"/\n" +
 	"\x17FilePolicyApplyResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x03R\x05count\"\x94\x04\n" +
+	"\x05count\x18\x01 \x01(\x03R\x05count\"\xae\x04\n" +
 	"\n" +
 	"FilePolicy\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1d\n" +
@@ -967,7 +999,8 @@ const file_file_policies_proto_rawDesc = "" +
 	"\bchannels\x18\f \x03(\x0e2\x1a.storage.UploadFileChannelR\bchannels\x12%\n" +
 	"\x0eretention_days\x18\r \x01(\x05R\rretentionDays\x12\x1a\n" +
 	"\bposition\x18\x0e \x01(\x05R\bposition\x12&\n" +
-	"\x0fmax_upload_size\x18\x0f \x01(\x03R\rmaxUploadSize\"\xd9\x02\n" +
+	"\x0fmax_upload_size\x18\x0f \x01(\x03R\rmaxUploadSize\x12\x18\n" +
+	"\aencrypt\x18\x10 \x01(\bR\aencrypt\"\xf3\x02\n" +
 	"\x17CreateFilePolicyRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12\x1d\n" +
@@ -978,7 +1011,9 @@ const file_file_policies_proto_rawDesc = "" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\x126\n" +
 	"\bchannels\x18\a \x03(\x0e2\x1a.storage.UploadFileChannelR\bchannels\x12%\n" +
 	"\x0eretention_days\x18\b \x01(\x05R\rretentionDays\x12&\n" +
-	"\x0fmax_upload_size\x18\t \x01(\x03R\rmaxUploadSize\"Q\n" +
+	"\x0fmax_upload_size\x18\t \x01(\x03R\rmaxUploadSize\x12\x18\n" +
+	"\aencrypt\x18\n" +
+	" \x01(\bR\aencrypt\"Q\n" +
 	"\x10ListFilePolicies\x12\x12\n" +
 	"\x04next\x18\x01 \x01(\bR\x04next\x12)\n" +
 	"\x05items\x18\x02 \x03(\v2\x13.storage.FilePolicyR\x05items\"\x8d\x01\n" +
@@ -990,7 +1025,7 @@ const file_file_policies_proto_rawDesc = "" +
 	"\x06fields\x18\x05 \x03(\tR\x06fields\x12\x0e\n" +
 	"\x02id\x18\x06 \x03(\rR\x02id\"'\n" +
 	"\x15ReadFilePolicyRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x05R\x02id\"\xe9\x02\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\"\x83\x03\n" +
 	"\x17UpdateFilePolicyRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -1003,7 +1038,8 @@ const file_file_policies_proto_rawDesc = "" +
 	"\bchannels\x18\b \x03(\x0e2\x1a.storage.UploadFileChannelR\bchannels\x12%\n" +
 	"\x0eretention_days\x18\t \x01(\x05R\rretentionDays\x12&\n" +
 	"\x0fmax_upload_size\x18\n" +
-	" \x01(\x03R\rmaxUploadSize\"\x80\x03\n" +
+	" \x01(\x03R\rmaxUploadSize\x12\x18\n" +
+	"\aencrypt\x18\v \x01(\bR\aencrypt\"\x9a\x03\n" +
 	"\x16PatchFilePolicyRequest\x12\x16\n" +
 	"\x06fields\x18\x01 \x03(\tR\x06fields\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\x05R\x02id\x12\x12\n" +
@@ -1017,7 +1053,8 @@ const file_file_policies_proto_rawDesc = "" +
 	"\bchannels\x18\t \x03(\x0e2\x1a.storage.UploadFileChannelR\bchannels\x12%\n" +
 	"\x0eretention_days\x18\n" +
 	" \x01(\x05R\rretentionDays\x12&\n" +
-	"\x0fmax_upload_size\x18\v \x01(\x03R\rmaxUploadSize\")\n" +
+	"\x0fmax_upload_size\x18\v \x01(\x03R\rmaxUploadSize\x12\x18\n" +
+	"\aencrypt\x18\f \x01(\bR\aencrypt\")\n" +
 	"\x17DeleteFilePolicyRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\"M\n" +
 	"\x1dMovePositionFilePolicyRequest\x12\x17\n" +

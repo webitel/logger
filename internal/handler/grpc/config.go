@@ -15,13 +15,13 @@ import (
 type ConfigManager interface {
 	SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, error)
 	UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error)
-	InsertConfig(ctx context.Context, in *model.Config) (*model.Config, error)
-	DeleteConfig(ctx context.Context, ids []int32) error
+	CreateConfig(ctx context.Context, in *model.Config) (*model.Config, error)
+	DeleteConfig(ctx context.Context, ids []int) error
 
 	GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, error)
 	GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, error)
 	CheckConfigStatus(ctx context.Context, objectName string, domainId int) (bool, error)
-	GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error)
+	GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) ([]*model.SystemObject, error)
 }
 
 type ConfigService struct {
@@ -54,7 +54,24 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 
 func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Bool("include_existing", request.GetIncludeExisting()))
-	return s.app.GetSystemObjects(ctx, request)
+	objects, err := s.app.GetSystemObjects(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	var resultObjects proto.SystemObjects
+	for _, object := range objects {
+		var obj proto.Lookup
+		id := object.GetId()
+		if id != nil {
+			obj.Id = int32(*id)
+		}
+		name := object.GetName()
+		if name != nil {
+			obj.Name = *name
+		}
+		resultObjects.Items = append(resultObjects.Items, &obj)
+	}
+	return &resultObjects, nil
 }
 
 // ReadConfigByObjectId used for internal purpose
@@ -156,7 +173,7 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 	if err != nil {
 		return nil, err
 	}
-	config, err := s.app.InsertConfig(ctx, model)
+	config, err := s.app.CreateConfig(ctx, model)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +190,7 @@ func (s *ConfigService) CreateConfig(ctx context.Context, in *proto.CreateConfig
 // DeleteConfig deletes config by id
 func (s *ConfigService) DeleteConfig(ctx context.Context, in *proto.DeleteConfigRequest) (*proto.Empty, error) {
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
-	appErr := s.app.DeleteConfig(ctx, []int32{in.GetConfigId()})
+	appErr := s.app.DeleteConfig(ctx, []int{int(in.GetConfigId())})
 	if appErr != nil {
 		return nil, appErr
 	}
@@ -186,17 +203,9 @@ func ConvertUpdateConfigMessageToModel(in *proto.UpdateConfigRequest) (*model.Co
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
-		Description: *model.NewNullString(in.GetDescription()),
+		Description: &in.Description,
+		Storage:     utils.UnmarshalLookup(in.GetStorage(), &model.Storage{}),
 	}
-
-	if v := in.GetStorage().GetId(); v != 0 {
-		storageId, err := model.NewNullInt(in.GetStorage().GetId())
-		if err != nil {
-			return nil, err
-		}
-		config.Storage.Id = storageId
-	}
-
 	return config, nil
 }
 
@@ -206,21 +215,13 @@ func ConvertPatchConfigMessageToModel(in *proto.PatchConfigRequest) (*model.Conf
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
-		Description: *model.NewNullString(in.GetDescription()),
+		Description: &in.Description,
+		Storage:     utils.UnmarshalLookup(in.GetStorage(), &model.Storage{}),
 	}
-	if v := in.GetStorage().GetId(); v != 0 {
-		storageId, err := model.NewNullInt(in.GetStorage().GetId())
-		if err != nil {
-			return nil, err
-		}
-		config.Storage.Id = storageId
-	}
-
 	return config, nil
 }
 
 func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfigRequest) (*model.Config, error) {
-
 	if in.GetDaysToStore() <= 0 {
 		return nil, errors.New("days to store should be greater than one")
 	}
@@ -228,22 +229,10 @@ func (s *ConfigService) ConvertCreateConfigMessageToModel(in *proto.CreateConfig
 		Enabled:     in.GetEnabled(),
 		DaysToStore: int(in.GetDaysToStore()),
 		Period:      int(in.GetPeriod()),
-		Description: *model.NewNullString(in.GetDescription()),
+		Description: &in.Description,
+		Storage:     &model.Storage{},
+		Object:      utils.UnmarshalLookup(in.GetObject(), &model.Object{}),
 	}
-	objectId, err := model.NewNullInt(in.GetObject().GetId())
-	if err != nil {
-		return nil, err
-	}
-	config.Object.Id = objectId
-
-	if v := in.GetStorage().GetId(); v != 0 {
-		storageId, err := model.NewNullInt(in.GetStorage().GetId())
-		if err != nil {
-			return nil, err
-		}
-		config.Storage.Id = storageId
-	}
-
 	return config, nil
 }
 
@@ -255,21 +244,17 @@ func (s *ConfigService) Marshal(models ...*model.Config) ([]*proto.Config, error
 			Enabled:     in.Enabled,
 			DaysToStore: int32(in.DaysToStore),
 			Period:      int32(in.Period),
-			Description: in.Description.String(),
-			LogsSize:    in.LogsSize.String(),
-			LogsCount:   in.LogsCount.Int64(),
+			Storage:     utils.MarshalLookup(in.Storage),
+			Object:      utils.MarshalLookup(in.Object),
 		}
-		if !in.Object.IsZero() {
-			conf.Object = &proto.Lookup{
-				Id:   int32(in.Object.Id.Int()),
-				Name: in.Object.Name.String(),
-			}
+		if in.Description != nil {
+			conf.Description = *in.Description
 		}
-		if !in.Storage.IsZero() {
-			conf.Storage = &proto.Lookup{
-				Id:   int32(in.Storage.Id.Int()),
-				Name: in.Storage.Name.String(),
-			}
+		if in.LogsSize != nil {
+			conf.LogsSize = *in.LogsSize
+		}
+		if in.LogsCount != nil {
+			conf.LogsCount = int64(*in.LogsCount)
 		}
 		res = append(res, conf)
 	}

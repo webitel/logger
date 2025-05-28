@@ -94,7 +94,7 @@ func TestNewLoggerClient(t *testing.T) {
 		t.Error()
 		return
 	}
-	err = obj.SendContext(context.Background(), 1, mess)
+	_, err = obj.SendContext(context.Background(), 1, mess)
 	if err != nil {
 		t.Error()
 		return

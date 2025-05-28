@@ -802,12 +802,11 @@ const file_logger_service_proto_rawDesc = "" +
 	"\x06update\x10\x02\x12\b\n" +
 	"\x04read\x10\x03\x12\n" +
 	"\n" +
-	"\x06delete\x10\x042\xea\x03\n" +
+	"\x06delete\x10\x042\xe6\x02\n" +
 	"\rLoggerService\x12h\n" +
 	"\x11SearchLogByUserId\x12 .logger.SearchLogByUserIdRequest\x1a\f.logger.Logs\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/logger/user/{user_id}/logs\x12p\n" +
 	"\x13SearchLogByConfigId\x12\".logger.SearchLogByConfigIdRequest\x1a\f.logger.Logs\"'\x82\xd3\xe4\x93\x02!\x12\x1f/logger/config/{config_id}/logs\x12y\n" +
-	"\x13SearchLogByRecordId\x12\".logger.SearchLogByRecordIdRequest\x1a\f.logger.Logs\"0\x82\xd3\xe4\x93\x02*\x12(/logger/{object}/record/{record_id}/logs\x12\x81\x01\n" +
-	"\x10DeleteConfigLogs\x12\x1f.logger.DeleteConfigLogsRequest\x1a .logger.DeleteConfigLogsResponse\"*\x82\xd3\xe4\x93\x02$:\x01**\x1f/logger/config/{config_id}/logsB~\n" +
+	"\x13SearchLogByRecordId\x12\".logger.SearchLogByRecordIdRequest\x1a\f.logger.Logs\"0\x82\xd3\xe4\x93\x02*\x12(/logger/{object}/record/{record_id}/logsB~\n" +
 	"\n" +
 	"com.loggerB\x12LoggerServiceProtoP\x01Z$github.com/webitel/api/logger;logger\xa2\x02\x03LXX\xaa\x02\x06Logger\xca\x02\x06Logger\xe2\x02\x12Logger\\GPBMetadata\xea\x02\x06Loggerb\x06proto3"
 
@@ -849,13 +848,11 @@ var file_logger_service_proto_depIdxs = []int32{
 	2,  // 8: logger.LoggerService.SearchLogByUserId:input_type -> logger.SearchLogByUserIdRequest
 	1,  // 9: logger.LoggerService.SearchLogByConfigId:input_type -> logger.SearchLogByConfigIdRequest
 	3,  // 10: logger.LoggerService.SearchLogByRecordId:input_type -> logger.SearchLogByRecordIdRequest
-	4,  // 11: logger.LoggerService.DeleteConfigLogs:input_type -> logger.DeleteConfigLogsRequest
-	6,  // 12: logger.LoggerService.SearchLogByUserId:output_type -> logger.Logs
-	6,  // 13: logger.LoggerService.SearchLogByConfigId:output_type -> logger.Logs
-	6,  // 14: logger.LoggerService.SearchLogByRecordId:output_type -> logger.Logs
-	5,  // 15: logger.LoggerService.DeleteConfigLogs:output_type -> logger.DeleteConfigLogsResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
+	6,  // 11: logger.LoggerService.SearchLogByUserId:output_type -> logger.Logs
+	6,  // 12: logger.LoggerService.SearchLogByConfigId:output_type -> logger.Logs
+	6,  // 13: logger.LoggerService.SearchLogByRecordId:output_type -> logger.Logs
+	11, // [11:14] is the sub-list for method output_type
+	8,  // [8:11] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name

@@ -1,22 +1,91 @@
 package model
 
+import "time"
+
 type Config struct {
-	Id              int
-	Object          Lookup
-	CreatedAt       NullTime
-	CreatedBy       int
-	UpdatedAt       NullTime
-	UpdatedBy       NullInt
-	Enabled         bool
-	DaysToStore     int
-	Period          int
-	NextUploadOn    NullTime
-	Storage         Lookup
-	DomainId        int64
-	Description     NullString
-	LastUploadedLog NullInt
-	LogsSize        NullString
-	LogsCount       NullInt
+	*Storage
+	*Author
+	*Editor
+	*Object
+	Id                int
+	CreatedAt         *time.Time
+	UpdatedAt         *time.Time
+	Enabled           bool
+	DaysToStore       int
+	Period            int
+	NextUploadOn      *time.Time
+	StorageId         *int
+	DomainId          int
+	Description       *string
+	LastUploadedLogId *int
+	LogsSize          *string
+	LogsCount         *int
+}
+
+type Storage struct {
+	Id   *int    `db:"storage_id"`
+	Name *string `db:"storage_name"`
+}
+
+func (a *Storage) SetId(id int) {
+	if a == nil {
+		return
+	}
+	a.Id = &id
+}
+
+func (a *Storage) SetName(name string) {
+	if a == nil {
+		return
+	}
+	a.Name = &name
+}
+
+func (a *Storage) GetId() *int {
+	if a == nil {
+		return nil
+	}
+	return a.Id
+}
+
+func (a *Storage) GetName() *string {
+	if a == nil {
+		return nil
+	}
+	return a.Name
+}
+
+type Object struct {
+	Id   *int    `db:"object_id"`
+	Name *string `db:"object_name"`
+}
+
+func (a *Object) SetId(id int) {
+	if a == nil {
+		return
+	}
+	a.Id = &id
+}
+
+func (a *Object) SetName(name string) {
+	if a == nil {
+		return
+	}
+	a.Name = &name
+}
+
+func (a *Object) GetId() *int {
+	if a == nil {
+		return nil
+	}
+	return a.Id
+}
+
+func (a *Object) GetName() *string {
+	if a == nil {
+		return nil
+	}
+	return a.Name
 }
 
 // Front-end fields

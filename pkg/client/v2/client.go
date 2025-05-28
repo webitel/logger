@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	cache "github.com/hashicorp/golang-lru/v2/expirable"
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -165,26 +166,27 @@ func (l *LoggerClient) GetObjectedLogger(objClass string) *ObjectedLogger {
 	}
 }
 
-func (l *LoggerClient) sendContext(ctx context.Context, domainId int64, objclass string, message *Message) error {
+func (l *LoggerClient) sendContext(ctx context.Context, domainId int64, objclass string, message *Message) (operationId string, err error) {
+	message.OperationId = uuid.NewString()
 	enabled, err := l.checkObjectConfig(ctx, domainId, objclass)
 	if err != nil {
-		return err
+		return operationId, err
 	}
 	if !enabled {
-		return nil
+		return operationId, nil
 	}
 	body, err := json.Marshal(message)
 	if err != nil {
-		return err
+		return operationId, err
 	}
 	err = l.channel.PublishWithContext(ctx, ExchangeName, formatKey(domainId, objclass), false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        body,
 	})
 	if err != nil {
-		return err
+		return operationId, err
 	}
-	return nil
+	return operationId, nil
 }
 
 func (l *LoggerClient) checkObjectConfig(ctx context.Context, domainId int64, objclass string) (bool, error) {
@@ -204,7 +206,7 @@ func (l *LoggerClient) checkObjectConfig(ctx context.Context, domainId int64, ob
 	return enabled, nil
 }
 
-func (l *ObjectedLogger) SendContext(ctx context.Context, domainId int64, message *Message) error {
+func (l *ObjectedLogger) SendContext(ctx context.Context, domainId int64, message *Message) (operationId string, err error) {
 	return l.parent.sendContext(ctx, domainId, l.objClass, message)
 }
 

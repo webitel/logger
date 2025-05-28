@@ -2,12 +2,14 @@ package model
 
 import (
 	guid "github.com/google/uuid"
+	"net"
 	"time"
 )
 
 type BrokerRecordLogMessage struct {
 	Records                        []*LogEntity `json:"records,omitempty"`
 	BrokerLogMessageRequiredFields `json:"requiredFields"`
+	OperationId                    string `json:"operationId"`
 }
 
 type BrokerLogMessageRequiredFields struct {
@@ -53,28 +55,21 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, error) {
 	)
 	if m.Status != nil {
 		success = false
-		databaseModel.Details = NewNullString(m.Status.Detail)
+		databaseModel.Details = &m.Status.Detail
 	} else {
 		success = true
 	}
 	if user := m.Login.User; user != nil {
 		if user.Id != 0 {
-			id, err := NewNullInt(user.Id)
-			if err != nil {
-				return nil, err
-			}
-			databaseModel.UserId = id
+			databaseModel.UserId = &user.Id
 		}
 		databaseModel.UserName = user.Username
 
 	}
 	if domain := m.Login.Domain; domain != nil {
 		if domain.Id != 0 {
-			id, err := NewNullInt(domain.Id)
-			if err != nil {
-				return nil, err
-			}
-			databaseModel.DomainId = id
+			dc := int(domain.Id)
+			databaseModel.DomainId = &dc
 		}
 		databaseModel.DomainName = domain.Name
 
@@ -86,7 +81,11 @@ func (m *BrokerLoginMessage) ConvertToDatabaseModel() (*LoginAttempt, error) {
 	databaseModel.AuthType = authType
 	databaseModel.UserAgent = m.Agent
 	databaseModel.Date = time.UnixMilli(m.Date)
-	databaseModel.UserIp = m.From
+	_, ip, err := net.ParseCIDR(m.From + "/24")
+	if err != nil {
+		return nil, err
+	}
+	databaseModel.UserIp = ip
 	databaseModel.Success = success
 
 	return &databaseModel, nil

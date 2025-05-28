@@ -132,21 +132,6 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	return &res, nil
 }
 
-func (s *LoggerService) DeleteConfigLogs(ctx context.Context, request *proto.DeleteConfigLogsRequest) (*proto.DeleteConfigLogsResponse, error) {
-	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(request.GetConfigId())))
-
-	var olderThan time.Time
-	if request.GetOlderThan() != 0 {
-		olderThan = time.UnixMilli(request.OlderThan)
-	}
-	processed, err := s.app.DeleteLogs(ctx, int(request.ConfigId), olderThan)
-	if err != nil {
-		return nil, err
-	}
-
-	return &proto.DeleteConfigLogsResponse{Processed: int64(processed)}, nil
-}
-
 // region utility
 
 // Fills the
@@ -177,33 +162,19 @@ func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 	var res []*proto.Log
 	for _, m := range models {
 		log := &proto.Log{
-			Id:     int32(m.Id),
-			Action: m.Action,
-
-			UserIp:   m.UserIp,
+			Id:       int32(m.Id),
+			Action:   m.Action,
+			User:     utils.MarshalLookup(m.Author),
+			Object:   utils.MarshalLookup(m.Object),
 			NewState: string(m.NewState),
 			ConfigId: int32(m.ConfigId),
-		}
-		if !m.User.IsZero() {
-			log.User = &proto.Lookup{
-				Id:   int32(m.User.Id.Int()),
-				Name: m.User.Name.String(),
-			}
-		}
-		if !m.Object.IsZero() {
-			log.Object = &proto.Lookup{
-				Id:   int32(m.Object.Id.Int()),
-				Name: m.Object.Name.String(),
-			}
+			Record:   utils.MarshalLookup(m.Record),
 		}
 		if !m.Date.IsZero() {
-			log.Date = m.Date.ToMilliseconds()
+			log.Date = m.Date.UnixMilli()
 		}
-		if s := m.Record.Id.Int32(); s != 0 {
-			log.Record = &proto.Lookup{
-				Id:   s,
-				Name: m.Record.Name.String(),
-			}
+		if m.UserIp != nil {
+			log.UserIp = *m.UserIp
 		}
 		res = append(res, log)
 	}

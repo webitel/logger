@@ -17,7 +17,7 @@ const (
 	ConfigNotifierObject = "config"
 )
 
-func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error) {
+func (a *App) UpdateConfig(ctx context.Context, in *model.Config, fields []string) (*model.Config, error) {
 	var (
 		err       error
 		newConfig *model.Config
@@ -56,8 +56,12 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config) (*model.Config
 	if err != nil {
 		return nil, err
 	}
+	fieldsToUpd := fields
+	if len(fields) == 0 {
+		fieldsToUpd = model.GetConfigFields()
+	}
 	in.NextUploadOn = calculateNextPeriodFromNow(int32(in.Period))
-	newConfig, err = a.storage.Config().Update(ctx, in, []string{}, session.GetUserId())
+	newConfig, err = a.storage.Config().Update(ctx, in, fieldsToUpd, session.GetUserId())
 	if err != nil {
 		return nil, err
 	}

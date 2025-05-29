@@ -14,7 +14,7 @@ import (
 
 type ConfigManager interface {
 	SearchConfig(ctx context.Context, rbac *model.RbacOptions, searchOpt *model.SearchOptions) ([]*model.Config, error)
-	UpdateConfig(ctx context.Context, in *model.Config) (*model.Config, error)
+	UpdateConfig(ctx context.Context, in *model.Config, fields []string) (*model.Config, error)
 	CreateConfig(ctx context.Context, in *model.Config) (*model.Config, error)
 	DeleteConfig(ctx context.Context, ids []int) error
 
@@ -134,7 +134,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	if err != nil {
 		return nil, err
 	}
-	config, err := s.app.UpdateConfig(ctx, mod)
+	config, err := s.app.UpdateConfig(ctx, mod, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +154,7 @@ func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRe
 	if err != nil {
 		return nil, err
 	}
-	config, err := s.app.UpdateConfig(ctx, updatedConfigModel)
+	config, err := s.app.UpdateConfig(ctx, updatedConfigModel, in.GetFields())
 	if err != nil {
 		return nil, err
 	}

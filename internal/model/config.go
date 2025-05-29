@@ -124,3 +124,24 @@ var ConfigFields = struct {
 	LogsSize:        "logs_size",
 	LogsCount:       "logs_count",
 }
+
+func GetConfigFields() []string {
+	return []string{
+		ConfigFields.Id,
+		ConfigFields.Object,
+		ConfigFields.CreatedAt,
+		ConfigFields.CreatedBy,
+		ConfigFields.UpdatedAt,
+		ConfigFields.UpdatedBy,
+		ConfigFields.Enabled,
+		ConfigFields.DaysToStore,
+		ConfigFields.Period,
+		ConfigFields.NextUploadOn,
+		ConfigFields.Storage,
+		ConfigFields.DomainId,
+		ConfigFields.Description,
+		ConfigFields.LastUploadedLog,
+		ConfigFields.LogsSize,
+		ConfigFields.LogsCount,
+	}
+}

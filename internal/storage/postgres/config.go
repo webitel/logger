@@ -80,6 +80,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	base := sq.Update("logger.object_config").
 		Where(sq.Eq{"id": conf.Id}).
 		Set("updated_at", time.Now()).
+		Suffix("RETURNING *").
 		PlaceholderFormat(sq.Dollar)
 	if len(fields) == 0 {
 		// Default all
@@ -103,7 +104,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		case model.ConfigFields.NextUploadOn:
 			base = base.Set("next_upload_on", conf.NextUploadOn)
 		case model.ConfigFields.Storage:
-			base = base.Set("storage_id", conf.Storage.Id)
+			base = base.Set("storage_id", conf.Storage.GetId())
 		case model.ConfigFields.Description:
 			base = base.Set("description", conf.Description)
 		case model.ConfigFields.LastUploadedLog:
@@ -112,7 +113,7 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 	}
 	query, args, _ := base.ToSql()
 	query = fmt.Sprintf(
-		`with p as (%s RETURNING *)
+		`with p as (%s)
 		select p.id,
 			   p.enabled,
 			   wbt_class.name             as object_name,
@@ -132,12 +133,12 @@ func (c *Config) Update(ctx context.Context, conf *model.Config, fields []string
 		from p
 				 LEFT JOIN directory.wbt_class ON wbt_class.id = p.object_id
 				 LEFT JOIN storage.file_backend_profiles ON file_backend_profiles.id = p.storage_id`, query)
-	res, err := db.Query(ctx, query, args...)
+	var res model.Config
+	err = pgxscan.Get(ctx, db, &res, query, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer res.Close()
-	return nil, nil
+	return &res, nil
 }
 
 func (c *Config) Insert(ctx context.Context, conf *model.Config) (*model.Config, error) {
@@ -387,11 +388,15 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}
 	}
-	offset := (opt.Page - 1) * opt.Size
-	if offset < 0 {
-		offset = 0
+	if opt.Size > 0 {
+		offset := (opt.Page - 1) * opt.Size
+		if offset < 0 {
+			offset = 0
+		}
+		base = base.Offset(uint64(offset)).Limit(uint64(opt.Size))
 	}
-	return base.Offset(uint64(offset)).Limit(uint64(opt.Size))
+
+	return base
 }
 
 func (c *Config) GetQueryBase(fields []string, rbac *model.RbacOptions) sq.SelectBuilder {

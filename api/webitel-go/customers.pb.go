@@ -1323,23 +1323,23 @@ var file_customers_proto_goTypes = []any{
 	(*UpdateCustomerRequest)(nil),  // 13: api.UpdateCustomerRequest
 	(*UpdateCustomerResponse)(nil), // 14: api.UpdateCustomerResponse
 	nil,                            // 15: api.Customer.LimitEntry
-	(*ObjectId)(nil),               // 16: api.ObjectId
+	(*ObjectId)(nil),               // 16: api.Id
 }
 var file_customers_proto_depIdxs = []int32{
-	16, // 0: api.LicenseUser.user:type_name -> api.ObjectId
+	16, // 0: api.LicenseUser.user:type_name -> api.Id
 	3,  // 1: api.LicenseV1.users:type_name -> api.LicenseUser
 	2,  // 2: api.LicenseV1.status:type_name -> api.Verification
 	2,  // 3: api.Customer.verify:type_name -> api.Verification
 	15, // 4: api.Customer.limit:type_name -> api.Customer.LimitEntry
 	4,  // 5: api.Customer.license:type_name -> api.LicenseV1
-	16, // 6: api.Customer.dnsrv:type_name -> api.ObjectId
-	16, // 7: api.LicenseUsageRequest.user:type_name -> api.ObjectId
-	16, // 8: api.LicenseUsageRequest.domain:type_name -> api.ObjectId
+	16, // 6: api.Customer.dnsrv:type_name -> api.Id
+	16, // 7: api.LicenseUsageRequest.user:type_name -> api.Id
+	16, // 8: api.LicenseUsageRequest.domain:type_name -> api.Id
 	4,  // 9: api.LicenseUsageResponse.items:type_name -> api.LicenseV1
-	16, // 10: api.ProductUser.user:type_name -> api.ObjectId
-	16, // 11: api.ProductUser.domain:type_name -> api.ObjectId
+	16, // 10: api.ProductUser.user:type_name -> api.Id
+	16, // 11: api.ProductUser.domain:type_name -> api.Id
 	8,  // 12: api.LicenseUsersResponse.items:type_name -> api.ProductUser
-	16, // 13: api.GetCustomerRequest.domain:type_name -> api.ObjectId
+	16, // 13: api.GetCustomerRequest.domain:type_name -> api.Id
 	5,  // 14: api.GetCustomerResponse.customer:type_name -> api.Customer
 	5,  // 15: api.UpdateCustomerResponse.customer:type_name -> api.Customer
 	0,  // 16: api.Customers.ServerInfo:input_type -> api.ServerInfoRequest

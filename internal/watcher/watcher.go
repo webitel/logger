@@ -34,7 +34,7 @@ type UploadWatcher struct {
 
 // UploadWatcherParams represents attributes required by UploadWatcher
 type UploadWatcherParams struct {
-	StorageId    int
+	StorageId    *int
 	Period       int
 	NextUploadOn *time.Time
 	LastLogId    *int

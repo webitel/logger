@@ -1697,14 +1697,14 @@ var file_roles_proto_goTypes = []any{
 	(*RoleMetadataResponse)(nil),              // 21: api.RoleMetadataResponse
 	(*Role_Member)(nil),                       // 22: api.Role.Member
 	(*Permission)(nil),                        // 23: api.Permission
-	(*ObjectId)(nil),                          // 24: api.ObjectId
+	(*ObjectId)(nil),                          // 24: api.Id
 	(*structpb.Struct)(nil),                   // 25: google.protobuf.Struct
 	(*UserId)(nil),                            // 26: api.UserId
 	(*structpb.Value)(nil),                    // 27: google.protobuf.Value
 }
 var file_roles_proto_depIdxs = []int32{
 	23, // 0: api.Role.permissions:type_name -> api.Permission
-	24, // 1: api.Role.members:type_name -> api.ObjectId
+	24, // 1: api.Role.members:type_name -> api.Id
 	25, // 2: api.Role.metadata:type_name -> google.protobuf.Struct
 	26, // 3: api.Role.created_by:type_name -> api.UserId
 	26, // 4: api.Role.updated_by:type_name -> api.UserId
@@ -1718,7 +1718,7 @@ var file_roles_proto_depIdxs = []int32{
 	26, // 12: api.SearchRolesRequest.user:type_name -> api.UserId
 	26, // 13: api.SearchRecordAvailableRolesRequest.user:type_name -> api.UserId
 	0,  // 14: api.SearchRecordAvailableRolesRequest.object:type_name -> api.SystemObjects
-	24, // 15: api.SearchRecordAvailableRolesRequest.record:type_name -> api.ObjectId
+	24, // 15: api.SearchRecordAvailableRolesRequest.record:type_name -> api.Id
 	2,  // 16: api.SearchRolesResponse.items:type_name -> api.Role
 	22, // 17: api.RoleMembersResponse.results:type_name -> api.Role.Member
 	27, // 18: api.RoleMetadataRequest.merge:type_name -> google.protobuf.Value

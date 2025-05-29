@@ -1307,20 +1307,20 @@ var file_users_proto_goTypes = []any{
 	nil,                                 // 16: api.User.ProfileEntry
 	(*SearchUsersRequest_Presence)(nil), // 17: api.SearchUsersRequest.Presence
 	(*UserPresence)(nil),                // 18: api.UserPresence
-	(*ObjectId)(nil),                    // 19: api.ObjectId
+	(*ObjectId)(nil),                    // 19: api.Id
 	(*Permission)(nil),                  // 20: api.Permission
 	(*LicenseUser)(nil),                 // 21: api.LicenseUser
 }
 var file_users_proto_depIdxs = []int32{
 	18, // 0: api.User.presence:type_name -> api.UserPresence
-	19, // 1: api.User.device:type_name -> api.ObjectId
-	19, // 2: api.User.devices:type_name -> api.ObjectId
-	19, // 3: api.User.hotdesks:type_name -> api.ObjectId
+	19, // 1: api.User.device:type_name -> api.Id
+	19, // 2: api.User.devices:type_name -> api.Id
+	19, // 3: api.User.hotdesks:type_name -> api.Id
 	16, // 4: api.User.profile:type_name -> api.User.ProfileEntry
 	20, // 5: api.User.permissions:type_name -> api.Permission
 	21, // 6: api.User.license:type_name -> api.LicenseUser
-	19, // 7: api.User.roles:type_name -> api.ObjectId
-	19, // 8: api.User.contact:type_name -> api.ObjectId
+	19, // 7: api.User.roles:type_name -> api.Id
+	19, // 8: api.User.contact:type_name -> api.Id
 	0,  // 9: api.User.created_by:type_name -> api.UserId
 	0,  // 10: api.User.updated_by:type_name -> api.UserId
 	0,  // 11: api.User.deleted_by:type_name -> api.UserId

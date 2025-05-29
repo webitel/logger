@@ -37,7 +37,7 @@ func (a *App) initializeWatchers() error {
 		a.InsertLogCleaner(config.Id, nil, config.DaysToStore)
 		if config.Storage.Id != nil {
 			params := &watcher.UploadWatcherParams{
-				StorageId:    *config.Storage.Id,
+				StorageId:    config.Storage.GetId(),
 				Period:       config.Period,
 				NextUploadOn: config.NextUploadOn,
 				LastLogId:    config.LastUploadedLogId,
@@ -165,85 +165,90 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 		return fmt.Sprintf("[%s]: %s", name, text)
 	}
 	return func() {
-		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {
-			logAttr := slog.Group(
-				"worker",
-				slog.String("name", name),
-				slog.Int("config_id", configId),
-				slog.Int("domain", params.DomainId),
-				slog.Int("period", params.Period),
-				slog.Int("storage", params.StorageId),
-			)
-			filters := []any{
-				&model.Filter{
-					Column:         "config_id",
-					Value:          configId,
-					ComparisonType: model.Equal,
-				}}
-			if v := params.LastLogId; v != nil {
-				filters = append(filters, &model.Filter{
-					Column:         "id",
-					Value:          v,
-					ComparisonType: model.GreaterThan,
-				})
-			}
-			logs, err := a.storage.Log().Select(context.Background(), &model.SearchOptions{
-				Sort: "-id",
-			}, &model.FilterNode{
-				Nodes:      filters,
-				Connection: model.AND,
-			})
-			if err != nil {
-				slog.Error(format(err.Error()), logAttr)
-				return
-			}
-			if len(logs) == 0 {
-				slog.Info(format("no new logs to upload"), logAttr)
-				return
-			}
-			buf := &bytes.Buffer{}
-			encodeResult, err := json.Marshal(logs)
-			if err != nil {
-				slog.Error(format(err.Error()), logAttr)
-				return
-			}
-			_, err = buf.Write(encodeResult)
-			if err != nil {
-				slog.Error(format(err.Error()), logAttr)
-				return
-			}
-			year, month, day := time.Now().Date()
-			fileName := fmt.Sprintf("log_%d_%d_%s_%d.json", configId, year, month, day)
-			uuid := fmt.Sprintf("%s-%d", logs[0].Object.Name, configId)
-			_, err = a.UploadFile(context.Background(), params.DomainId, uuid, params.StorageId, buf, model.File{
-				Name:     fileName,
-				MimeType: "application/json",
-				ViewName: &fileName,
-			})
-			if err != nil {
-				slog.Warn(format(err.Error()), logAttr)
-				return
-			}
-			lastLogId := logs[0].Id
-			nextUpload := calculateNextPeriodFromNow(int32(params.Period))
-			params.NextUploadOn = calculateNextPeriodFromNow(int32(params.Period))
-			params.LastLogId = &lastLogId
-			_, err = a.storage.Config().Update(
-				context.Background(),
-				&model.Config{
-					Id:                configId,
-					NextUploadOn:      nextUpload,
-					LastUploadedLogId: &lastLogId,
-				},
-				[]string{"next_upload_on", "last_uploaded_log_id"},
-				*params.UserId,
-			)
-			if err != nil {
-				slog.Warn(format(err.Error()), logAttr)
-				return
-			}
-			slog.Info(format("logs successfully uploaded to the storage!"), logAttr)
+		if params.StorageId == nil {
+			return
 		}
+		if time.Now().UTC().Unix() >= params.NextUploadOn.UTC().Unix() {
+			return
+		}
+
+		logAttr := slog.Group(
+			"worker",
+			slog.String("name", name),
+			slog.Int("config_id", configId),
+			slog.Int("domain", params.DomainId),
+			slog.Int("period", params.Period),
+		)
+		filters := []any{
+			&model.Filter{
+				Column:         "config_id",
+				Value:          configId,
+				ComparisonType: model.Equal,
+			}}
+		if v := params.LastLogId; v != nil {
+			filters = append(filters, &model.Filter{
+				Column:         "id",
+				Value:          v,
+				ComparisonType: model.GreaterThan,
+			})
+		}
+		logs, err := a.storage.Log().Select(context.Background(), &model.SearchOptions{
+			Sort: "-id",
+		}, &model.FilterNode{
+			Nodes:      filters,
+			Connection: model.AND,
+		})
+		if err != nil {
+			slog.Error(format(err.Error()), logAttr)
+			return
+		}
+		if len(logs) == 0 {
+			slog.Info(format("no new logs to upload"), logAttr)
+			return
+		}
+		buf := &bytes.Buffer{}
+		encodeResult, err := json.Marshal(logs)
+		if err != nil {
+			slog.Error(format(err.Error()), logAttr)
+			return
+		}
+		_, err = buf.Write(encodeResult)
+		if err != nil {
+			slog.Error(format(err.Error()), logAttr)
+			return
+		}
+		year, month, day := time.Now().Date()
+		fileName := fmt.Sprintf("log_%d_%d_%s_%d.json", configId, year, month, day)
+		uuid := fmt.Sprintf("%s-%d", logs[0].Object.Name, configId)
+		_, err = a.UploadFile(context.Background(), params.DomainId, uuid, *params.StorageId, buf, model.File{
+			Name:     fileName,
+			MimeType: "application/json",
+			ViewName: &fileName,
+		})
+		if err != nil {
+			slog.Warn(format(err.Error()), logAttr)
+			return
+		}
+		lastLogId := logs[0].Id
+		nextUpload := calculateNextPeriodFromNow(int32(params.Period))
+		params.NextUploadOn = calculateNextPeriodFromNow(int32(params.Period))
+		params.LastLogId = &lastLogId
+		_, err = a.storage.Config().Update(
+			context.Background(),
+			&model.Config{
+				Id:                configId,
+				NextUploadOn:      nextUpload,
+				LastUploadedLogId: &lastLogId,
+			},
+			[]string{"next_upload_on", "last_uploaded_log_id"},
+			*params.UserId,
+		)
+		if err != nil {
+			slog.Warn(format(err.Error()), logAttr)
+			return
+		}
+		slog.Info(format("logs successfully uploaded to the storage!"), logAttr)
+
 	}
 }
 

@@ -103,11 +103,11 @@ func (a *App) UpdateConfigWatchers(ctx context.Context, oldConfig, newConfig *mo
 		// find uploader params, if exists then update params otherwise insert new
 		if params := a.GetLogUploaderParams(configId); params != nil {
 			params.UserId = newConfig.Editor.GetId()
-			params.StorageId = *newConfig.Storage.Id
+			params.StorageId = newConfig.Storage.GetId()
 			params.Period = newConfig.Period
 		} else {
 			a.InsertLogUploader(configId, nil, &watcher.UploadWatcherParams{
-				StorageId:    *newConfig.Storage.Id,
+				StorageId:    newConfig.Storage.GetId(),
 				Period:       newConfig.Period,
 				NextUploadOn: newConfig.NextUploadOn,
 				LastLogId:    newConfig.LastUploadedLogId,
@@ -154,7 +154,7 @@ func (a *App) CreateConfig(ctx context.Context, in *model.Config) (*model.Config
 	if newModel.Enabled {
 		a.InsertLogCleaner(newModel.Id, nil, newModel.DaysToStore)
 		a.InsertLogUploader(newModel.Id, nil, &watcher.UploadWatcherParams{
-			StorageId:    *newModel.Storage.Id,
+			StorageId:    newModel.Storage.GetId(),
 			Period:       newModel.Period,
 			NextUploadOn: newModel.NextUploadOn,
 			LastLogId:    nil,
@@ -177,7 +177,7 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 	searchResult, err := a.storage.Config().Select(ctx, nil, nil, &model.FilterNode{
 		Nodes: []any{
 			&model.Filter{
-				Column:         "wbt_class.name",
+				Column:         "object.name",
 				Value:          objectName,
 				ComparisonType: model.ILike,
 			},

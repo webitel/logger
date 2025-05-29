@@ -17,7 +17,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mbobakov/grpc-consul-resolver v1.5.3
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/webitel/webitel-go-kit v0.0.21-0.20250522135015-f06df723e5dc
+	github.com/webitel/webitel-go-kit v0.0.21-0.20250529121314-348634f6ea7f
 	go.opentelemetry.io/contrib/bridges/otelslog v0.3.0
 	go.opentelemetry.io/otel v1.34.0
 	go.opentelemetry.io/otel/sdk v1.34.0

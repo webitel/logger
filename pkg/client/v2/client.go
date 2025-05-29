@@ -8,11 +8,6 @@ import (
 	"github.com/google/uuid"
 	cache "github.com/hashicorp/golang-lru/v2/expirable"
 	_ "github.com/mbobakov/grpc-consul-resolver"
-	amqp "github.com/rabbitmq/amqp091-go"
-	proto "github.com/webitel/logger/api/logger"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 	"time"
 )
 
@@ -40,13 +35,11 @@ var (
 )
 
 type LoggerClient struct {
-	grpcConnection  *grpc.ClientConn
-	grpcClient      proto.ConfigServiceClient
+	publisher Publisher
+	consumer  Consumer
+
 	memoryCache     *cache.LRU[string, bool]
 	cacheTimeToLive time.Duration
-
-	rabbitConnection *amqp.Connection
-	channel          *amqp.Channel
 }
 type ObjectedLogger struct {
 	objClass string
@@ -62,56 +55,32 @@ func WithCustomCacheTime(timeToLive time.Duration) LoggerClientOpts {
 	}
 }
 
-func WithGrpcConnection(conn *grpc.ClientConn) LoggerClientOpts {
+type Publisher interface {
+	Publish(ctx context.Context, routingKey string, body []byte, headers map[string]any) error
+}
+
+type Consumer interface {
+	Consume(ctx context.Context, routingKey string, handler func()) error
+}
+
+func WithPublisher(publisher Publisher) LoggerClientOpts {
 	return func(client *LoggerClient) error {
-		if conn == nil {
-			return errors.New("grpc connections required")
+		if publisher == nil {
+			return errors.New("publisher is nil")
 		}
-		if conn.GetState() != connectivity.Ready {
-			return errors.New("grpc connection should be opened")
-		}
-		client.grpcConnection = conn
+		client.publisher = publisher
 		return nil
 	}
 }
 
-func WithAmqpConnection(conn *amqp.Connection) LoggerClientOpts {
+func WithConsumer(consumer Consumer) LoggerClientOpts {
 	return func(client *LoggerClient) error {
-		if conn == nil {
-			return errors.New("rabbit  connections required")
+		if consumer == nil {
+			return errors.New("consumer is nil")
 		}
-		if conn.IsClosed() {
-			return errors.New("rabbit connection should be opened")
-		}
-		client.rabbitConnection = conn
+		client.consumer = consumer
 		return nil
 	}
-}
-
-func WithGrpcConsulAddress(consulIpAddress string) LoggerClientOpts {
-	return func(client *LoggerClient) error {
-		conn, err := grpc.NewClient(fmt.Sprintf("consul://%s/%s?wait=14s", consulIpAddress, ConsulLoggerServiceName),
-			grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return err
-		}
-		client.grpcConnection = conn
-		return nil
-	}
-
-}
-
-func WithAmqpConnectionString(amqpConnectionString string) LoggerClientOpts {
-	return func(client *LoggerClient) error {
-		conn, err := amqp.Dial(amqpConnectionString)
-		if err != nil {
-			return err
-		}
-		client.rabbitConnection = conn
-		return nil
-	}
-
 }
 
 func NewLoggerClient(opts ...LoggerClientOpts) (*LoggerClient, error) {
@@ -123,39 +92,18 @@ func NewLoggerClient(opts ...LoggerClientOpts) (*LoggerClient, error) {
 			return nil, err
 		}
 	}
+	if logger.publisher == nil {
+		return nil, errors.New("publisher is nil")
+	}
+	if logger.consumer == nil {
+		return nil, errors.New("consumer is nil")
+	}
 	// validation
 	if logger.cacheTimeToLive <= 0 {
 		logger.cacheTimeToLive = DefaultCacheTtl
 	}
-	if logger.rabbitConnection == nil || logger.grpcConnection == nil {
-		return nil, errors.New("rabbit and grpc connections required")
-	}
-	if logger.rabbitConnection.IsClosed() {
-		return nil, errors.New("rabbit connection should be opened")
-	}
-	if logger.grpcConnection.GetState() == connectivity.Shutdown {
-		return nil, errors.New("grpc connection should be opened")
-	}
 	// initialization
 	logger.memoryCache = cache.NewLRU[string, bool](0, nil, logger.cacheTimeToLive)
-	logger.channel, err = logger.rabbitConnection.Channel()
-	if err != nil {
-		return nil, err
-	}
-	err = logger.channel.ExchangeDeclare(
-		ExchangeName, // name
-		"topic",      // type
-		true,         // durable
-		false,        // auto-deleted
-		false,        // internal
-		false,        // no-wait
-		nil,          // arguments
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.grpcClient = proto.NewConfigServiceClient(logger.grpcConnection)
 	return logger, nil
 }
 
@@ -179,10 +127,7 @@ func (l *LoggerClient) sendContext(ctx context.Context, domainId int64, objclass
 	if err != nil {
 		return operationId, err
 	}
-	err = l.channel.PublishWithContext(ctx, ExchangeName, formatKey(domainId, objclass), false, false, amqp.Publishing{
-		ContentType: "application/json",
-		Body:        body,
-	})
+	err = l.publisher.Publish(ctx, formatKey(domainId, objclass), body, nil)
 	if err != nil {
 		return operationId, err
 	}
@@ -193,14 +138,6 @@ func (l *LoggerClient) checkObjectConfig(ctx context.Context, domainId int64, ob
 	cacheKey := fmt.Sprintf("%d.%s", domainId, objclass)
 	enabled, found := l.memoryCache.Get(cacheKey)
 	if !found {
-		resp, err := l.grpcClient.CheckConfigStatus(ctx, &proto.CheckConfigStatusRequest{
-			ObjectName: objclass,
-			DomainId:   domainId,
-		})
-		if err != nil {
-			return false, errors.Join(LoggerClientGrpcErr, err)
-		}
-		enabled = resp.GetIsEnabled()
 		l.memoryCache.Add(cacheKey, enabled)
 	}
 	return enabled, nil

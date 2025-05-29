@@ -10,7 +10,12 @@ func UnmarshalLookup[K model.Lookup](lp *proto.Lookup, lookup K) K {
 		var res K
 		return res
 	}
-	lookup.SetId(int(lp.Id))
-	lookup.SetName(lp.Name)
+	if lp.Id != 0 {
+		lookup.SetId(int(lp.Id))
+	}
+	if lp.Name != "" {
+		lookup.SetName(lp.Name)
+
+	}
 	return lookup
 }

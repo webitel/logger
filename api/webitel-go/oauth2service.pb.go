@@ -664,15 +664,15 @@ var file_oauth2service_proto_goTypes = []any{
 	(*UpdateOAuthServiceRequest)(nil),  // 4: api.UpdateOAuthServiceRequest
 	(*DeleteOAuthServiceRequest)(nil),  // 5: api.DeleteOAuthServiceRequest
 	(*DeleteOAuthServiceResponse)(nil), // 6: api.DeleteOAuthServiceResponse
-	(*ObjectId)(nil),                   // 7: api.ObjectId
+	(*ObjectId)(nil),                   // 7: api.Id
 	(*structpb.Struct)(nil),            // 8: google.protobuf.Struct
 }
 var file_oauth2service_proto_depIdxs = []int32{
-	7,  // 0: api.OAuthService.domain:type_name -> api.ObjectId
+	7,  // 0: api.OAuthService.domain:type_name -> api.Id
 	0,  // 1: api.OAuthService.claims:type_name -> api.Claim
 	8,  // 2: api.OAuthService.metadata:type_name -> google.protobuf.Struct
-	7,  // 3: api.OAuthService.created_by:type_name -> api.ObjectId
-	7,  // 4: api.OAuthService.updated_by:type_name -> api.ObjectId
+	7,  // 3: api.OAuthService.created_by:type_name -> api.Id
+	7,  // 4: api.OAuthService.updated_by:type_name -> api.Id
 	1,  // 5: api.SearchOAuthServiceResponse.items:type_name -> api.OAuthService
 	1,  // 6: api.UpdateOAuthServiceRequest.changes:type_name -> api.OAuthService
 	2,  // 7: api.OAuth2Federation.SearchOAuthService:input_type -> api.SearchOAuthServiceRequest

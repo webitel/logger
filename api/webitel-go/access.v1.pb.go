@@ -804,18 +804,18 @@ var file_access_v1_proto_goTypes = []any{
 	(*ToggleDefaultAccessRequest)(nil),  // 9: api.ToggleDefaultAccessRequest
 	(*ToggleDefaultAccessResponse)(nil), // 10: api.ToggleDefaultAccessResponse
 	(*RoleId)(nil),                      // 11: api.RoleId
-	(*ObjectId)(nil),                    // 12: api.ObjectId
+	(*ObjectId)(nil),                    // 12: api.Id
 }
 var file_access_v1_proto_depIdxs = []int32{
 	11, // 0: api.AccessRule.grantor:type_name -> api.RoleId
 	11, // 1: api.AccessRule.grantee:type_name -> api.RoleId
-	12, // 2: api.ListAccessRequestV1.object:type_name -> api.ObjectId
+	12, // 2: api.ListAccessRequestV1.object:type_name -> api.Id
 	0,  // 3: api.ListAccessResponseV1.items:type_name -> api.AccessRule
-	12, // 4: api.GrantAccessRequestV1.object:type_name -> api.ObjectId
-	12, // 5: api.RevokeAccessRequestV1.object:type_name -> api.ObjectId
-	12, // 6: api.UpdateAccessRequestV1.object:type_name -> api.ObjectId
+	12, // 4: api.GrantAccessRequestV1.object:type_name -> api.Id
+	12, // 5: api.RevokeAccessRequestV1.object:type_name -> api.Id
+	12, // 6: api.UpdateAccessRequestV1.object:type_name -> api.Id
 	3,  // 7: api.UpdateAccessRequestV1.list:type_name -> api.GrantAccessRequestV1
-	12, // 8: api.ToggleDefaultAccessRequest.object:type_name -> api.ObjectId
+	12, // 8: api.ToggleDefaultAccessRequest.object:type_name -> api.Id
 	3,  // 9: api.ToggleDefaultAccessRequest.list:type_name -> api.GrantAccessRequestV1
 	0,  // 10: api.ToggleDefaultAccessResponse.granted:type_name -> api.AccessRule
 	0,  // 11: api.ToggleDefaultAccessResponse.revoked:type_name -> api.AccessRule

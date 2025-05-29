@@ -592,19 +592,19 @@ var file_user_access_token_proto_goTypes = []any{
 	(*UserAccessTokenList)(nil),          // 4: api.UserAccessTokenList
 	(*UpdateUserAccessTokenRequest)(nil), // 5: api.UpdateUserAccessTokenRequest
 	(*DeleteUserAccessTokenRequest)(nil), // 6: api.DeleteUserAccessTokenRequest
-	(*ObjectId)(nil),                     // 7: api.ObjectId
+	(*ObjectId)(nil),                     // 7: api.Id
 }
 var file_user_access_token_proto_depIdxs = []int32{
-	7,  // 0: api.UserAccessToken.user:type_name -> api.ObjectId
-	7,  // 1: api.UserAccessToken.created_by:type_name -> api.ObjectId
-	7,  // 2: api.UserAccessToken.updated_by:type_name -> api.ObjectId
-	7,  // 3: api.UserAccessToken.deleted_by:type_name -> api.ObjectId
-	7,  // 4: api.UserAccessTokenRequest.user:type_name -> api.ObjectId
+	7,  // 0: api.UserAccessToken.user:type_name -> api.Id
+	7,  // 1: api.UserAccessToken.created_by:type_name -> api.Id
+	7,  // 2: api.UserAccessToken.updated_by:type_name -> api.Id
+	7,  // 3: api.UserAccessToken.deleted_by:type_name -> api.Id
+	7,  // 4: api.UserAccessTokenRequest.user:type_name -> api.Id
 	0,  // 5: api.AddUserAccessTokenRequest.token:type_name -> api.UserAccessToken
-	7,  // 6: api.ListUserAccessTokenRequest.user:type_name -> api.ObjectId
+	7,  // 6: api.ListUserAccessTokenRequest.user:type_name -> api.Id
 	0,  // 7: api.UserAccessTokenList.items:type_name -> api.UserAccessToken
 	0,  // 8: api.UpdateUserAccessTokenRequest.update:type_name -> api.UserAccessToken
-	7,  // 9: api.DeleteUserAccessTokenRequest.user:type_name -> api.ObjectId
+	7,  // 9: api.DeleteUserAccessTokenRequest.user:type_name -> api.Id
 	1,  // 10: api.UserAccessTokens.GetUserAccessToken:input_type -> api.UserAccessTokenRequest
 	2,  // 11: api.UserAccessTokens.AddUserAccessToken:input_type -> api.AddUserAccessTokenRequest
 	3,  // 12: api.UserAccessTokens.ListUserAccessToken:input_type -> api.ListUserAccessTokenRequest

@@ -143,7 +143,7 @@ func TestUserAuthSession_CheckLicenseAccess(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,
@@ -434,7 +434,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,
@@ -469,7 +469,7 @@ func TestUserAuthSession_GetDomainId(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   int64
+		want   int
 	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -479,7 +479,7 @@ func TestUserAuthSession_GetDomainId(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,
@@ -526,7 +526,7 @@ func TestUserAuthSession_GetRoles(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,
@@ -561,7 +561,7 @@ func TestUserAuthSession_GetUserId(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
-		want   int64
+		want   int
 	}{
 		{
 			name:   "Nil user",
@@ -598,7 +598,7 @@ func TestUserAuthSession_GetUserId(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,
@@ -645,7 +645,7 @@ func TestUserAuthSession_IsExpired(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,
@@ -819,7 +819,7 @@ func TestUserAuthSession_IsRbacCheckRequired(t *testing.T) {
 				Scopes:           tt.fields.scopes,
 				License:          tt.fields.license,
 				Roles:            tt.fields.roles,
-				DomainId:         tt.fields.domainId,
+				DomainId:         int(tt.fields.domainId),
 				ExpiresAt:        tt.fields.expiresAt,
 				SuperCreate:      tt.fields.superCreate,
 				SuperEdit:        tt.fields.superEdit,

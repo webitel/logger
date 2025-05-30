@@ -30,8 +30,8 @@ require (
 )
 
 require (
-	buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250530124325-6765fb4b7b0b.2 // indirect
-	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250530124325-6765fb4b7b0b.1 // indirect
+	buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250530125713-8e11dd69ba97.2 // indirect
+	buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250530125713-8e11dd69ba97.1 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cockroachdb/apd v1.1.0 // indirect

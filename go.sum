@@ -1,3 +1,7 @@
+buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250530124325-6765fb4b7b0b.2 h1:6FLNhBpmimlOlVMaboPMlqx6U5OBlnJSOOl1Fbphplw=
+buf.build/gen/go/webitel/logger/grpc/go v1.5.1-20250530124325-6765fb4b7b0b.2/go.mod h1:ei+b4Ud+W6icpC/cL+8Qp8ViX+XEG9FaFS9vKkD8Z9s=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250530124325-6765fb4b7b0b.1 h1:aPrr8uES9PsM6O6wtB7yaRafEf073c2IcYH3uSKHaYA=
+buf.build/gen/go/webitel/logger/protocolbuffers/go v1.36.6-20250530124325-6765fb4b7b0b.1/go.mod h1:hh4fRtH1X6CsjyXnBF3vy3P4D8I4jqMbjZk2B1Q1Ppg=
 github.com/BoRuDar/configuration/v4 v4.2.2 h1:WdfaEojEbQkQF74+mW4wv15PqS37mAqvEyzBC4knu/o=
 github.com/BoRuDar/configuration/v4 v4.2.2/go.mod h1:cqpHiIaJQnNEK4rLReWkBZTv2CyJqH8KMfq5HZsQGVg=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=

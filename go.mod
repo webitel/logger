@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/google/uuid v1.6.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.1
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3
 	github.com/hashicorp/consul/api v1.31.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/jackc/pgx v3.6.2+incompatible
@@ -23,8 +23,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0
 	go.opentelemetry.io/otel/trace v1.34.0
 	golang.org/x/sync v0.13.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a
+	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250303144028-a0af3efb3deb
 	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.6
 )

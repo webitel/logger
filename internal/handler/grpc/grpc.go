@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 	proto "github.com/webitel/logger/api/logger"
 	autherrors "github.com/webitel/logger/internal/auth/errors"
 	"github.com/webitel/logger/internal/handler/grpc/errors"
@@ -14,10 +13,9 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 )
 
-const ()
+var RequestContextKey = &struct{}{}
 
 type Handler interface {
 	LogManager
@@ -48,17 +46,11 @@ func unaryInterceptor(ctx context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
-	var RequestContextName = "grpc_ctx"
-
-	start := time.Now()
 	var reqCtx context.Context
-	var ip string
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
-		reqCtx = context.WithValue(ctx, RequestContextName, md)
-		ip = getClientIp(md)
+		reqCtx = context.WithValue(ctx, RequestContextKey, md)
 	} else {
-		ip = "<not found>"
-		reqCtx = context.WithValue(ctx, RequestContextName, nil)
+		reqCtx = context.WithValue(ctx, RequestContextKey, nil)
 	}
 	res, err := handler(reqCtx, req)
 	if err != nil {
@@ -72,7 +64,6 @@ func unaryInterceptor(ctx context.Context,
 			return nil, errors.ErrInternal
 		}
 	}
-	slog.DebugContext(ctx, fmt.Sprintf("[%s] method %s duration %s", ip, info.FullMethod, time.Since(start)))
 	return res, err
 }
 

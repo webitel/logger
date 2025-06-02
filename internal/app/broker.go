@@ -184,7 +184,7 @@ func (a *App) HandlePopulateConfigs(ctx context.Context, message amqp.Delivery) 
 		objName := re.Object.GetName()
 		if objName == nil {
 			// we don't know name of object, set enabled to true to not miss potential log
-			slog.DebugContext(ctx, fmt.Sprintf("object name not found in config"), slog.Int("eventId", event.DomainId))
+			slog.DebugContext(ctx, "object name not found in config", slog.Int("eventId", event.DomainId))
 			continue
 		}
 		populatedConfigs.Configs = append(populatedConfigs.Configs, &Config{

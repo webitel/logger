@@ -192,6 +192,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "xrwd", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -202,6 +203,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "xrwd", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -212,6 +214,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "xrwd", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -222,6 +225,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "xrwd", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -233,6 +237,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: false,
 		},
@@ -243,6 +248,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: false,
 		},
@@ -253,6 +259,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: false,
 		},
@@ -263,6 +270,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: false,
 		},
@@ -274,6 +282,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -284,6 +293,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -294,6 +304,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -304,6 +315,7 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -315,7 +327,8 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
-				superSelect: true,
+				superSelect:      true,
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -326,7 +339,8 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
-				superEdit: true,
+				superEdit:        true,
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -337,7 +351,8 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
-				superDelete: true,
+				superDelete:      true,
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -348,7 +363,8 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Access: "", Obac: false},
 				},
-				superCreate: true,
+				superCreate:      true,
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -736,6 +752,7 @@ func TestUserAuthSession_IsRbacCheckRequired(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Rbac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -746,6 +763,7 @@ func TestUserAuthSession_IsRbacCheckRequired(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Rbac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -756,6 +774,7 @@ func TestUserAuthSession_IsRbacCheckRequired(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Rbac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},
@@ -766,6 +785,7 @@ func TestUserAuthSession_IsRbacCheckRequired(t *testing.T) {
 				scopes: map[string]*Scope{
 					"chats": {Rbac: true},
 				},
+				mainObjClassName: "chats",
 			},
 			want: true,
 		},

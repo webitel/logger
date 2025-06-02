@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/webitel/logger/internal/watcher"
+	"strconv"
 	"time"
 
 	"log/slog"
@@ -219,8 +220,7 @@ func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWat
 		}
 		year, month, day := time.Now().Date()
 		fileName := fmt.Sprintf("log_%d_%d_%s_%d.json", configId, year, month, day)
-		uuid := fmt.Sprintf("%s-%d", logs[0].Object.Name, configId)
-		_, err = a.UploadFile(context.Background(), params.DomainId, uuid, *params.StorageId, buf, model.File{
+		_, err = a.UploadFile(context.Background(), params.DomainId, strconv.Itoa(configId), *params.StorageId, buf, model.File{
 			Name:     fileName,
 			MimeType: "application/json",
 			ViewName: &fileName,

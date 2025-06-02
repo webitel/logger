@@ -7,7 +7,7 @@ import (
 	"log/slog"
 )
 
-type WatcherRoutine func()
+type Routine func()
 
 // Watcher is the representative type for CRON jobs
 type Watcher struct {
@@ -21,7 +21,7 @@ type Watcher struct {
 	// startParams represents Watcher custom parameters
 	customExecutionParams *CustomExecutionParams
 	// routine represents the function called every interval
-	routine WatcherRoutine
+	routine Routine
 	// interval represents time between routine calls
 	interval time.Duration
 }
@@ -55,7 +55,7 @@ type CustomExecutionParams struct {
 }
 
 // NewWatcher constructs new watcher
-func NewWatcher(name string, startParams *StarterParams, customExecutionParams *CustomExecutionParams, interval time.Duration, routine WatcherRoutine) *Watcher {
+func NewWatcher(name string, startParams *StarterParams, customExecutionParams *CustomExecutionParams, interval time.Duration, routine Routine) *Watcher {
 	return &Watcher{
 		name:                  name,
 		stop:                  make(chan any),
@@ -67,7 +67,7 @@ func NewWatcher(name string, startParams *StarterParams, customExecutionParams *
 }
 
 // NewWatcher constructs new logs upload watcher
-func NewUploadWatcher(name string, startParams *StarterParams, customExecutionParams *CustomExecutionParams, params *UploadWatcherParams, pollingInterval time.Duration, pollAndNotify WatcherRoutine) *UploadWatcher {
+func NewUploadWatcher(name string, startParams *StarterParams, customExecutionParams *CustomExecutionParams, params *UploadWatcherParams, pollingInterval time.Duration, pollAndNotify Routine) *UploadWatcher {
 	return &UploadWatcher{
 		Watcher: Watcher{
 			name:                  name,

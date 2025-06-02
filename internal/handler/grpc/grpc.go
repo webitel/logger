@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 	"log/slog"
 	"net/http"
-	"strings"
 )
 
 var RequestContextKey = &struct{}{}
@@ -44,7 +43,7 @@ func Build(app Handler) (*grpc.Server, error) {
 
 func unaryInterceptor(ctx context.Context,
 	req interface{},
-	info *grpc.UnaryServerInfo,
+	_ *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (interface{}, error) {
 	var reqCtx context.Context
 	if md, ok := metadata.FromIncomingContext(ctx); ok {
@@ -98,13 +97,4 @@ func httpCodeToGrpc(c int) codes.Code {
 	default:
 		return codes.Unknown
 	}
-}
-
-func getClientIp(info metadata.MD) string {
-	ip := strings.Join(info.Get("x-real-ip"), ",")
-	if ip == "" {
-		ip = strings.Join(info.Get("x-forwarded-for"), ",")
-	}
-
-	return ip
 }

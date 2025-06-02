@@ -10,7 +10,7 @@ var noopPub = &FprintfPublisher{}
 
 type FprintfPublisher struct{}
 
-func (f *FprintfPublisher) Publish(ctx context.Context, routingKey string, body []byte, headers map[string]any) error {
+func (f *FprintfPublisher) Publish(_ context.Context, routingKey string, body []byte, _ map[string]any) error {
 	fmt.Printf("publish routing key: %s, body: %s\n", routingKey, body)
 	return nil
 }

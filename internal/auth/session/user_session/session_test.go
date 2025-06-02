@@ -2,7 +2,6 @@ package user_session
 
 import (
 	"github.com/webitel/logger/internal/auth"
-	"reflect"
 	"testing"
 )
 
@@ -466,98 +465,6 @@ func TestUserAuthSession_CheckObacAccess(t *testing.T) {
 	}
 }
 
-func TestUserAuthSession_GetDomainId(t *testing.T) {
-	type fields struct {
-		user             *User
-		permissions      []string
-		scopes           map[string]*Scope
-		license          map[string]bool
-		roles            []*Role
-		domainId         int64
-		expiresAt        int64
-		superCreate      bool
-		superEdit        bool
-		superDelete      bool
-		superSelect      bool
-		mainAccess       auth.AccessMode
-		mainObjClassName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   int
-	}{}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &UserAuthSession{
-				User:             tt.fields.user,
-				Permissions:      tt.fields.permissions,
-				Scopes:           tt.fields.scopes,
-				License:          tt.fields.license,
-				Roles:            tt.fields.roles,
-				DomainId:         int(tt.fields.domainId),
-				ExpiresAt:        tt.fields.expiresAt,
-				SuperCreate:      tt.fields.superCreate,
-				SuperEdit:        tt.fields.superEdit,
-				SuperDelete:      tt.fields.superDelete,
-				SuperSelect:      tt.fields.superSelect,
-				MainAccess:       tt.fields.mainAccess,
-				MainObjClassName: tt.fields.mainObjClassName,
-			}
-			if got := s.GetDomainId(); got != tt.want {
-				t.Errorf("GetDomainId() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestUserAuthSession_GetRoles(t *testing.T) {
-	type fields struct {
-		user             *User
-		permissions      []string
-		scopes           map[string]*Scope
-		license          map[string]bool
-		roles            []*Role
-		domainId         int64
-		expiresAt        int64
-		superCreate      bool
-		superEdit        bool
-		superDelete      bool
-		superSelect      bool
-		mainAccess       auth.AccessMode
-		mainObjClassName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   []int64
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &UserAuthSession{
-				User:             tt.fields.user,
-				Permissions:      tt.fields.permissions,
-				Scopes:           tt.fields.scopes,
-				License:          tt.fields.license,
-				Roles:            tt.fields.roles,
-				DomainId:         int(tt.fields.domainId),
-				ExpiresAt:        tt.fields.expiresAt,
-				SuperCreate:      tt.fields.superCreate,
-				SuperEdit:        tt.fields.superEdit,
-				SuperDelete:      tt.fields.superDelete,
-				SuperSelect:      tt.fields.superSelect,
-				MainAccess:       tt.fields.mainAccess,
-				MainObjClassName: tt.fields.mainObjClassName,
-			}
-			if got := s.GetRoles(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetRoles() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestUserAuthSession_GetUserId(t *testing.T) {
 	type fields struct {
 		user             *User
@@ -625,53 +532,6 @@ func TestUserAuthSession_GetUserId(t *testing.T) {
 			}
 			if got := s.GetUserId(); got != tt.want {
 				t.Errorf("GetUserId() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestUserAuthSession_IsExpired(t *testing.T) {
-	type fields struct {
-		user             *User
-		permissions      []string
-		scopes           map[string]*Scope
-		license          map[string]bool
-		roles            []*Role
-		domainId         int64
-		expiresAt        int64
-		superCreate      bool
-		superEdit        bool
-		superDelete      bool
-		superSelect      bool
-		mainAccess       auth.AccessMode
-		mainObjClassName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &UserAuthSession{
-				User:             tt.fields.user,
-				Permissions:      tt.fields.permissions,
-				Scopes:           tt.fields.scopes,
-				License:          tt.fields.license,
-				Roles:            tt.fields.roles,
-				DomainId:         int(tt.fields.domainId),
-				ExpiresAt:        tt.fields.expiresAt,
-				SuperCreate:      tt.fields.superCreate,
-				SuperEdit:        tt.fields.superEdit,
-				SuperDelete:      tt.fields.superDelete,
-				SuperSelect:      tt.fields.superSelect,
-				MainAccess:       tt.fields.mainAccess,
-				MainObjClassName: tt.fields.mainObjClassName,
-			}
-			if got := s.IsExpired(); got != tt.want {
-				t.Errorf("IsExpired() = %v, want %v", got, tt.want)
 			}
 		})
 	}

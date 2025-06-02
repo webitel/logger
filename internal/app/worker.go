@@ -101,7 +101,7 @@ func (a *App) UpdateLogCleanerWithNewInterval(ctx context.Context, configId, day
 	slog.InfoContext(ctx, fmt.Sprintf("[%s]: recreated with new parameters", name))
 }
 
-func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.WatcherRoutine {
+func (a *App) BuildLogCleanerFunction(configId, daysToStore int) watcher.Routine {
 	name := FormatKey(DeleteWatcherPrefix, configId)
 	logAttr := slog.Group(
 		"worker",
@@ -160,7 +160,7 @@ func (a *App) InsertLogUploader(configId int, startParams *watcher.StarterParams
 	go a.logUploaders[name].Start()
 }
 
-func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.WatcherRoutine {
+func (a *App) BuildWatcherUploadFunction(configId int, params *watcher.UploadWatcherParams) watcher.Routine {
 	name := FormatKey(UploadWatcherPrefix, configId)
 	format := func(text string) string {
 		return fmt.Sprintf("[%s]: %s", name, text)

@@ -62,7 +62,7 @@ func (t *NullTime) Scan(v interface{}) error {
 	switch v := v.(type) {
 	case time.Time:
 		// +OK: datetime
-		(*t) = (NullTime)(v) // shallowcopy
+		*t = (NullTime)(v) // shallowcopy
 		return nil
 	default:
 	}

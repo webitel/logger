@@ -50,7 +50,7 @@ func (t *NullString) Scan(v interface{}) error {
 	switch v := v.(type) {
 	case string:
 		// +OK: datetime
-		(*t) = (NullString)(v) // shallowcopy
+		*t = (NullString)(v) // shallowcopy
 		return nil
 	default:
 	}

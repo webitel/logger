@@ -109,10 +109,10 @@ func (l *LoginAttemptStore) Select(ctx context.Context, searchOpts *model.Search
 	return attempts, nil
 }
 
-func (c *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) squirrel.SelectBuilder {
+func (l *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) squirrel.SelectBuilder {
 	var fields []string
 	if opt == nil {
-		return c.GetQueryBase(c.getFields())
+		return l.GetQueryBase(l.getFields())
 	}
 	for _, v := range opt.Fields {
 		if columnName, ok := loginAttemptSelectMap[v]; ok {
@@ -123,9 +123,9 @@ func (c *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptio
 	}
 	if len(fields) == 0 {
 		fields = append(fields,
-			c.getFields()...)
+			l.getFields()...)
 	}
-	base := c.GetQueryBase(fields)
+	base := l.GetQueryBase(fields)
 	if opt.Search != "" {
 		base = base.Where(squirrel.Like{loginAttemptFilterMap[model.LoginAttemptFields.UserName]: opt.Search + "%"})
 	}
@@ -155,7 +155,7 @@ func (c *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptio
 	return base.Offset(uint64(offset))
 }
 
-func (c *LoginAttemptStore) GetQueryBase(fields []string) squirrel.SelectBuilder {
+func (l *LoginAttemptStore) GetQueryBase(fields []string) squirrel.SelectBuilder {
 	base := squirrel.Select(fields...).
 		From(loginAttemptTable).
 		JoinClause("LEFT JOIN directory.wbt_user ON wbt_user.id = login_attempt.user_id").
@@ -164,7 +164,7 @@ func (c *LoginAttemptStore) GetQueryBase(fields []string) squirrel.SelectBuilder
 	return base
 }
 
-func (c *LoginAttemptStore) getFields() []string {
+func (l *LoginAttemptStore) getFields() []string {
 	var fields []string
 	for _, value := range logFieldsSelectMap {
 		fields = append(fields, value)
@@ -172,7 +172,7 @@ func (c *LoginAttemptStore) getFields() []string {
 	return fields
 }
 
-func (c *LoginAttemptStore) GetScanPlan(columns []string) []func(*model.LoginAttempt) any {
+func (l *LoginAttemptStore) GetScanPlan(columns []string) []func(*model.LoginAttempt) any {
 	var binds []func(*model.LoginAttempt) any
 	for _, v := range columns {
 		var bind func(*model.LoginAttempt) any

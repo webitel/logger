@@ -55,8 +55,8 @@ type App struct {
 	emergencyStop chan error
 }
 
-func (app *App) Database() storage.Storage {
-	return app.storage
+func (a *App) Database() storage.Storage {
+	return a.storage
 }
 
 func New(config *model.AppConfig) (*App, error) {

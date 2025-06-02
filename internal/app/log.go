@@ -45,7 +45,7 @@ func (a *App) CreateLog(ctx context.Context, log *model.Log, domainId int) error
 		err error
 	)
 	defer func() {
-		notifyErr := a.watcherManager.Notify(LogsNotifierObject, notifier.EventTypeCreate, NewNotifierLogArgs(err == nil, log, domainId))
+		notifyErr := a.watcherManager.Notify(LogsNotifierObject, notifier.EventTypeCreate, NewNotifierLogArgs(err == nil, log))
 		if notifyErr != nil {
 			slog.ErrorContext(ctx, notifyErr.Error())
 		}
@@ -148,7 +148,7 @@ func (n *NotifierLogArgs) GetArgs() map[string]any {
 
 }
 
-func NewNotifierLogArgs(success bool, log *model.Log, domainId int) *NotifierLogArgs {
+func NewNotifierLogArgs(success bool, log *model.Log) *NotifierLogArgs {
 	return &NotifierLogArgs{OperationSucceeded: success, Log: log}
 }
 

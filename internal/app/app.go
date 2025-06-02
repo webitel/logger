@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"log/slog"
 	"net"
+	_ "net/http/pprof"
 	"time"
 
 	storagegrpc "github.com/webitel/logger/api/storage"
@@ -126,18 +127,18 @@ func (a *App) Start() error {
 	}
 
 	// config watcher
-	if a.config.Features.EnableSagaEvents {
+	if a.config.Features.EnableCrudEvents {
 		configSagaWatcher := notifier.NewDefaultWatcher()
-		sagaObserver := NewSagaObserver(a.brokerPublisher)
-		configSagaWatcher.Attach(notifier.EventTypeCreate, sagaObserver)
-		configSagaWatcher.Attach(notifier.EventTypeUpdate, sagaObserver)
-		configSagaWatcher.Attach(notifier.EventTypeDelete, sagaObserver)
+		crudObserver := NewCrudObserver(a.brokerPublisher)
+		configSagaWatcher.Attach(notifier.EventTypeCreate, crudObserver)
+		configSagaWatcher.Attach(notifier.EventTypeUpdate, crudObserver)
+		configSagaWatcher.Attach(notifier.EventTypeDelete, crudObserver)
 		a.watcherManager.AddWatcher(ConfigNotifierObject, configSagaWatcher)
 
 		logSagaWatcher := notifier.NewDefaultWatcher()
-		logSagaWatcher.Attach(notifier.EventTypeCreate, sagaObserver)
-		logSagaWatcher.Attach(notifier.EventTypeUpdate, sagaObserver)
-		logSagaWatcher.Attach(notifier.EventTypeDelete, sagaObserver)
+		logSagaWatcher.Attach(notifier.EventTypeCreate, crudObserver)
+		logSagaWatcher.Attach(notifier.EventTypeUpdate, crudObserver)
+		logSagaWatcher.Attach(notifier.EventTypeDelete, crudObserver)
 		a.watcherManager.AddWatcher(LogsNotifierObject, logSagaWatcher)
 	}
 

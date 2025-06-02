@@ -630,7 +630,7 @@ type Log struct {
 	UserIp        string                 `protobuf:"bytes,5,opt,name=user_ip,json=userIp,proto3" json:"user_ip,omitempty"`
 	NewState      string                 `protobuf:"bytes,6,opt,name=new_state,json=newState,proto3" json:"new_state,omitempty"`
 	ConfigId      int32                  `protobuf:"varint,7,opt,name=config_id,json=configId,proto3" json:"config_id,omitempty"`
-	Record        *Lookup                `protobuf:"bytes,8,opt,name=record,proto3" json:"record,omitempty"`
+	Record        *Record                `protobuf:"bytes,8,opt,name=record,proto3" json:"record,omitempty"`
 	Object        *Lookup                `protobuf:"bytes,9,opt,name=object,proto3" json:"object,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -715,7 +715,7 @@ func (x *Log) GetConfigId() int32 {
 	return 0
 }
 
-func (x *Log) GetRecord() *Lookup {
+func (x *Log) GetRecord() *Record {
 	if x != nil {
 		return x.Record
 	}
@@ -727,6 +727,58 @@ func (x *Log) GetObject() *Lookup {
 		return x.Object
 	}
 	return nil
+}
+
+type Record struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Record) Reset() {
+	*x = Record{}
+	mi := &file_logger_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Record) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Record) ProtoMessage() {}
+
+func (x *Record) ProtoReflect() protoreflect.Message {
+	mi := &file_logger_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Record.ProtoReflect.Descriptor instead.
+func (*Record) Descriptor() ([]byte, []int) {
+	return file_logger_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *Record) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Record) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 var File_logger_service_proto protoreflect.FileDescriptor
@@ -792,8 +844,11 @@ const file_logger_service_proto_rawDesc = "" +
 	"\auser_ip\x18\x05 \x01(\tR\x06userIp\x12\x1b\n" +
 	"\tnew_state\x18\x06 \x01(\tR\bnewState\x12\x1b\n" +
 	"\tconfig_id\x18\a \x01(\x05R\bconfigId\x12&\n" +
-	"\x06record\x18\b \x01(\v2\x0e.logger.LookupR\x06record\x12&\n" +
-	"\x06object\x18\t \x01(\v2\x0e.logger.LookupR\x06object*M\n" +
+	"\x06record\x18\b \x01(\v2\x0e.logger.RecordR\x06record\x12&\n" +
+	"\x06object\x18\t \x01(\v2\x0e.logger.LookupR\x06object\",\n" +
+	"\x06Record\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name*M\n" +
 	"\x06Action\x12\x15\n" +
 	"\x11default_no_action\x10\x00\x12\n" +
 	"\n" +
@@ -823,7 +878,7 @@ func file_logger_service_proto_rawDescGZIP() []byte {
 }
 
 var file_logger_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_logger_service_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_logger_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_logger_service_proto_goTypes = []any{
 	(Action)(0),                        // 0: logger.Action
 	(*SearchLogByConfigIdRequest)(nil), // 1: logger.SearchLogByConfigIdRequest
@@ -833,18 +888,19 @@ var file_logger_service_proto_goTypes = []any{
 	(*DeleteConfigLogsResponse)(nil),   // 5: logger.DeleteConfigLogsResponse
 	(*Logs)(nil),                       // 6: logger.Logs
 	(*Log)(nil),                        // 7: logger.Log
-	(AvailableSystemObjects)(0),        // 8: logger.AvailableSystemObjects
-	(*Lookup)(nil),                     // 9: logger.Lookup
+	(*Record)(nil),                     // 8: logger.Record
+	(AvailableSystemObjects)(0),        // 9: logger.AvailableSystemObjects
+	(*Lookup)(nil),                     // 10: logger.Lookup
 }
 var file_logger_service_proto_depIdxs = []int32{
 	0,  // 0: logger.SearchLogByConfigIdRequest.action:type_name -> logger.Action
 	0,  // 1: logger.SearchLogByUserIdRequest.action:type_name -> logger.Action
-	8,  // 2: logger.SearchLogByRecordIdRequest.object:type_name -> logger.AvailableSystemObjects
+	9,  // 2: logger.SearchLogByRecordIdRequest.object:type_name -> logger.AvailableSystemObjects
 	0,  // 3: logger.SearchLogByRecordIdRequest.action:type_name -> logger.Action
 	7,  // 4: logger.Logs.items:type_name -> logger.Log
-	9,  // 5: logger.Log.user:type_name -> logger.Lookup
-	9,  // 6: logger.Log.record:type_name -> logger.Lookup
-	9,  // 7: logger.Log.object:type_name -> logger.Lookup
+	10, // 5: logger.Log.user:type_name -> logger.Lookup
+	8,  // 6: logger.Log.record:type_name -> logger.Record
+	10, // 7: logger.Log.object:type_name -> logger.Lookup
 	2,  // 8: logger.LoggerService.SearchLogByUserId:input_type -> logger.SearchLogByUserIdRequest
 	1,  // 9: logger.LoggerService.SearchLogByConfigId:input_type -> logger.SearchLogByConfigIdRequest
 	3,  // 10: logger.LoggerService.SearchLogByRecordId:input_type -> logger.SearchLogByRecordIdRequest
@@ -870,7 +926,7 @@ func file_logger_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_logger_service_proto_rawDesc), len(file_logger_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

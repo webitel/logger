@@ -2085,7 +2085,7 @@ var file_ldap_proto_goTypes = []any{
 	(*LDAPSearchRequest_TLSConfig)(nil), // 19: api.LDAPSearchRequest.TLSConfig
 	(*UserId)(nil),                      // 20: api.UserId
 	(*structpb.Struct)(nil),             // 21: google.protobuf.Struct
-	(*ObjectId)(nil),                    // 22: api.Id
+	(*ObjectId)(nil),                    // 22: api.ObjectId
 	(*RoleId)(nil),                      // 23: api.RoleId
 }
 var file_ldap_proto_depIdxs = []int32{
@@ -2102,7 +2102,7 @@ var file_ldap_proto_depIdxs = []int32{
 	0,  // 10: api.SearchLDAPResponse.items:type_name -> api.LDAPCatalog
 	0,  // 11: api.UpdateLDAPRequest.catalog:type_name -> api.LDAPCatalog
 	9,  // 12: api.LDAProcessExecute.options:type_name -> api.LDAProcessOptions
-	22, // 13: api.LDAPTemplate.catalog:type_name -> api.Id
+	22, // 13: api.LDAPTemplate.catalog:type_name -> api.ObjectId
 	21, // 14: api.LDAPTemplate.role:type_name -> google.protobuf.Struct
 	21, // 15: api.LDAPTemplate.device:type_name -> google.protobuf.Struct
 	21, // 16: api.LDAPTemplate.user:type_name -> google.protobuf.Struct

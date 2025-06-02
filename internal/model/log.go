@@ -17,11 +17,11 @@ type Log struct {
 }
 
 type Record struct {
-	Id   *int    `db:"record_id"`
+	Id   *string `db:"record_id"`
 	Name *string `db:"record_name"`
 }
 
-func (r *Record) GetId() *int {
+func (r *Record) GetId() *string {
 	if r == nil {
 		return nil
 	}
@@ -35,7 +35,7 @@ func (r *Record) GetName() *string {
 	return r.Name
 }
 
-func (r *Record) SetId(id int) {
+func (r *Record) SetId(id string) {
 	if r == nil {
 		return
 	}

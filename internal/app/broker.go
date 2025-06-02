@@ -65,6 +65,9 @@ func (a *App) HandleLog(ctx context.Context, message amqp.Delivery) error {
 			Record:   &model.Record{Id: &record.Id},
 		}
 		date := time.UnixMilli(m.Date)
+		if date.IsZero() {
+			date = time.Now()
+		}
 		log.Date = &date
 
 		err = a.CreateLog(ctx, log, int(domain))
@@ -126,8 +129,7 @@ func (a *App) HandleLogin(ctx context.Context, message amqp.Delivery) error {
 }
 
 type PopulateConfigEventRequest struct {
-	EventId  string `json:"eventId,omitempty"`
-	DomainId int    `json:"domainId,omitempty"`
+	DomainId int `json:"domainId,omitempty"`
 }
 
 type Config struct {
@@ -136,8 +138,8 @@ type Config struct {
 }
 
 type PopulateConfigEventResponse struct {
-	EventId string    `json:"eventId,omitempty"`
-	Configs []*Config `json:"configs,omitempty"`
+	DomainId int       `json:"domainId,omitempty"`
+	Configs  []*Config `json:"configs,omitempty"`
 }
 
 func (a *App) initPopulateEventConsumption(exchangeConfig *broker.ExchangeConfig) error {
@@ -175,14 +177,14 @@ func (a *App) HandlePopulateConfigs(ctx context.Context, message amqp.Delivery) 
 		return err
 	}
 	populatedConfigs := PopulateConfigEventResponse{
-		EventId: event.EventId,
+		DomainId: event.DomainId,
 	}
 	for _, re := range res {
 		state := re.Enabled
 		objName := re.Object.GetName()
 		if objName == nil {
 			// we don't know name of object, set enabled to true to not miss potential log
-			slog.DebugContext(ctx, fmt.Sprintf("object name not found in config"), slog.String("eventId", event.EventId))
+			slog.DebugContext(ctx, fmt.Sprintf("object name not found in config"), slog.Int("eventId", event.DomainId))
 			continue
 		}
 		populatedConfigs.Configs = append(populatedConfigs.Configs, &Config{

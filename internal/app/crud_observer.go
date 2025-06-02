@@ -19,19 +19,19 @@ func (n *NoopPublisher) Publish(_ context.Context, _ string, _ []byte, _ amqp091
 	return nil
 }
 
-type SagaObserver struct {
+type CrudObserver struct {
 	publisher Publisher
 }
 
-func NewSagaObserver(publisher Publisher) *SagaObserver {
+func NewCrudObserver(publisher Publisher) *CrudObserver {
 	pub := publisher
 	if pub == nil {
 		pub = &NoopPublisher{}
 	}
-	return &SagaObserver{publisher: pub}
+	return &CrudObserver{publisher: pub}
 }
 
-func (l *SagaObserver) Update(eventType notifier.EventType, m map[string]any) error {
+func (l *CrudObserver) Update(eventType notifier.EventType, m map[string]any) error {
 	obj, ok := m["object"]
 	if !ok {
 		return errors.New("object not found")
@@ -51,13 +51,13 @@ func (l *SagaObserver) Update(eventType notifier.EventType, m map[string]any) er
 		operationStatus = "failure"
 	}
 
-	err = l.publisher.Publish(context.Background(), fmt.Sprintf("%s.%s.%s", m["objclass"], eventType, operationStatus), bytes, nil)
+	err = l.publisher.Publish(context.Background(), fmt.Sprintf("%s_%s.%s", m["objclass"], eventType, operationStatus), bytes, nil)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (l *SagaObserver) GetId() string {
-	return "SagaObserver"
+func (l *CrudObserver) GetId() string {
+	return "CrudObserver"
 }

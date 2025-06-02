@@ -1,83 +1,148 @@
 package client
 
-import "time"
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/google/uuid"
+	_ "github.com/mbobakov/grpc-consul-resolver"
+)
 
-type Client struct {
-	rabbit RabbitClient
-	grpc   GrpcClient
+type Action string
+
+func (a Action) String() string {
+	return string(a)
 }
 
-func (c *Client) IsOpened() bool {
-	return c.rabbit.IsOpened() && c.grpc.IsOpened()
+const (
+	CreateAction Action = "create"
+	UpdateAction Action = "update"
+	DeleteAction Action = "delete"
+	ReadAction   Action = "read"
+)
+
+type Logger struct {
+	publisher Publisher
+}
+type ObjectedLogger struct {
+	objClass string
+	parent   *Logger
+}
+type LoggerOpts func(*Logger) error
+
+type Publisher interface {
+	Publish(ctx context.Context, routingKey string, body []byte, headers map[string]any) error
 }
 
-// ! NewClient creates new client for logger.
-// * rabbitUrl - connection string to rabbit1 server
-// * consulAddress - address to connect to consul server
-func NewClient(rabbitUrl string, consulAddress string) (*Client, error) {
-	cli := &Client{grpc: NewGrpcClient(consulAddress)}
-	rab := NewRabbitClient(rabbitUrl, cli)
-	cli.rabbit = rab
-	return cli, nil
-}
-
-func (c *Client) Open() error {
-	err := c.rabbit.Open()
-	if err != nil {
-		return err
+func WithPublisher(publisher Publisher) LoggerOpts {
+	return func(client *Logger) error {
+		if publisher == nil {
+			return errors.New("publisher is nil")
+		}
+		client.publisher = publisher
+		return nil
 	}
-	err = c.grpc.Start()
-	if err != nil {
-		return err
+}
+
+func New(opts ...LoggerOpts) (*Logger, error) {
+	var err error
+	logger := &Logger{}
+	for _, opt := range opts {
+		err = opt(logger)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return nil
+	if logger.publisher == nil {
+		return nil, errors.New("publisher is nil")
+	}
+	return logger, nil
 }
 
-func (c *Client) Close() {
-	c.rabbit.Close()
-	c.grpc.Stop()
+func (l *Logger) GetObjectedLogger(object string) (*ObjectedLogger, error) {
+	if object == "" {
+		return nil, errors.New("object required")
+	}
+	return &ObjectedLogger{
+		objClass: object,
+		parent:   l,
+	}, nil
 }
 
-func (c *Client) Rabbit() RabbitClient {
-	return c.rabbit
+func (l *Logger) sendContext(ctx context.Context, domainId int64, object string, message *Message) (operationId string, err error) {
+	if object == "" {
+		return "", errors.New("no object")
+	}
+	if message == nil {
+		return "", errors.New("message required")
+	}
+	err = ValidateMessage(message)
+	if err != nil {
+		return "", err
+	}
+	message.OperationId = uuid.NewString()
+	body, err := json.Marshal(message)
+	if err != nil {
+		return operationId, err
+	}
+	err = l.publisher.Publish(ctx, formatKey(domainId, object), body, nil)
+	if err != nil {
+		return operationId, err
+	}
+	return operationId, nil
 }
 
-func (c *Client) Grpc() GrpcClient {
-	return c.grpc
+func (l *ObjectedLogger) SendContext(ctx context.Context, domainId int64, message *Message) (operationId string, err error) {
+	if l == nil {
+		return "", errors.New("logger is nil")
+	}
+	if l.parent == nil {
+		return "", errors.New("no parent logger")
+	}
+
+	return l.parent.sendContext(ctx, domainId, l.objClass, message)
 }
 
-func (c *Client) CreateAction(domainId int64, objectName string, userId int, userIp string) *Message {
-	mess := &Message{RequiredFields: RequiredFields{
-		UserId:     userId,
-		UserIp:     userIp,
-		Action:     string(CREATE_ACTION),
-		Date:       time.Now().Unix(),
-		DomainId:   domainId,
-		ObjectName: objectName,
-	}, client: c.Rabbit()}
-	return mess
+func (l *ObjectedLogger) GetObjClass() string {
+	return l.objClass
 }
 
-func (c *Client) UpdateAction(domainId int64, objectName string, userId int, userIp string) *Message {
-	mess := &Message{RequiredFields: RequiredFields{
-		UserId:     userId,
-		UserIp:     userIp,
-		Action:     string(UPDATE_ACTION),
-		Date:       time.Now().Unix(),
-		DomainId:   domainId,
-		ObjectName: objectName,
-	}, client: c.Rabbit()}
-	return mess
+// region UTILITY
+
+func formatKey(domainId int64, objClass string) string {
+	return fmt.Sprintf("logger.%d.%s", domainId, objClass)
 }
 
-func (c *Client) DeleteAction(domainId int64, objectName string, userId int, userIp string) *Message {
-	mess := &Message{RequiredFields: RequiredFields{
-		UserId:     userId,
-		UserIp:     userIp,
-		Action:     string(DELETE_ACTION),
-		Date:       time.Now().Unix(),
-		DomainId:   domainId,
-		ObjectName: objectName,
-	}, client: c.Rabbit()}
-	return mess
+func ValidateMessage(message *Message) error {
+	var errs []error
+	if message == nil {
+		return errors.New("message required")
+	}
+	if message.UserIp == "" {
+		errs = append(errs, errors.New("user ip required"))
+	}
+	if message.UserId <= 0 {
+		errs = append(errs, errors.New("user id required"))
+	}
+	if message.Date <= 0 {
+		errs = append(errs, errors.New("date required"))
+	}
+	switch message.Action {
+	case CreateAction.String():
+		fallthrough
+	case UpdateAction.String():
+		if message.Records == nil {
+			errs = append(errs, errors.New("records required"))
+		}
+	case DeleteAction.String():
+	default:
+		return errors.New("invalid action")
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.Join(errs...)
 }
+
+// endregion

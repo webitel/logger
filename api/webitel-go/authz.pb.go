@@ -360,7 +360,7 @@ var file_authz_proto_goTypes = []any{
 	(*UserinfoRequest)(nil), // 0: api.UserinfoRequest
 	(*Objclass)(nil),        // 1: api.Objclass
 	(*Userinfo)(nil),        // 2: api.Userinfo
-	(*ObjectId)(nil),        // 3: api.Id
+	(*ObjectId)(nil),        // 3: api.ObjectId
 	(*LicenseUser)(nil),     // 4: api.LicenseUser
 	(*Permission)(nil),      // 5: api.Permission
 	(*LoginRequest)(nil),    // 6: api.LoginRequest
@@ -368,7 +368,7 @@ var file_authz_proto_goTypes = []any{
 }
 var file_authz_proto_depIdxs = []int32{
 	1, // 0: api.Userinfo.scope:type_name -> api.Objclass
-	3, // 1: api.Userinfo.roles:type_name -> api.Id
+	3, // 1: api.Userinfo.roles:type_name -> api.ObjectId
 	4, // 2: api.Userinfo.license:type_name -> api.LicenseUser
 	5, // 3: api.Userinfo.permissions:type_name -> api.Permission
 	0, // 4: api.Auth.UserInfo:input_type -> api.UserinfoRequest

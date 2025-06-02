@@ -20,7 +20,7 @@ type BrokerLogMessageRequiredFields struct {
 }
 
 type LogEntity struct {
-	Id       int       `json:"id,omitempty"`
+	Id       string    `json:"id,omitempty"`
 	NewState BytesJSON `json:"newState,omitempty"`
 }
 

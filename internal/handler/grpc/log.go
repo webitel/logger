@@ -168,7 +168,14 @@ func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 			Object:   utils.MarshalLookup(m.Object),
 			NewState: string(m.NewState),
 			ConfigId: int32(m.ConfigId),
-			Record:   utils.MarshalLookup(m.Record),
+		}
+		if m.Record != nil {
+			if id := m.Record.GetId(); id != nil {
+				log.Record.Id = *id
+			}
+			if name := m.Record.GetName(); name != nil {
+				log.Record.Name = *name
+			}
 		}
 		if !m.Date.IsZero() {
 			log.Date = m.Date.UnixMilli()

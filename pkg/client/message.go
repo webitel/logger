@@ -1,86 +1,52 @@
 package client
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
+	"time"
 )
 
+type RequiredFields struct {
+	UserId      int    `json:"userId"`
+	UserIp      string `json:"userIp"`
+	Date        int64  `json:"date"`
+	Action      string `json:"action"`
+	OperationId string `json:"operationId"`
+}
+
+type Record struct {
+	Id       string `json:"id,omitempty"`
+	NewState any    `json:"newState,omitempty"`
+}
+
 type Message struct {
-	records        []*InputRecord
 	Records        []*Record `json:"records,omitempty"`
 	RequiredFields `json:"requiredFields"`
-	client         RabbitClient
 }
 
-type InputRecord struct {
-	Id     int64
-	Object any
-}
+type MessageOpts func(*Message) error
 
-func (r *InputRecord) TransformToOutput() (*Record, error) {
-	bytes, err := json.Marshal(r.Object)
-	if err != nil {
-		return nil, fmt.Errorf("error marshalling record: %s", err.Error())
-	}
-	return &Record{
-		Id:       r.Id,
-		NewState: bytes,
+func NewMessage(userId int64, userIp string, action Action, recordId string, recordBody any) (*Message, error) {
+	return &Message{
+		RequiredFields: RequiredFields{
+			UserId: int(userId),
+			UserIp: userIp,
+			Date:   time.Now().Unix(),
+			Action: action.String(),
+		},
+		Records: []*Record{{
+			Id:       recordId,
+			NewState: recordBody,
+		}},
 	}, nil
 }
 
-func (c *Message) Many(records []*InputRecord) *Message {
-	if len(records) == 0 {
-		return c
-	}
-	c.records = records
-	return c
+func NewCreateMessage(userId int64, userIp string, recordId string, recordBody any) (*Message, error) {
+	return NewMessage(userId, userIp, CreateAction, recordId, recordBody)
 }
 
-func (c *Message) checkRecordsValidity() error {
-	if c.Records == nil {
-		return fmt.Errorf("logger: no records data in message")
-	}
-	var canNil bool
-	switch c.Action {
-	case CREATE_ACTION.String(), UPDATE_ACTION.String():
-		canNil = false
-	case DELETE_ACTION.String():
-		canNil = true
-	}
-	if !canNil {
-		for _, record := range c.Records {
-			if len(record.NewState) == 0 {
-				return fmt.Errorf("logger: record has no data ( id: %d )", record.Id)
-			}
-		}
-	}
-
-	return nil
+func NewUpdateMessage(userId int64, userIp string, recordId string, recordBody any) (*Message, error) {
+	return NewMessage(userId, userIp, UpdateAction, recordId, recordBody)
 }
 
-func (c *Message) One(record *InputRecord) *Message {
-	if record == nil {
-		return c
-	}
-	c.records = append(c.records, record)
-	return c
-}
-
-func (c *Message) SendContext(ctx context.Context) error {
-	//if err := c.checkRecordsValidity(); err != nil {
-	//	return err
-	//}
-	for _, record := range c.records {
-		res, err := record.TransformToOutput()
-		if err != nil {
-			return err
-		}
-		c.Records = append(c.Records, res)
-	}
-	err := c.client.SendContext(ctx, c)
-	if err != nil {
-		return err
-	}
-	return nil
+func NewDeleteMessage(userId int64, userIp string, recordId string) (*Message, error) {
+	return NewMessage(userId, userIp, DeleteAction, recordId, nil)
 }

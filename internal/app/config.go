@@ -52,7 +52,7 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config, fields []strin
 		}
 	}
 
-	oldConfig, err := a.storage.Config().GetById(ctx, nil, in.Id, session.GetDomainId())
+	oldConfig, err := a.storage.Config().Get(ctx, nil, in.Id, session.GetDomainId())
 	if err != nil {
 		return nil, err
 	}
@@ -198,8 +198,7 @@ func (a *App) CheckConfigStatus(ctx context.Context, objectName string, domainId
 	if len(searchResult) == 0 {
 		return false, nil
 	}
-	enabled := searchResult[0].Enabled
-	return enabled, nil
+	return searchResult[0].Enabled, nil
 
 }
 
@@ -219,7 +218,7 @@ func (a *App) GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int
 			Access: session.GetMainAccessMode().Value(),
 		}
 	}
-	res, appErr := a.storage.Config().GetById(ctx, rbac, id, session.GetDomainId())
+	res, appErr := a.storage.Config().Get(ctx, rbac, id, session.GetDomainId())
 	if appErr != nil {
 		return nil, appErr
 	}

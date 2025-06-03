@@ -41,7 +41,7 @@ type ConfigStore interface {
 	CheckAccess(ctx context.Context, domainId, id int, groups []int, access uint8) (bool, error)
 
 	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, error)
-	GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error)
+	Get(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error)
 	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int, domainId int) (int, error)
 }
 

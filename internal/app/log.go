@@ -50,9 +50,16 @@ func (a *App) CreateLog(ctx context.Context, log *model.Log, domainId int) error
 			slog.ErrorContext(ctx, notifyErr.Error())
 		}
 	}()
-	err = a.storage.Log().Insert(ctx, log, domainId)
+	objectName := log.Object.GetName()
+	enabled, err := a.CheckConfigStatus(ctx, *objectName, domainId)
 	if err != nil {
 		return err
+	}
+	if enabled {
+		err = a.storage.Log().Insert(ctx, log, domainId)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -45,7 +45,7 @@ var (
 		model.ConfigFields.DaysToStore:     "object_config.days_to_store",
 		model.ConfigFields.Period:          "object_config.period",
 		model.ConfigFields.NextUploadOn:    "object_config.next_upload_on",
-		model.ConfigFields.Object:          "object_config.object_id",
+		model.ConfigFields.Object:          "object.name",
 		model.ConfigFields.Storage:         "object_config.storage_id",
 		model.ConfigFields.DomainId:        "object_config.domain_id",
 		model.ConfigFields.CreatedAt:       "object_config.created_at",
@@ -302,7 +302,7 @@ func (c *Config) GetByObjectId(ctx context.Context, domainId int, objectId int) 
 	return &config, nil
 }
 
-func (c *Config) GetById(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error) {
+func (c *Config) Get(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error) {
 	db, err := c.storage.Database()
 	if err != nil {
 		return nil, err

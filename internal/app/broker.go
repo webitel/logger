@@ -64,8 +64,8 @@ func (a *App) HandleLog(ctx context.Context, message amqp.Delivery) error {
 			Author:   &model.Author{Id: &m.UserId},
 			Record:   &model.Record{Id: &record.Id},
 		}
-		date := time.UnixMilli(m.Date)
-		if date.IsZero() {
+		date := time.Unix(m.Date, 0)
+		if m.Date == 0 {
 			date = time.Now()
 		}
 		log.Date = &date

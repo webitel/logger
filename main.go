@@ -1,9 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"github.com/webitel/logger/cmd/logger"
-	"log/slog"
-
 	// -------------------- plugin(s) -------------------- //
 	_ "github.com/webitel/webitel-go-kit/otel/sdk/log/otlp"
 	_ "github.com/webitel/webitel-go-kit/otel/sdk/log/stdout"
@@ -22,7 +21,7 @@ func main() {
 
 	err := logger.Run()
 	if err != nil {
-		slog.Error(err.Error())
+		fmt.Println(err.Error())
 		return
 	}
 

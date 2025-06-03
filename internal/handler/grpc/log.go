@@ -170,6 +170,7 @@ func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 			ConfigId: int32(m.ConfigId),
 		}
 		if m.Record != nil {
+			log.Record = &proto.Record{}
 			if id := m.Record.GetId(); id != nil {
 				log.Record.Id = *id
 			}

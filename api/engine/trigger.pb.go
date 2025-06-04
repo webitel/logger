@@ -76,18 +76,21 @@ type TriggerObjectType int32
 
 const (
 	TriggerObjectType_empty_trigger_object TriggerObjectType = 0
-	TriggerObjectType_case                 TriggerObjectType = 1
+	TriggerObjectType_cases                TriggerObjectType = 1
+	TriggerObjectType_case_files           TriggerObjectType = 2
 )
 
 // Enum value maps for TriggerObjectType.
 var (
 	TriggerObjectType_name = map[int32]string{
 		0: "empty_trigger_object",
-		1: "case",
+		1: "cases",
+		2: "case_files",
 	}
 	TriggerObjectType_value = map[string]int32{
 		"empty_trigger_object": 0,
-		"case":                 1,
+		"cases":                1,
+		"case_files":           2,
 	}
 )
 
@@ -1452,10 +1455,12 @@ const file_trigger_proto_rawDesc = "" +
 	"\vTriggerType\x12\x18\n" +
 	"\x14default_trigger_type\x10\x00\x12\b\n" +
 	"\x04cron\x10\x01\x12\t\n" +
-	"\x05event\x10\x02*7\n" +
+	"\x05event\x10\x02*H\n" +
 	"\x11TriggerObjectType\x12\x18\n" +
-	"\x14empty_trigger_object\x10\x00\x12\b\n" +
-	"\x04case\x10\x01*d\n" +
+	"\x14empty_trigger_object\x10\x00\x12\t\n" +
+	"\x05cases\x10\x01\x12\x0e\n" +
+	"\n" +
+	"case_files\x10\x02*d\n" +
 	"\x10TriggerEventType\x12\x17\n" +
 	"\x13empty_trigger_event\x10\x00\x12\n" +
 	"\n" +

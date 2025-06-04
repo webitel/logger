@@ -161,6 +161,9 @@ func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 
 	var res []*proto.Log
 	for _, m := range models {
+		if m == nil {
+			continue
+		}
 		log := &proto.Log{
 			Id:       int32(m.Id),
 			Action:   m.Action,

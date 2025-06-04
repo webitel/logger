@@ -6,3 +6,6 @@ alter table logger.object_config
         foreign key (object_id) references directory.wbt_class
             on update cascade on delete cascade;
 
+alter table logger.log
+    alter column record_id type text using record_id::text;
+

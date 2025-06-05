@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/webitel/logger/internal/model"
 	"github.com/webitel/logger/internal/storage"
-	otelpgx "github.com/webitel/webitel-go-kit/tracing/pgx"
+	otelpgx "github.com/webitel/webitel-go-kit/infra/otel/instrumentation/pgx"
 	"log/slog"
 
 	_ "github.com/jackc/pgx/stdlib"

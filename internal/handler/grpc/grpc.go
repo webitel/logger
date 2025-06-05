@@ -5,7 +5,7 @@ import (
 	proto "github.com/webitel/logger/api/logger"
 	autherrors "github.com/webitel/logger/internal/auth/errors"
 	"github.com/webitel/logger/internal/handler/grpc/errors"
-	otelgrpc "github.com/webitel/webitel-go-kit/tracing/grpc"
+	_ "github.com/webitel/webitel-go-kit/infra/otel/sdk/trace/otlp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -22,7 +22,7 @@ type Handler interface {
 }
 
 func Build(app Handler) (*grpc.Server, error) {
-	grpcServer := grpc.NewServer(grpc.StatsHandler(otelgrpc.NewServerHandler(otelgrpc.WithMessageEvents(otelgrpc.SentEvents, otelgrpc.ReceivedEvents))), grpc.UnaryInterceptor(unaryInterceptor))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(unaryInterceptor))
 	// * Creating services
 	l, appErr := NewLoggerService(app)
 	if appErr != nil {

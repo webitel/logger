@@ -90,7 +90,7 @@ func init() {
 	if ok {
 		v += ", (case "
 		for objectName, table := range recordTableMap {
-			v += fmt.Sprintf("when log.object_name = '%s' then (select %s.%s from %[2]s where id = record_id) ", objectName, table.Path, table.NameColumn)
+			v += fmt.Sprintf("when log.object_name = '%s' then (select %s.%s from %[2]s where id::text = record_id) ", objectName, table.Path, table.NameColumn)
 		}
 		v += " end) record_name"
 	}

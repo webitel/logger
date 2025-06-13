@@ -5,7 +5,7 @@ go 1.23.2
 toolchain go1.23.9
 
 require (
-	github.com/BoRuDar/configuration/v4 v4.2.2
+	github.com/BoRuDar/configuration/v4 v4.5.1
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/google/uuid v1.6.0

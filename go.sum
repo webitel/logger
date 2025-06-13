@@ -1,5 +1,5 @@
-github.com/BoRuDar/configuration/v4 v4.2.2 h1:WdfaEojEbQkQF74+mW4wv15PqS37mAqvEyzBC4knu/o=
-github.com/BoRuDar/configuration/v4 v4.2.2/go.mod h1:cqpHiIaJQnNEK4rLReWkBZTv2CyJqH8KMfq5HZsQGVg=
+github.com/BoRuDar/configuration/v4 v4.5.1 h1:JDPjkebfsSUFzmhahjvQnJVfE/JhVQEJFpai8R1cDSQ=
+github.com/BoRuDar/configuration/v4 v4.5.1/go.mod h1:cqpHiIaJQnNEK4rLReWkBZTv2CyJqH8KMfq5HZsQGVg=
 github.com/DataDog/datadog-go v3.2.0+incompatible/go.mod h1:LButxg5PwREeZtORoXG3tL4fMGNddJ+vMq1mwgfaqoQ=
 github.com/Masterminds/squirrel v1.5.4 h1:uUcX/aBc8O7Fg9kaISIUsHXdKuqehiXAMQTYX8afzqM=
 github.com/Masterminds/squirrel v1.5.4/go.mod h1:NNaOrjSoIDfDA40n7sr2tPNZRfjzjA400rg+riTZj10=

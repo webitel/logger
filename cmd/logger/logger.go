@@ -25,7 +25,7 @@ import (
 
 const (
 	name      = "logger"
-	version   = "25.04"
+	version   = "25.05"
 	namespace = "webitel"
 )
 

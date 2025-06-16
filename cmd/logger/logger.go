@@ -51,13 +51,13 @@ func Run() error {
 }
 
 func SetupOtel(serviceId string) (shutdown otelsdk.ShutdownFunc) {
-
 	service := resource.NewSchemaless(
 		semconv.ServiceName(name),
 		semconv.ServiceVersion(version),
 		semconv.ServiceInstanceID(serviceId),
 		semconv.ServiceNamespace(namespace),
 	)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	shutdown, err := otelsdk.Configure(context.Background(), otelsdk.WithResource(service),
 		otelsdk.WithLogBridge(
 			func() {
@@ -73,8 +73,6 @@ func SetupOtel(serviceId string) (shutdown otelsdk.ShutdownFunc) {
 		slog.Error(err.Error())
 		return
 	}
-	stdlog := otelslog.NewLogger(name)
-	slog.SetDefault(stdlog)
 	return shutdown
 }
 

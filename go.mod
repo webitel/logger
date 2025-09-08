@@ -1,8 +1,6 @@
 module github.com/webitel/logger
 
-go 1.23.2
-
-toolchain go1.23.9
+go 1.24.0
 
 require (
 	github.com/BoRuDar/configuration/v4 v4.2.2
@@ -23,7 +21,7 @@ require (
 	go.opentelemetry.io/otel v1.36.0
 	go.opentelemetry.io/otel/sdk v1.36.0
 	go.opentelemetry.io/otel/trace v1.36.0
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.17.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250519155744-55703ea1f237
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250519155744-55703ea1f237
 	google.golang.org/grpc v1.72.2

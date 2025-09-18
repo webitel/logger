@@ -1,9 +1,10 @@
 package user_session
 
 import (
-	"github.com/webitel/logger/internal/auth"
 	"strings"
 	"time"
+
+	"github.com/webitel/logger/internal/auth"
 )
 
 type UserAuthSession struct {
@@ -155,7 +156,10 @@ func (s *UserAuthSession) IsRbacCheckRequired() bool {
 // endregion
 
 func (s *UserAuthSession) IsExpired() bool {
-	return time.Now().UnixMilli() > s.ExpiresAt
+	if s.ExpiresAt > 0 {
+		return time.Now().UnixMilli() > s.ExpiresAt
+	}
+	return false //never expire
 }
 
 func (s *UserAuthSession) HasSuperPermission(permission auth.SuperPermission) bool {

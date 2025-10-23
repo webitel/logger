@@ -3,13 +3,14 @@ package grpc
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"strings"
+
 	proto "github.com/webitel/logger/api/logger"
 	"github.com/webitel/logger/internal/handler/grpc/utils"
 	"github.com/webitel/logger/internal/model"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"log/slog"
-	"strings"
 )
 
 type ConfigManager interface {
@@ -21,12 +22,13 @@ type ConfigManager interface {
 	GetConfigById(ctx context.Context, rbac *model.RbacOptions, id int) (*model.Config, error)
 	GetConfigByObjectId(ctx context.Context, objectId int, domainId int) (*model.Config, error)
 	CheckConfigStatus(ctx context.Context, objectName string, domainId int) (bool, error)
-	GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) ([]*model.SystemObject, error)
+	GetSystemObjects(ctx context.Context, searchOpts *model.SearchOptions, includeExisting bool) ([]*model.SystemObject, error)
 }
 
 type ConfigService struct {
-	app ConfigManager
 	proto.UnimplementedConfigServiceServer
+
+	app ConfigManager
 }
 
 func NewConfigService(app ConfigManager) (*ConfigService, error) {
@@ -54,23 +56,31 @@ func (s *ConfigService) ReadConfig(ctx context.Context, in *proto.ReadConfigRequ
 
 func (s *ConfigService) ReadSystemObjects(ctx context.Context, request *proto.ReadSystemObjectsRequest) (*proto.SystemObjects, error) {
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Bool("include_existing", request.GetIncludeExisting()))
-	objects, err := s.app.GetSystemObjects(ctx, request)
+	searchOpts := ExtractSearchOptions(request)
+	objects, err := s.app.GetSystemObjects(ctx, searchOpts, request.GetIncludeExisting())
+
 	if err != nil {
 		return nil, err
 	}
+
 	var resultObjects proto.SystemObjects
+
 	for _, object := range objects {
 		var obj proto.Lookup
+
 		id := object.GetId()
 		if id != nil {
 			obj.Id = int32(*id)
 		}
+
 		name := object.GetName()
 		if name != nil {
 			obj.Name = *name
 		}
+
 		resultObjects.Items = append(resultObjects.Items, &obj)
 	}
+
 	return &resultObjects, nil
 }
 
@@ -79,10 +89,12 @@ func (s *ConfigService) ReadConfigByObjectId(ctx context.Context, in *proto.Read
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Int("domain.id", int(in.GetDomainId())))
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("object.id", int(in.GetObjectId())))
+
 	config, err := s.app.GetConfigByObjectId(ctx, int(in.GetObjectId()), 0)
 	if err != nil {
 		return nil, err
 	}
+
 	message, err := s.Marshal(config)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
@@ -96,10 +108,12 @@ func (s *ConfigService) CheckConfigStatus(ctx context.Context, in *proto.CheckCo
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(attribute.Int("domain.id", int(in.GetDomainId())))
 	GroupAttributesAndBindToSpan(ctx, "in", attribute.String("object.name", in.GetObjectName()))
+
 	isEnabled, err := s.app.CheckConfigStatus(ctx, in.GetObjectName(), int(in.GetDomainId()))
 	if err != nil {
 		return nil, err
 	}
+
 	return &proto.ConfigStatus{IsEnabled: isEnabled}, nil
 }
 
@@ -109,11 +123,14 @@ func (s *ConfigService) SearchConfig(ctx context.Context, in *proto.SearchConfig
 		rbac *model.RbacOptions
 		res  proto.Configs
 	)
+
 	searchOpts := ExtractSearchOptions(in)
 	configs, err := s.app.SearchConfig(ctx, rbac, searchOpts)
+
 	if err != nil {
 		return nil, err
 	}
+
 	messages, err := s.Marshal(configs...)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
@@ -134,10 +151,12 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 	if err != nil {
 		return nil, err
 	}
+
 	config, err := s.app.UpdateConfig(ctx, mod, nil)
 	if err != nil {
 		return nil, err
 	}
+
 	message, err := s.Marshal(config)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
@@ -150,14 +169,17 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, in *proto.UpdateConfig
 // PatchConfig updates existing config
 func (s *ConfigService) PatchConfig(ctx context.Context, in *proto.PatchConfigRequest) (*proto.Config, error) {
 	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("config.id", int(in.GetConfigId())))
+
 	updatedConfigModel, err := ConvertPatchConfigMessageToModel(in)
 	if err != nil {
 		return nil, err
 	}
+
 	config, err := s.app.UpdateConfig(ctx, updatedConfigModel, in.GetFields())
 	if err != nil {
 		return nil, err
 	}
+
 	message, err := s.Marshal(config)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())

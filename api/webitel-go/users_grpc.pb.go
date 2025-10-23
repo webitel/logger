@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Users_ReadUser_FullMethodName    = "/api.Users/ReadUser"
-	Users_UpdateUser_FullMethodName  = "/api.Users/UpdateUser"
-	Users_DeleteUsers_FullMethodName = "/api.Users/DeleteUsers"
-	Users_CreateUser_FullMethodName  = "/api.Users/CreateUser"
-	Users_SearchUsers_FullMethodName = "/api.Users/SearchUsers"
-	Users_LogoutUser_FullMethodName  = "/api.Users/LogoutUser"
+	Users_ReadUser_FullMethodName       = "/api.Users/ReadUser"
+	Users_UpdateUser_FullMethodName     = "/api.Users/UpdateUser"
+	Users_DeleteUsers_FullMethodName    = "/api.Users/DeleteUsers"
+	Users_CreateUser_FullMethodName     = "/api.Users/CreateUser"
+	Users_SearchUsers_FullMethodName    = "/api.Users/SearchUsers"
+	Users_UpdatePassword_FullMethodName = "/api.Users/UpdatePassword"
+	Users_LogoutUser_FullMethodName     = "/api.Users/LogoutUser"
 )
 
 // UsersClient is the client API for Users service.
@@ -36,6 +37,7 @@ type UsersClient interface {
 	DeleteUsers(ctx context.Context, in *DeleteUsersRequest, opts ...grpc.CallOption) (*DeleteUsersResponse, error)
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error)
 	SearchUsers(ctx context.Context, in *SearchUsersRequest, opts ...grpc.CallOption) (*SearchUsersResponse, error)
+	UpdatePassword(ctx context.Context, in *UpdatePasswordRequest, opts ...grpc.CallOption) (*UpdatePasswordResponse, error)
 	LogoutUser(ctx context.Context, in *LogoutUserRequest, opts ...grpc.CallOption) (*LogoutUserResponse, error)
 }
 
@@ -97,6 +99,16 @@ func (c *usersClient) SearchUsers(ctx context.Context, in *SearchUsersRequest, o
 	return out, nil
 }
 
+func (c *usersClient) UpdatePassword(ctx context.Context, in *UpdatePasswordRequest, opts ...grpc.CallOption) (*UpdatePasswordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdatePasswordResponse)
+	err := c.cc.Invoke(ctx, Users_UpdatePassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *usersClient) LogoutUser(ctx context.Context, in *LogoutUserRequest, opts ...grpc.CallOption) (*LogoutUserResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LogoutUserResponse)
@@ -116,6 +128,7 @@ type UsersServer interface {
 	DeleteUsers(context.Context, *DeleteUsersRequest) (*DeleteUsersResponse, error)
 	CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
 	SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error)
+	UpdatePassword(context.Context, *UpdatePasswordRequest) (*UpdatePasswordResponse, error)
 	LogoutUser(context.Context, *LogoutUserRequest) (*LogoutUserResponse, error)
 	mustEmbedUnimplementedUsersServer()
 }
@@ -141,6 +154,9 @@ func (UnimplementedUsersServer) CreateUser(context.Context, *CreateUserRequest) 
 }
 func (UnimplementedUsersServer) SearchUsers(context.Context, *SearchUsersRequest) (*SearchUsersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchUsers not implemented")
+}
+func (UnimplementedUsersServer) UpdatePassword(context.Context, *UpdatePasswordRequest) (*UpdatePasswordResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePassword not implemented")
 }
 func (UnimplementedUsersServer) LogoutUser(context.Context, *LogoutUserRequest) (*LogoutUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LogoutUser not implemented")
@@ -256,6 +272,24 @@ func _Users_SearchUsers_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Users_UpdatePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsersServer).UpdatePassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Users_UpdatePassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsersServer).UpdatePassword(ctx, req.(*UpdatePasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Users_LogoutUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LogoutUserRequest)
 	if err := dec(in); err != nil {
@@ -300,6 +334,10 @@ var Users_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchUsers",
 			Handler:    _Users_SearchUsers_Handler,
+		},
+		{
+			MethodName: "UpdatePassword",
+			Handler:    _Users_UpdatePassword_Handler,
 		},
 		{
 			MethodName: "LogoutUser",

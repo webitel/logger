@@ -23,7 +23,7 @@ const (
 	Groups_CreateGroup_FullMethodName             = "/webitel.contacts.Groups/CreateGroup"
 	Groups_UpdateGroup_FullMethodName             = "/webitel.contacts.Groups/UpdateGroup"
 	Groups_DeleteGroup_FullMethodName             = "/webitel.contacts.Groups/DeleteGroup"
-	Groups_AddContactsToGroup_FullMethodName      = "/webitel.contacts.Groups/AddContactsToGroup"
+	Groups_AddContactsToGroups_FullMethodName     = "/webitel.contacts.Groups/AddContactsToGroups"
 	Groups_RemoveContactsFromGroup_FullMethodName = "/webitel.contacts.Groups/RemoveContactsFromGroup"
 	Groups_LocateGroup_FullMethodName             = "/webitel.contacts.Groups/LocateGroup"
 )
@@ -43,7 +43,7 @@ type GroupsClient interface {
 	// Delete a group.
 	DeleteGroup(ctx context.Context, in *DeleteGroupRequest, opts ...grpc.CallOption) (*Group, error)
 	// Add contacts to a group.
-	AddContactsToGroup(ctx context.Context, in *AddContactsToGroupRequest, opts ...grpc.CallOption) (*ContactList, error)
+	AddContactsToGroups(ctx context.Context, in *AddContactsToGroupRequest, opts ...grpc.CallOption) (*ContactList, error)
 	// Remove contacts from a group.
 	RemoveContactsFromGroup(ctx context.Context, in *RemoveContactsFromGroupRequest, opts ...grpc.CallOption) (*ContactList, error)
 	// Locate a group by ID.
@@ -98,10 +98,10 @@ func (c *groupsClient) DeleteGroup(ctx context.Context, in *DeleteGroupRequest, 
 	return out, nil
 }
 
-func (c *groupsClient) AddContactsToGroup(ctx context.Context, in *AddContactsToGroupRequest, opts ...grpc.CallOption) (*ContactList, error) {
+func (c *groupsClient) AddContactsToGroups(ctx context.Context, in *AddContactsToGroupRequest, opts ...grpc.CallOption) (*ContactList, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ContactList)
-	err := c.cc.Invoke(ctx, Groups_AddContactsToGroup_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Groups_AddContactsToGroups_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ type GroupsServer interface {
 	// Delete a group.
 	DeleteGroup(context.Context, *DeleteGroupRequest) (*Group, error)
 	// Add contacts to a group.
-	AddContactsToGroup(context.Context, *AddContactsToGroupRequest) (*ContactList, error)
+	AddContactsToGroups(context.Context, *AddContactsToGroupRequest) (*ContactList, error)
 	// Remove contacts from a group.
 	RemoveContactsFromGroup(context.Context, *RemoveContactsFromGroupRequest) (*ContactList, error)
 	// Locate a group by ID.
@@ -170,8 +170,8 @@ func (UnimplementedGroupsServer) UpdateGroup(context.Context, *UpdateGroupReques
 func (UnimplementedGroupsServer) DeleteGroup(context.Context, *DeleteGroupRequest) (*Group, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteGroup not implemented")
 }
-func (UnimplementedGroupsServer) AddContactsToGroup(context.Context, *AddContactsToGroupRequest) (*ContactList, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddContactsToGroup not implemented")
+func (UnimplementedGroupsServer) AddContactsToGroups(context.Context, *AddContactsToGroupRequest) (*ContactList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddContactsToGroups not implemented")
 }
 func (UnimplementedGroupsServer) RemoveContactsFromGroup(context.Context, *RemoveContactsFromGroupRequest) (*ContactList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveContactsFromGroup not implemented")
@@ -272,20 +272,20 @@ func _Groups_DeleteGroup_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Groups_AddContactsToGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Groups_AddContactsToGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddContactsToGroupRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(GroupsServer).AddContactsToGroup(ctx, in)
+		return srv.(GroupsServer).AddContactsToGroups(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Groups_AddContactsToGroup_FullMethodName,
+		FullMethod: Groups_AddContactsToGroups_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GroupsServer).AddContactsToGroup(ctx, req.(*AddContactsToGroupRequest))
+		return srv.(GroupsServer).AddContactsToGroups(ctx, req.(*AddContactsToGroupRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -350,8 +350,8 @@ var Groups_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Groups_DeleteGroup_Handler,
 		},
 		{
-			MethodName: "AddContactsToGroup",
-			Handler:    _Groups_AddContactsToGroup_Handler,
+			MethodName: "AddContactsToGroups",
+			Handler:    _Groups_AddContactsToGroups_Handler,
 		},
 		{
 			MethodName: "RemoveContactsFromGroup",

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
+
 	"github.com/webitel/logger/internal/auth"
 	"github.com/webitel/logger/internal/watcher"
 	notifier "github.com/webitel/webitel-go-kit/pkg/watcher"
-	"log/slog"
 
 	proto "github.com/webitel/logger/api/logger"
 	"github.com/webitel/logger/internal/model"
@@ -56,21 +58,30 @@ func (a *App) UpdateConfig(ctx context.Context, in *model.Config, fields []strin
 	if err != nil {
 		return nil, err
 	}
+
 	fieldsToUpd := fields
 	if len(fields) == 0 {
 		fieldsToUpd = model.GetConfigFields()
 	}
+
 	in.NextUploadOn = calculateNextPeriodFromNow(int32(in.Period))
+
 	newConfig, err = a.storage.Config().Update(ctx, in, fieldsToUpd, session.GetUserId())
 	if err != nil {
 		return nil, err
 	}
+
 	a.UpdateConfigWatchers(ctx, oldConfig, newConfig)
+
 	return newConfig, nil
 
 }
 
-func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsRequest) ([]*model.SystemObject, error) {
+func (a *App) GetSystemObjects(ctx context.Context, searchOpts *model.SearchOptions, includeExisting bool) ([]*model.SystemObject, error) {
+	if searchOpts == nil {
+		return nil, errors.New("search options is nil")
+	}
+
 	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
 	if err != nil {
 		return nil, err
@@ -79,12 +90,28 @@ func (a *App) GetSystemObjects(ctx context.Context, in *proto.ReadSystemObjectsR
 	if !session.CheckObacAccess() {
 		return nil, a.MakeScopeError(session.GetMainObjClassName())
 	}
-	var filters []string
-	for _, name := range proto.AvailableSystemObjects_name {
-		filters = append(filters, name)
+
+	var (
+		filters   []string
+		search    = searchOpts.Search
+		isMatched func(str, substr string) bool
+	)
+	if search != "" {
+		isMatched = strings.Contains
+	} else {
+		isMatched = func(_, _ string) bool {
+			return true
+		}
 	}
-	return a.storage.Config().GetAvailableSystemObjects(ctx, session.GetDomainId(), in.GetIncludeExisting(),
-		filters...)
+
+	for _, name := range proto.AvailableSystemObjects_name {
+		if isMatched(name, search) {
+			filters = append(filters, name)
+		}
+
+	}
+
+	return a.storage.Config().GetAvailableSystemObjects(ctx, session.GetDomainId(), includeExisting, filters...)
 
 }
 

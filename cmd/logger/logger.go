@@ -2,17 +2,19 @@ package logger
 
 import (
 	"context"
-	"github.com/BoRuDar/configuration/v4"
-	"github.com/webitel/logger/internal/app"
-	"github.com/webitel/logger/internal/model"
-	otelsdk "github.com/webitel/webitel-go-kit/infra/otel/sdk"
-	"go.opentelemetry.io/contrib/bridges/otelslog"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/BoRuDar/configuration/v4"
+	otelsdk "github.com/webitel/webitel-go-kit/infra/otel/sdk"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+
+	"github.com/webitel/logger/internal/app"
+	"github.com/webitel/logger/internal/model"
 
 	// -------------------- plugin(s) -------------------- //
 	_ "github.com/webitel/webitel-go-kit/infra/otel/sdk/log/otlp"
@@ -25,7 +27,7 @@ import (
 
 const (
 	name      = "logger"
-	version   = "25.05"
+	version   = "26.02"
 	namespace = "webitel"
 )
 

@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net"
+	_ "net/http/pprof"
+	"time"
+
 	_ "github.com/mbobakov/grpc-consul-resolver"
 	"github.com/webitel/logger/internal/auth"
 	autherror "github.com/webitel/logger/internal/auth/errors"
@@ -20,10 +25,6 @@ import (
 	notifier "github.com/webitel/webitel-go-kit/pkg/watcher"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"log/slog"
-	"net"
-	_ "net/http/pprof"
-	"time"
 
 	storagegrpc "github.com/webitel/logger/api/storage"
 )
@@ -55,9 +56,7 @@ type App struct {
 	emergencyStop chan error
 }
 
-func (a *App) Database() storage.Storage {
-	return a.storage
-}
+func (a *App) Database() storage.Storage { return a.storage }
 
 func New(config *model.AppConfig) (*App, error) {
 	app := &App{config: config, emergencyStop: make(chan error), watcherManager: notifier.NewDefaultWatcherManager(true)}
@@ -90,13 +89,16 @@ func New(config *model.AppConfig) (*App, error) {
 
 	app.file = storagegrpc.NewFileServiceClient(app.storageConn)
 
-	app.webitelAppConn, err = grpc.NewClient(fmt.Sprintf("consul://%s/go.webitel.app?wait=14s", config.Consul.Address),
+	app.webitelAppConn, err = grpc.NewClient(
+		fmt.Sprintf("consul://%s/go.webitel.app?wait=14s", config.Consul.Address),
 		grpc.WithDefaultServiceConfig(`{"loadBalancingPolicy": "round_robin"}`),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
+
 	if err != nil {
 		return nil, err
 	}
+
 	app.sessionManager, err = webitel_app.New(app.webitelAppConn)
 	if err != nil {
 		return nil, err
@@ -105,9 +107,7 @@ func New(config *model.AppConfig) (*App, error) {
 	return app, nil
 }
 
-func (a *App) GetConfig() *model.AppConfig {
-	return a.config
-}
+func (a *App) GetConfig() *model.AppConfig { return a.config }
 
 func (a *App) Start() error {
 
@@ -247,6 +247,11 @@ func (a *App) initBroker() error {
 	if err != nil {
 		return err
 	}
+
+	if err := a.initDomainCreationConsumption(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

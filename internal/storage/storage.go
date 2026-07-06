@@ -43,6 +43,7 @@ type ConfigStore interface {
 	GetByObjectId(ctx context.Context, domainId int, objectId int) (*model.Config, error)
 	Get(ctx context.Context, rbac *model.RbacOptions, id int, domainId int) (*model.Config, error)
 	DeleteMany(ctx context.Context, rbac *model.RbacOptions, ids []int, domainId int) (int, error)
+	InsertPreconfiguredLoggersConfig(ctx context.Context, cmd *model.InsertPreconfiguredLoggersConfigCommand) error
 }
 
 type LoginAttemptStore interface {

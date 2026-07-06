@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/georgysavva/scany/v2/pgxscan"
-	"github.com/webitel/logger/internal/storage"
 	"strings"
 	"time"
+
+	"github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/jackc/pgx/v5"
+	"github.com/webitel/logger/internal/storage"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
@@ -346,6 +348,62 @@ func (c *Config) Select(ctx context.Context, opt *model.SearchOptions, rbac *mod
 	}
 	return configs, nil
 
+}
+
+func (c *Config) InsertPreconfiguredLoggersConfig(ctx context.Context, cmd *model.InsertPreconfiguredLoggersConfigCommand) error {
+	query := `
+		with created_by_user as (
+			select u.id
+			from directory.wbt_user u
+			where u.dc = @DomainID
+			order by id
+			limit 1
+		),
+		object_ids as (
+			select distinct on (wc.name) wc.id
+			from directory.wbt_class wc
+			where wc.dc = @DomainID
+			and wc.name = any(@AvailableNames)
+			order by wc.name, wc.id
+		)
+		insert into logger.object_config (
+			"enabled", "days_to_store", "period", "domain_id", "created_at", "created_by", "object_id", "description", "next_upload_on"
+		)
+		select
+			false,
+			70,
+			7,
+			@DomainID,
+			now(),
+			u.id,
+			o.id,
+			'',
+			now() + interval '7 days'
+		from object_ids o
+		cross join created_by_user u
+		where not exists (
+			select 1
+			from logger.object_config loc
+			where loc.object_id = o.id
+			and loc.domain_id = @DomainID
+		);
+	`
+
+	args := pgx.NamedArgs{
+		"DomainID":       cmd.DomainID,
+		"AvailableNames": cmd.AvailableObjectNames,
+	}
+
+	db, err := c.storage.Database()
+	if err != nil {
+		return err
+	}
+
+	if _, err := db.Exec(ctx, query, args); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // endregion

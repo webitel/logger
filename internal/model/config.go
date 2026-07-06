@@ -145,3 +145,8 @@ func GetConfigFields() []string {
 		ConfigFields.LogsCount,
 	}
 }
+
+type InsertPreconfiguredLoggersConfigCommand struct {
+	DomainID             int
+	AvailableObjectNames []string
+}

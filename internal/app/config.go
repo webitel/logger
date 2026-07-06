@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/webitel/logger/internal/auth"
@@ -18,6 +20,10 @@ import (
 const (
 	ConfigNotifierObject = "config"
 )
+
+func availableSystemObjectsName() []string {
+	return slices.Collect(maps.Keys(proto.AvailableSystemObjects_value))
+}
 
 func (a *App) UpdateConfig(ctx context.Context, in *model.Config, fields []string) (*model.Config, error) {
 	var (

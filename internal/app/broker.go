@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/webitel/logger/internal/model"
-	broker "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
-	slogadapter "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
 	"log/slog"
 	"strconv"
 	"strings"
 	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/webitel/logger/internal/model"
+	broker "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq"
+	slogadapter "github.com/webitel/webitel-go-kit/infra/pubsub/rabbitmq/pkg/adapter/slog"
 )
 
 func (a *App) initLogsConsumption(exchangeConfig *broker.ExchangeConfig) error {
@@ -159,6 +160,68 @@ func (a *App) initPopulateEventConsumption(exchangeConfig *broker.ExchangeConfig
 
 	cons := broker.NewConsumer(a.rabbitConn, queueConf, consConfig, a.HandlePopulateConfigs, slogadapter.NewSlogLogger(slog.Default()))
 	return cons.Start(context.Background())
+}
+
+func (a *App) initDomainCreationConsumption() error {
+	exchangeCfg, err := broker.NewExchangeConfig("webitel", broker.ExchangeTypeTopic)
+	if err != nil {
+		return err
+	}
+
+	queueConf, err := broker.NewQueueConfig("logger.domain", broker.WithQueueTypeQuorum())
+	if err != nil {
+		return err
+	}
+
+	consumerCfg, err := broker.NewConsumerConfig("logger_domain_" + a.config.Consul.Id)
+	if err != nil {
+		return err
+	}
+
+	if err = a.rabbitConn.DeclareQueue(context.Background(), queueConf, exchangeCfg, "domains.create.*"); err != nil {
+		return err
+	}
+
+	cons := broker.NewConsumer(a.rabbitConn, queueConf, consumerCfg, a.HandleDomaiCreation, slogadapter.NewSlogLogger(slog.Default()))
+
+	return cons.Start(context.Background())
+}
+
+func (a *App) HandleDomaiCreation(ctx context.Context, message amqp.Delivery) error {
+	rk := message.RoutingKey
+	splitted := strings.Split(rk, ".")
+
+	if splittedLength := len(splitted); splittedLength < 3 {
+		slog.Warn("received domain created event with invalid length", slog.String("rk", rk), slog.Int("received_length", splittedLength))
+
+		return nil
+	}
+
+	const (
+		rkNamePart int = iota
+		rkActionPart
+		rkIDPart
+	)
+
+	domainId, err := strconv.Atoi(splitted[rkIDPart])
+	if err != nil {
+		slog.Warn("parsing domain id from routing key", slog.String("rk", rk), slog.Any("error", err))
+
+		return nil
+	}
+
+	cmd := &model.InsertPreconfiguredLoggersConfigCommand{
+		DomainID:             domainId,
+		AvailableObjectNames: availableSystemObjectsName(),
+	}
+
+	if err := a.storage.Config().InsertPreconfiguredLoggersConfig(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "inserting preconfigured loggers config", slog.Int("domain_id", cmd.DomainID), slog.Any("error", err))
+
+		return err
+	}
+
+	return nil
 }
 
 // populate_configs

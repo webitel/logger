@@ -38,6 +38,4 @@ type SearchOptions struct {
 	Fields []string `json:"fields,omitempty"`
 }
 
-func (s *SearchOptions) GetSize() int {
-	return s.Size
-}
+func (s *SearchOptions) GetSize() int { return s.Size }

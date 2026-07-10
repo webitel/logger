@@ -410,6 +410,31 @@ func (c *Config) InsertPreconfiguredLoggersConfig(ctx context.Context, cmd *mode
 
 // region SYSTEM FUNCTIONS
 
+func configDefaultOrder() string { return "object_name" }
+
+func GetConfigSort(s *model.SearchOptions) string {
+	if s.Sort == "" {
+		return configDefaultOrder()
+	}
+
+	splitted := strings.Split(s.Sort, ":")
+	if len(splitted) != 2 {
+		return configDefaultOrder()
+	}
+
+	order := splitted[0]
+	column := splitted[1]
+
+	switch column {
+	case model.ConfigFields.Object:
+		column = "object_name"
+	case model.ConfigFields.Storage:
+		column = "storage_name"
+	}
+
+	return column + " " + order
+}
+
 func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *model.RbacOptions) sq.SelectBuilder {
 	var fields []string
 
@@ -431,26 +456,11 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 	if opt.Search != "" {
 		base = base.Where(sq.ILike{"object.name": opt.Search + "%"})
 	}
-	if opt.Sort != "" {
-		splitted := strings.Split(opt.Sort, ":")
-		if len(splitted) == 2 {
-			order := splitted[0]
-			column := splitted[1]
-			// Lookup columns -- order by name
-			switch column {
-			case model.ConfigFields.Object:
-				column = "object_name"
-			case model.ConfigFields.Storage:
-				column = "storage_name"
-			}
-			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
-		}
-	}
+
+	base = base.OrderBy(GetConfigSort(opt))
+
 	if opt.Size > 0 {
-		offset := (opt.Page - 1) * opt.Size
-		if offset < 0 {
-			offset = 0
-		}
+		offset := max((opt.Page-1)*opt.Size, 0)
 		base = base.Offset(uint64(offset)).Limit(uint64(opt.Size))
 	}
 

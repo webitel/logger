@@ -40,6 +40,18 @@ func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, fi
 	return modelLogs, nil
 }
 
+func (a *App) GetLog(ctx context.Context, id int) (*model.Log, error) {
+	session, err := a.AuthorizeFromContext(ctx, model.ScopeLog, auth.Read)
+	if err != nil {
+		return nil, err
+	}
+	// OBAC check
+	if !session.CheckObacAccess() {
+		return nil, a.MakeScopeError(session.GetMainObjClassName())
+	}
+	return a.storage.Log().Get(ctx, id)
+}
+
 func (a *App) CreateLog(ctx context.Context, log *model.Log, domainId int) error {
 	var (
 		err error

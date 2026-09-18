@@ -26,6 +26,7 @@ type Storage interface {
 type LogStore interface {
 	Insert(ctx context.Context, log *model.Log, domainId int) error
 	Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, error)
+	Get(ctx context.Context, id int) (*model.Log, error)
 	InsertBulk(ctx context.Context, log []*model.Log, domainId int) (int, error)
 	Delete(ctx context.Context, earlierThan time.Time, configId int) (int, error)
 }

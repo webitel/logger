@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/georgysavva/scany/v2/pgxscan"
-	"github.com/webitel/logger/internal/storage"
 	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/jackc/pgx/v5"
+
 	"github.com/webitel/logger/internal/model"
+	"github.com/webitel/logger/internal/storage"
+	storageerrors "github.com/webitel/logger/internal/storage/errors"
 )
 
 var (
@@ -133,6 +136,28 @@ func (c *Log) Select(ctx context.Context, opt *model.SearchOptions, filters any)
 		return nil, err
 	}
 	return logs, nil
+}
+
+func (c *Log) Get(ctx context.Context, id int) (*model.Log, error) {
+	db, err := c.storage.Database()
+	if err != nil {
+		return nil, err
+	}
+	base := c.GetQueryBase(c.getFields()).
+		Where(sq.Eq{logFieldsFilterMap[model.LogFields.Id]: id})
+	query, args, err := base.ToSql()
+	if err != nil {
+		return nil, err
+	}
+	var log model.Log
+	err = pgxscan.Get(ctx, db, &log, query, args...)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, storageerrors.NewDBNotFoundError("postgres.log.get.not_found", fmt.Sprintf("log id %d not found", id))
+		}
+		return nil, err
+	}
+	return &log, nil
 }
 
 func (c *Log) Insert(ctx context.Context, log *model.Log, domainId int) error {

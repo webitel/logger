@@ -5,6 +5,7 @@ import (
 	deferr "errors"
 	"github.com/webitel/logger/internal/handler/grpc/errors"
 	"github.com/webitel/logger/internal/handler/grpc/utils"
+	storageerrors "github.com/webitel/logger/internal/storage/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"log/slog"
@@ -15,8 +16,12 @@ import (
 	proto "github.com/webitel/logger/api/logger"
 )
 
+// ScmObjectName is the logged object whose new_state is a full flow scheme dump.
+const ScmObjectName = "schema"
+
 type LogManager interface {
 	SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, filters *model.LogFilters) ([]*model.Log, error)
+	GetLog(ctx context.Context, id int) (*model.Log, error)
 	DeleteLogs(ctx context.Context, configId int, earlierThan time.Time) (int, error)
 }
 
@@ -132,6 +137,29 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	return &res, nil
 }
 
+func (s *LoggerService) GetLog(ctx context.Context, in *proto.GetLogRequest) (*proto.Log, error) {
+	GroupIncomingAttributesAndBindToSpan(ctx, attribute.Int("log.id", int(in.GetId())))
+	if in.GetId() == 0 {
+		return nil, errors.NewBadRequestError("app.api_log.get_log.check_args.error", "log id required")
+	}
+	m, err := s.app.GetLog(ctx, int(in.GetId()))
+	if err != nil {
+		var notFoundErr *storageerrors.DBNotFoundError
+		if deferr.As(err, &notFoundErr) {
+			return nil, errors.NewNotFoundError("app.api_log.get_log.not_found.error", "log not found")
+		}
+		return nil, err
+	}
+	messages, err := s.Marshal(m)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, ConversionError
+	}
+	res := messages[0]
+	res.NewState = string(m.NewState)
+	return res, nil
+}
+
 // region utility
 
 // Fills the
@@ -169,8 +197,10 @@ func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 			Action:   m.Action,
 			User:     utils.MarshalLookup(m.Author),
 			Object:   utils.MarshalLookup(m.Object),
-			NewState: string(m.NewState),
 			ConfigId: int32(m.ConfigId),
+		}
+		if name := m.Object.GetName(); name == nil || *name != ScmObjectName {
+			log.NewState = string(m.NewState)
 		}
 		if m.Record != nil {
 			log.Record = &proto.Record{}

@@ -463,6 +463,50 @@ func (x *SearchLogByRecordIdRequest) GetDateTo() int64 {
 	return 0
 }
 
+type GetLogRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int32                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLogRequest) Reset() {
+	*x = GetLogRequest{}
+	mi := &file_logger_service_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLogRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLogRequest) ProtoMessage() {}
+
+func (x *GetLogRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_logger_service_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLogRequest.ProtoReflect.Descriptor instead.
+func (*GetLogRequest) Descriptor() ([]byte, []int) {
+	return file_logger_service_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetLogRequest) GetId() int32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
 type DeleteConfigLogsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required
@@ -475,7 +519,7 @@ type DeleteConfigLogsRequest struct {
 
 func (x *DeleteConfigLogsRequest) Reset() {
 	*x = DeleteConfigLogsRequest{}
-	mi := &file_logger_service_proto_msgTypes[3]
+	mi := &file_logger_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +531,7 @@ func (x *DeleteConfigLogsRequest) String() string {
 func (*DeleteConfigLogsRequest) ProtoMessage() {}
 
 func (x *DeleteConfigLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_logger_service_proto_msgTypes[3]
+	mi := &file_logger_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +544,7 @@ func (x *DeleteConfigLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConfigLogsRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConfigLogsRequest) Descriptor() ([]byte, []int) {
-	return file_logger_service_proto_rawDescGZIP(), []int{3}
+	return file_logger_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeleteConfigLogsRequest) GetConfigId() int64 {
@@ -526,7 +570,7 @@ type DeleteConfigLogsResponse struct {
 
 func (x *DeleteConfigLogsResponse) Reset() {
 	*x = DeleteConfigLogsResponse{}
-	mi := &file_logger_service_proto_msgTypes[4]
+	mi := &file_logger_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -538,7 +582,7 @@ func (x *DeleteConfigLogsResponse) String() string {
 func (*DeleteConfigLogsResponse) ProtoMessage() {}
 
 func (x *DeleteConfigLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_logger_service_proto_msgTypes[4]
+	mi := &file_logger_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -551,7 +595,7 @@ func (x *DeleteConfigLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConfigLogsResponse.ProtoReflect.Descriptor instead.
 func (*DeleteConfigLogsResponse) Descriptor() ([]byte, []int) {
-	return file_logger_service_proto_rawDescGZIP(), []int{4}
+	return file_logger_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DeleteConfigLogsResponse) GetProcessed() int64 {
@@ -572,7 +616,7 @@ type Logs struct {
 
 func (x *Logs) Reset() {
 	*x = Logs{}
-	mi := &file_logger_service_proto_msgTypes[5]
+	mi := &file_logger_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +628,7 @@ func (x *Logs) String() string {
 func (*Logs) ProtoMessage() {}
 
 func (x *Logs) ProtoReflect() protoreflect.Message {
-	mi := &file_logger_service_proto_msgTypes[5]
+	mi := &file_logger_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +641,7 @@ func (x *Logs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Logs.ProtoReflect.Descriptor instead.
 func (*Logs) Descriptor() ([]byte, []int) {
-	return file_logger_service_proto_rawDescGZIP(), []int{5}
+	return file_logger_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Logs) GetPage() int32 {
@@ -638,7 +682,7 @@ type Log struct {
 
 func (x *Log) Reset() {
 	*x = Log{}
-	mi := &file_logger_service_proto_msgTypes[6]
+	mi := &file_logger_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +694,7 @@ func (x *Log) String() string {
 func (*Log) ProtoMessage() {}
 
 func (x *Log) ProtoReflect() protoreflect.Message {
-	mi := &file_logger_service_proto_msgTypes[6]
+	mi := &file_logger_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +707,7 @@ func (x *Log) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Log.ProtoReflect.Descriptor instead.
 func (*Log) Descriptor() ([]byte, []int) {
-	return file_logger_service_proto_rawDescGZIP(), []int{6}
+	return file_logger_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Log) GetId() int32 {
@@ -739,7 +783,7 @@ type Record struct {
 
 func (x *Record) Reset() {
 	*x = Record{}
-	mi := &file_logger_service_proto_msgTypes[7]
+	mi := &file_logger_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +795,7 @@ func (x *Record) String() string {
 func (*Record) ProtoMessage() {}
 
 func (x *Record) ProtoReflect() protoreflect.Message {
-	mi := &file_logger_service_proto_msgTypes[7]
+	mi := &file_logger_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,7 +808,7 @@ func (x *Record) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Record.ProtoReflect.Descriptor instead.
 func (*Record) Descriptor() ([]byte, []int) {
-	return file_logger_service_proto_rawDescGZIP(), []int{7}
+	return file_logger_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Record) GetId() string {
@@ -825,7 +869,9 @@ const file_logger_service_proto_rawDesc = "" +
 	"\auser_id\x18\t \x03(\x03R\x06userId\x12\x17\n" +
 	"\auser_ip\x18\v \x01(\tR\x06userIp\x12\x1b\n" +
 	"\tdate_from\x18\f \x01(\x03R\bdateFrom\x12\x17\n" +
-	"\adate_to\x18\r \x01(\x03R\x06dateTo\"U\n" +
+	"\adate_to\x18\r \x01(\x03R\x06dateTo\"\x1f\n" +
+	"\rGetLogRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x05R\x02id\"U\n" +
 	"\x17DeleteConfigLogsRequest\x12\x1b\n" +
 	"\tconfig_id\x18\x01 \x01(\x03R\bconfigId\x12\x1d\n" +
 	"\n" +
@@ -857,11 +903,12 @@ const file_logger_service_proto_rawDesc = "" +
 	"\x06update\x10\x02\x12\b\n" +
 	"\x04read\x10\x03\x12\n" +
 	"\n" +
-	"\x06delete\x10\x042\xe6\x02\n" +
+	"\x06delete\x10\x042\xae\x03\n" +
 	"\rLoggerService\x12h\n" +
 	"\x11SearchLogByUserId\x12 .logger.SearchLogByUserIdRequest\x1a\f.logger.Logs\"#\x82\xd3\xe4\x93\x02\x1d\x12\x1b/logger/user/{user_id}/logs\x12p\n" +
 	"\x13SearchLogByConfigId\x12\".logger.SearchLogByConfigIdRequest\x1a\f.logger.Logs\"'\x82\xd3\xe4\x93\x02!\x12\x1f/logger/config/{config_id}/logs\x12y\n" +
-	"\x13SearchLogByRecordId\x12\".logger.SearchLogByRecordIdRequest\x1a\f.logger.Logs\"0\x82\xd3\xe4\x93\x02*\x12(/logger/{object}/record/{record_id}/logsB~\n" +
+	"\x13SearchLogByRecordId\x12\".logger.SearchLogByRecordIdRequest\x1a\f.logger.Logs\"0\x82\xd3\xe4\x93\x02*\x12(/logger/{object}/record/{record_id}/logs\x12F\n" +
+	"\x06GetLog\x12\x15.logger.GetLogRequest\x1a\v.logger.Log\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/logger/log/{id}B~\n" +
 	"\n" +
 	"com.loggerB\x12LoggerServiceProtoP\x01Z$github.com/webitel/api/logger;logger\xa2\x02\x03LXX\xaa\x02\x06Logger\xca\x02\x06Logger\xe2\x02\x12Logger\\GPBMetadata\xea\x02\x06Loggerb\x06proto3"
 
@@ -878,37 +925,40 @@ func file_logger_service_proto_rawDescGZIP() []byte {
 }
 
 var file_logger_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_logger_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_logger_service_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_logger_service_proto_goTypes = []any{
 	(Action)(0),                        // 0: logger.Action
 	(*SearchLogByConfigIdRequest)(nil), // 1: logger.SearchLogByConfigIdRequest
 	(*SearchLogByUserIdRequest)(nil),   // 2: logger.SearchLogByUserIdRequest
 	(*SearchLogByRecordIdRequest)(nil), // 3: logger.SearchLogByRecordIdRequest
-	(*DeleteConfigLogsRequest)(nil),    // 4: logger.DeleteConfigLogsRequest
-	(*DeleteConfigLogsResponse)(nil),   // 5: logger.DeleteConfigLogsResponse
-	(*Logs)(nil),                       // 6: logger.Logs
-	(*Log)(nil),                        // 7: logger.Log
-	(*Record)(nil),                     // 8: logger.Record
-	(AvailableSystemObjects)(0),        // 9: logger.AvailableSystemObjects
-	(*Lookup)(nil),                     // 10: logger.Lookup
+	(*GetLogRequest)(nil),              // 4: logger.GetLogRequest
+	(*DeleteConfigLogsRequest)(nil),    // 5: logger.DeleteConfigLogsRequest
+	(*DeleteConfigLogsResponse)(nil),   // 6: logger.DeleteConfigLogsResponse
+	(*Logs)(nil),                       // 7: logger.Logs
+	(*Log)(nil),                        // 8: logger.Log
+	(*Record)(nil),                     // 9: logger.Record
+	(AvailableSystemObjects)(0),        // 10: logger.AvailableSystemObjects
+	(*Lookup)(nil),                     // 11: logger.Lookup
 }
 var file_logger_service_proto_depIdxs = []int32{
 	0,  // 0: logger.SearchLogByConfigIdRequest.action:type_name -> logger.Action
 	0,  // 1: logger.SearchLogByUserIdRequest.action:type_name -> logger.Action
-	9,  // 2: logger.SearchLogByRecordIdRequest.object:type_name -> logger.AvailableSystemObjects
+	10, // 2: logger.SearchLogByRecordIdRequest.object:type_name -> logger.AvailableSystemObjects
 	0,  // 3: logger.SearchLogByRecordIdRequest.action:type_name -> logger.Action
-	7,  // 4: logger.Logs.items:type_name -> logger.Log
-	10, // 5: logger.Log.user:type_name -> logger.Lookup
-	8,  // 6: logger.Log.record:type_name -> logger.Record
-	10, // 7: logger.Log.object:type_name -> logger.Lookup
+	8,  // 4: logger.Logs.items:type_name -> logger.Log
+	11, // 5: logger.Log.user:type_name -> logger.Lookup
+	9,  // 6: logger.Log.record:type_name -> logger.Record
+	11, // 7: logger.Log.object:type_name -> logger.Lookup
 	2,  // 8: logger.LoggerService.SearchLogByUserId:input_type -> logger.SearchLogByUserIdRequest
 	1,  // 9: logger.LoggerService.SearchLogByConfigId:input_type -> logger.SearchLogByConfigIdRequest
 	3,  // 10: logger.LoggerService.SearchLogByRecordId:input_type -> logger.SearchLogByRecordIdRequest
-	6,  // 11: logger.LoggerService.SearchLogByUserId:output_type -> logger.Logs
-	6,  // 12: logger.LoggerService.SearchLogByConfigId:output_type -> logger.Logs
-	6,  // 13: logger.LoggerService.SearchLogByRecordId:output_type -> logger.Logs
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
+	4,  // 11: logger.LoggerService.GetLog:input_type -> logger.GetLogRequest
+	7,  // 12: logger.LoggerService.SearchLogByUserId:output_type -> logger.Logs
+	7,  // 13: logger.LoggerService.SearchLogByConfigId:output_type -> logger.Logs
+	7,  // 14: logger.LoggerService.SearchLogByRecordId:output_type -> logger.Logs
+	8,  // 15: logger.LoggerService.GetLog:output_type -> logger.Log
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -926,7 +976,7 @@ func file_logger_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_logger_service_proto_rawDesc), len(file_logger_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

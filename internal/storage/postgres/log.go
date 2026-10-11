@@ -241,6 +241,13 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 				column = "object_name"
 			case model.LogFields.Record:
 				column = "record_name"
+			default:
+				if len(opt.SortOrder) != 0 {
+					base = base.OrderByClause(
+						fmt.Sprintf("array_position(?::text[], (%s)::text) %s NULLS LAST", column, order),
+						opt.SortOrder,
+					)
+				}
 			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}

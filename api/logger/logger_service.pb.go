@@ -90,6 +90,7 @@ type SearchLogByConfigIdRequest struct {
 	UserIp        string                 `protobuf:"bytes,10,opt,name=user_ip,json=userIp,proto3" json:"user_ip,omitempty"`
 	DateFrom      int64                  `protobuf:"varint,11,opt,name=date_from,json=dateFrom,proto3" json:"date_from,omitempty"`
 	DateTo        int64                  `protobuf:"varint,12,opt,name=date_to,json=dateTo,proto3" json:"date_to,omitempty"`
+	SortOrder     string                 `protobuf:"bytes,13,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -201,6 +202,13 @@ func (x *SearchLogByConfigIdRequest) GetDateTo() int64 {
 	return 0
 }
 
+func (x *SearchLogByConfigIdRequest) GetSortOrder() string {
+	if x != nil {
+		return x.SortOrder
+	}
+	return ""
+}
+
 type SearchLogByUserIdRequest struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Page   int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
@@ -217,6 +225,7 @@ type SearchLogByUserIdRequest struct {
 	UserIp        string   `protobuf:"bytes,9,opt,name=user_ip,json=userIp,proto3" json:"user_ip,omitempty"`
 	DateFrom      int64    `protobuf:"varint,11,opt,name=date_from,json=dateFrom,proto3" json:"date_from,omitempty"`
 	DateTo        int64    `protobuf:"varint,12,opt,name=date_to,json=dateTo,proto3" json:"date_to,omitempty"`
+	SortOrder     string   `protobuf:"bytes,13,opt,name=sort_order,json=sortOrder,proto3" json:"sort_order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -326,6 +335,13 @@ func (x *SearchLogByUserIdRequest) GetDateTo() int64 {
 		return x.DateTo
 	}
 	return 0
+}
+
+func (x *SearchLogByUserIdRequest) GetSortOrder() string {
+	if x != nil {
+		return x.SortOrder
+	}
+	return ""
 }
 
 type SearchLogByRecordIdRequest struct {
@@ -829,7 +845,7 @@ var File_logger_service_proto protoreflect.FileDescriptor
 
 const file_logger_service_proto_rawDesc = "" +
 	"\n" +
-	"\x14logger_service.proto\x12\x06logger\x1a\x1cgoogle/api/annotations.proto\x1a\fimport.proto\"\xab\x02\n" +
+	"\x14logger_service.proto\x12\x06logger\x1a\x1cgoogle/api/annotations.proto\x1a\fimport.proto\"\xca\x02\n" +
 	"\x1aSearchLogByConfigIdRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x05R\x04size\x12\f\n" +
@@ -842,7 +858,9 @@ const file_logger_service_proto_rawDesc = "" +
 	"\auser_ip\x18\n" +
 	" \x01(\tR\x06userIp\x12\x1b\n" +
 	"\tdate_from\x18\v \x01(\x03R\bdateFrom\x12\x17\n" +
-	"\adate_to\x18\f \x01(\x03R\x06dateTo\"\xa9\x02\n" +
+	"\adate_to\x18\f \x01(\x03R\x06dateTo\x12\x1d\n" +
+	"\n" +
+	"sort_order\x18\r \x01(\tR\tsortOrder\"\xc8\x02\n" +
 	"\x18SearchLogByUserIdRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x05R\x04size\x12\f\n" +
@@ -855,7 +873,9 @@ const file_logger_service_proto_rawDesc = "" +
 	"\x06action\x18\b \x03(\x0e2\x0e.logger.ActionR\x06action\x12\x17\n" +
 	"\auser_ip\x18\t \x01(\tR\x06userIp\x12\x1b\n" +
 	"\tdate_from\x18\v \x01(\x03R\bdateFrom\x12\x17\n" +
-	"\adate_to\x18\f \x01(\x03R\x06dateTo\"\xe3\x02\n" +
+	"\adate_to\x18\f \x01(\x03R\x06dateTo\x12\x1d\n" +
+	"\n" +
+	"sort_order\x18\r \x01(\tR\tsortOrder\"\xe3\x02\n" +
 	"\x1aSearchLogByRecordIdRequest\x12\x12\n" +
 	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x05R\x04size\x12\f\n" +

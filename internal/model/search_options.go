@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strings"
 )
 
 const (
@@ -34,8 +35,21 @@ type SearchOptions struct {
 	Size   int    `json:"size,omitempty"`
 	Search string `json:"q,omitempty"`
 
-	Sort   string   `json:"sort,omitempty"`
-	Fields []string `json:"fields,omitempty"`
+	Sort      string   `json:"sort,omitempty"`
+	SortOrder []string `json:"sort_order,omitempty"`
+	Fields    []string `json:"fields,omitempty"`
+}
+
+func ParseSortOrder(s string) []string {
+	var res []string
+
+	for _, v := range strings.Split(s, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			res = append(res, v)
+		}
+	}
+
+	return res
 }
 
 func (s *SearchOptions) GetSize() int { return s.Size }

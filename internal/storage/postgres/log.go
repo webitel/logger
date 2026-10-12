@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/webitel/logger/internal/storage"
 	storageerrors "github.com/webitel/logger/internal/storage/errors"
 )
+
+var sortFieldPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$`)
 
 var (
 	logFieldsSelectMap = map[string]string{
@@ -230,7 +233,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
-		if len(splitted) == 2 {
+		if len(splitted) == 2 && (splitted[0] == "ASC" || splitted[0] == "DESC") && sortFieldPattern.MatchString(splitted[1]) {
 			order := splitted[0]
 			column := splitted[1]
 			// Lookup columns -- order by name
@@ -244,7 +247,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 			default:
 				if len(opt.SortOrder) != 0 {
 					base = base.OrderByClause(
-						fmt.Sprintf("array_position(?::text[], (%s)::text) %s NULLS LAST", column, order),
+						fmt.Sprintf("array_position(?::text[], %s::text) %s NULLS LAST", column, order),
 						opt.SortOrder,
 					)
 				}

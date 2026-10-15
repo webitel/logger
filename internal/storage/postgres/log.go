@@ -19,6 +19,10 @@ import (
 
 var sortFieldPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$`)
 
+func validSort(order, column string) bool {
+	return (order == "ASC" || order == "DESC") && sortFieldPattern.MatchString(column)
+}
+
 var (
 	logFieldsSelectMap = map[string]string{
 		model.LogFields.Id:       "log.id",
@@ -219,8 +223,6 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	for _, v := range opt.Fields {
 		if columnName, ok := logFieldsSelectMap[v]; ok {
 			fields = append(fields, columnName)
-		} else {
-			fields = append(fields, v)
 		}
 	}
 	if len(fields) == 0 {
@@ -233,7 +235,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
-		if len(splitted) == 2 && (splitted[0] == "ASC" || splitted[0] == "DESC") && sortFieldPattern.MatchString(splitted[1]) {
+		if len(splitted) == 2 && validSort(splitted[0], splitted[1]) {
 			order := splitted[0]
 			column := splitted[1]
 			// Lookup columns -- order by name

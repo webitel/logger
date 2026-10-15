@@ -425,6 +425,10 @@ func GetConfigSort(s *model.SearchOptions) string {
 	order := splitted[0]
 	column := splitted[1]
 
+	if !validSort(order, column) {
+		return configDefaultOrder()
+	}
+
 	switch column {
 	case model.ConfigFields.Object:
 		column = "object_name"
@@ -444,8 +448,6 @@ func (c *Config) GetQueryBaseFromSearchOptions(opt *model.SearchOptions, rbac *m
 	for _, v := range opt.Fields {
 		if columnName, ok := configFieldsSelectMap[v]; ok {
 			fields = append(fields, columnName)
-		} else {
-			fields = append(fields, v)
 		}
 	}
 	if len(fields) == 0 {

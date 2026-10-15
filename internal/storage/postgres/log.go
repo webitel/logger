@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,12 @@ import (
 	"github.com/webitel/logger/internal/storage"
 	storageerrors "github.com/webitel/logger/internal/storage/errors"
 )
+
+var sortFieldPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$`)
+
+func validSort(order, column string) bool {
+	return (order == "ASC" || order == "DESC") && sortFieldPattern.MatchString(column)
+}
 
 var (
 	logFieldsSelectMap = map[string]string{
@@ -216,8 +223,6 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	for _, v := range opt.Fields {
 		if columnName, ok := logFieldsSelectMap[v]; ok {
 			fields = append(fields, columnName)
-		} else {
-			fields = append(fields, v)
 		}
 	}
 	if len(fields) == 0 {
@@ -230,7 +235,7 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
-		if len(splitted) == 2 {
+		if len(splitted) == 2 && validSort(splitted[0], splitted[1]) {
 			order := splitted[0]
 			column := splitted[1]
 			// Lookup columns -- order by name
@@ -241,6 +246,13 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 				column = "object_name"
 			case model.LogFields.Record:
 				column = "record_name"
+			default:
+				if len(opt.SortOrder) != 0 {
+					base = base.OrderByClause(
+						fmt.Sprintf("array_position(?::text[], %s::text) %s NULLS LAST", column, order),
+						opt.SortOrder,
+					)
+				}
 			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}

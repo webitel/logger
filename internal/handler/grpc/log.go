@@ -92,6 +92,7 @@ func (s *LoggerService) SearchLogByUserId(ctx context.Context, in *proto.SearchL
 
 	// perform
 	searchOpts := ExtractSearchOptions(in)
+	searchOpts.SortOrder = model.ParseSortOrder(in.GetSortOrder())
 	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
 		return nil, err
@@ -123,6 +124,7 @@ func (s *LoggerService) SearchLogByConfigId(ctx context.Context, in *proto.Searc
 	}
 
 	searchOpts := ExtractSearchOptions(in)
+	searchOpts.SortOrder = model.ParseSortOrder(in.GetSortOrder())
 	models, err := s.app.SearchLogs(ctx, searchOpts, filters)
 	if err != nil {
 		return nil, err

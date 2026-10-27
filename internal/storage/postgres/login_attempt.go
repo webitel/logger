@@ -117,8 +117,6 @@ func (l *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptio
 	for _, v := range opt.Fields {
 		if columnName, ok := loginAttemptSelectMap[v]; ok {
 			fields = append(fields, columnName)
-		} else {
-			fields = append(fields, v)
 		}
 	}
 	if len(fields) == 0 {
@@ -131,7 +129,7 @@ func (l *LoginAttemptStore) GetQueryBaseFromSearchOptions(opt *model.SearchOptio
 	}
 	if opt.Sort != "" {
 		splitted := strings.Split(opt.Sort, ":")
-		if len(splitted) == 2 {
+		if len(splitted) == 2 && validSort(splitted[0], splitted[1]) {
 			order := splitted[0]
 			column := splitted[1]
 			// Lookup columns -- order by name

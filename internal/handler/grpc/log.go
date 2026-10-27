@@ -3,13 +3,14 @@ package grpc
 import (
 	"context"
 	deferr "errors"
+	"log/slog"
+	"time"
+
 	"github.com/webitel/logger/internal/handler/grpc/errors"
 	"github.com/webitel/logger/internal/handler/grpc/utils"
 	storageerrors "github.com/webitel/logger/internal/storage/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"log/slog"
-	"time"
 
 	"github.com/webitel/logger/internal/model"
 
@@ -186,7 +187,6 @@ func extractDefaultFiltersFromLogSearch(in LogSearcher) *model.LogFilters {
 }
 
 func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
-
 	var res []*proto.Log
 	for _, m := range models {
 		if m == nil {
@@ -199,21 +199,27 @@ func (s *LoggerService) Marshal(models ...*model.Log) ([]*proto.Log, error) {
 			Object:   utils.MarshalLookup(m.Object),
 			ConfigId: int32(m.ConfigId),
 		}
+
 		if name := m.Object.GetName(); name == nil || *name != ScmObjectName {
 			log.NewState = string(m.NewState)
 		}
+
 		if m.Record != nil {
 			log.Record = &proto.Record{}
+
 			if id := m.Record.GetId(); id != nil {
 				log.Record.Id = *id
 			}
+
 			if name := m.Record.GetName(); name != nil {
 				log.Record.Name = *name
 			}
 		}
-		if !m.Date.IsZero() {
-			log.Date = m.Date.UnixMilli()
+
+		if d := m.Date; d != nil && !d.IsZero() {
+			log.Date = d.UnixMilli()
 		}
+
 		if m.UserIp != nil {
 			log.UserIp = *m.UserIp
 		}

@@ -2,14 +2,15 @@ package app
 
 import (
 	"context"
+	"io"
+	"log/slog"
+	"time"
+
 	storageModel "github.com/webitel/logger/api/storage"
 	"github.com/webitel/logger/internal/auth"
 	"github.com/webitel/logger/internal/model"
 	notifier "github.com/webitel/webitel-go-kit/pkg/watcher"
 	grpc "google.golang.org/grpc"
-	"io"
-	"log/slog"
-	"time"
 )
 
 const (
@@ -23,20 +24,16 @@ func (a *App) SearchLogs(ctx context.Context, searchOpt *model.SearchOptions, fi
 	if err != nil {
 		return nil, err
 	}
-	// OBAC check
+
 	if !session.CheckObacAccess() {
 		return nil, a.MakeScopeError(session.GetMainObjClassName())
 	}
-	// region PERFORM
-	modelLogs, err := a.storage.Log().Select(
-		ctx,
-		searchOpt,
-		filters.ExtractFilters(),
-	)
+
+	modelLogs, err := a.storage.Log().Select(ctx, searchOpt, filters.ExtractFilters())
 	if err != nil {
 		return nil, err
 	}
-	// endregion
+
 	return modelLogs, nil
 }
 

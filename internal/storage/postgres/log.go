@@ -112,29 +112,31 @@ func newLogStore(store *Store) (storage.LogStore, error) {
 }
 
 func (c *Log) Select(ctx context.Context, opt *model.SearchOptions, filters any) ([]*model.Log, error) {
-	var (
-		query string
-		args  []any
-	)
 	db, err := c.storage.Database()
 	if err != nil {
 		return nil, err
 	}
+
 	base, err := storage.ApplyFiltersToBuilderBulk(c.GetQueryBaseFromSearchOptions(opt), logFieldsFilterMap, filters)
 	if err != nil {
 		return nil, err
 	}
-	switch req := base.(type) {
-	case sq.SelectBuilder:
-		query, args, _ = req.ToSql()
-	default:
-		return nil, errors.New("base of query is of wrong type")
+
+	sb, ok := base.(sq.SelectBuilder)
+	if !ok {
+		return nil, fmt.Errorf("base query has incorrect type: %T", base)
 	}
-	var logs []*model.Log
-	err = pgxscan.Select(ctx, db, &logs, query, args...)
+
+	stmt, args, err := sb.ToSql()
 	if err != nil {
 		return nil, err
 	}
+
+	var logs []*model.Log
+	if err = pgxscan.Select(ctx, db, &logs, stmt, args...); err != nil {
+		return nil, err
+	}
+
 	return logs, nil
 }
 
@@ -236,11 +238,13 @@ func (c *Log) GetQueryBaseFromSearchOptions(opt *model.SearchOptions) sq.SelectB
 			// Lookup columns -- order by name
 			switch column {
 			case model.LogFields.User:
-				column = "user_name"
+				column = "created_by_name"
 			case model.LogFields.Object:
 				column = "object_name"
 			case model.LogFields.Record:
 				column = "record_name"
+			case "user_id":
+				column = "created_by_id"
 			}
 			base = base.OrderBy(fmt.Sprintf("%s %s", column, order))
 		}
